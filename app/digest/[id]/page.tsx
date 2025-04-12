@@ -1,15 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ArrowLeft,
-  Bookmark,
-  Share2,
-  MessageCircle,
-  ThumbsUp,
-  Calendar,
-  Clock,
-  User,
-} from "lucide-react";
+import { ArrowLeft, Bookmark, Share2, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import BottomNav from "@/components/bottom-nav";
@@ -32,17 +23,16 @@ export default function DigestPage({ params }: { params: { id: string } }) {
     image: "/placeholder.svg?height=400&width=800",
     summary:
       "이 영상은 2025년 인공지능 기술의 발전 방향과 산업에 미치는 영향에 대해 분석합니다. 특히 생성형 AI와 자율주행 기술의 발전이 주목됩니다.",
-    keyPoints: [
-      "생성형 AI는 텍스트와 이미지를 넘어 동영상 및 3D 콘텐츠 생성으로 확장될 것",
-      "의료 AI는 질병 진단 및 신약 개발 분야에서 획기적인 발전을 이룰 것",
-      "레벨 4 이상의 자율주행 기술이 더 넓은 상업적 채택을 볼 것",
-      "개인화된 AI 비서가 일상 생활의 모든 측면으로 확장될 것",
-    ],
     content: `
       <h2>인공지능 기술의 현재와 미래</h2>
       <p>2025년 인공지능 기술은 이전보다 더욱 발전된 형태로 우리 일상에 깊숙이 자리 잡게 될 것으로 예상됩니다. 특히 생성형 AI와 자율주행 기술의 발전이 주목됩니다.</p>
       
       <p>최근 몇 년간 인공지능 기술은 놀라운 속도로 발전해왔습니다. GPT와 같은 대규모 언어 모델은 인간과 거의 구분할 수 없는 텍스트를 생성할 수 있게 되었고, 이미지 생성 AI는 예술가들의 작업을 보완하거나 때로는 대체하기도 합니다.</p>
+      
+      <figure>
+        <img src="/placeholder.svg?height=400&width=800" alt="AI 생성 이미지 예시" />
+        <figcaption>AI로 생성된 이미지 예시. 기술이 발전함에 따라 더욱 정교한 이미지 생성이 가능해질 것입니다.</figcaption>
+      </figure>
       
       <h3>주요 발전 분야</h3>
       <p>여러 분야에서 빠른 발전이 이루어지고 있습니다:</p>
@@ -55,10 +45,20 @@ export default function DigestPage({ params }: { params: { id: string } }) {
       
       <p>특히 생성형 AI의 발전은 콘텐츠 제작 산업에 혁명적인 변화를 가져올 것으로 예상됩니다. 현재 텍스트와 이미지 생성에 주로 사용되는 AI 기술이 앞으로는 고품질의 동영상과 3D 모델까지 생성할 수 있게 될 것입니다. 이는 영화, 게임, 광고 등 다양한 산업에 큰 영향을 미칠 것입니다.</p>
       
+      <blockquote>
+        <p>"AI는 단순한 도구가 아니라 창의적 파트너로 진화하고 있습니다. 앞으로 5년 내에 우리는 AI와 인간의 협업이 만들어내는 놀라운 결과물들을 보게 될 것입니다."</p>
+        <cite>- 김인공, AI 연구소장</cite>
+      </blockquote>
+      
       <h3>산업에 미치는 영향</h3>
       <p>AI 기술의 발전은 다양한 산업 분야에 혁신을 가져올 것으로 예상됩니다. 특히 제조업, 의료, 금융, 교육 분야에서 큰 변화가 예상됩니다.</p>
       
       <p>의료 분야에서는 AI를 활용한 질병 진단 시스템이 더욱 정확해지고, 신약 개발 과정이 크게 단축될 것입니다. 이미 일부 AI 시스템은 특정 질병의 진단에서 인간 의사보다 높은 정확도를 보이고 있으며, 이러한 추세는 더욱 강화될 것입니다.</p>
+      
+      <figure>
+        <img src="/placeholder.svg?height=400&width=800" alt="의료 AI 시스템" />
+        <figcaption>의료 AI 시스템은 방대한 의료 데이터를 분석하여 정확한 진단을 내리는 데 도움을 줍니다.</figcaption>
+      </figure>
       
       <p>금융 분야에서는 AI 기반 투자 자문과 리스크 관리 시스템이 보편화될 것이며, 교육 분야에서는 개인화된 학습 경험을 제공하는 AI 튜터가 널리 사용될 것입니다.</p>
       
@@ -87,25 +87,6 @@ export default function DigestPage({ params }: { params: { id: string } }) {
         id: 4,
         title: "의료 AI의 현재와 미래: 진단부터 치료까지",
         image: "/placeholder.svg?height=200&width=400",
-      },
-    ],
-    comments: [
-      {
-        id: 1,
-        author: "김기술",
-        avatar: "/placeholder.svg?height=50&width=50",
-        date: "2025년 4월 11일",
-        content: "정말 유익한 글이네요. 특히 의료 AI 부분이 흥미로웠습니다.",
-        likes: 12,
-      },
-      {
-        id: 2,
-        author: "이미래",
-        avatar: "/placeholder.svg?height=50&width=50",
-        date: "2025년 4월 12일",
-        content:
-          "AI 윤리에 대한 부분이 더 자세히 다뤄졌으면 좋겠어요. 기술 발전만큼 중요한 부분이라고 생각합니다.",
-        likes: 8,
       },
     ],
   };
@@ -251,43 +232,28 @@ export default function DigestPage({ params }: { params: { id: string } }) {
 
           {/* 본문 콘텐츠 */}
           <div
-            className="prose prose-blue prose-lg max-w-none mb-8"
+            className="prose prose-blue prose-lg max-w-none mb-10"
             dangerouslySetInnerHTML={{ __html: digest.content }}
           />
 
-          {/* 키 포인트 */}
-          <div className="mb-8 p-5 bg-blue-50 rounded-lg">
-            <h3 className="text-lg font-semibold mb-3">핵심 포인트</h3>
-            <ul className="space-y-3">
-              {digest.keyPoints.map((point, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center mt-0.5">
-                    <span className="text-sm font-medium text-blue-700">
-                      {index + 1}
-                    </span>
-                  </div>
-                  <span className="text-base">{point}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* 소셜 공유 및 반응 */}
-          <div className="flex items-center justify-between py-4 border-t border-b mb-8">
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" className="gap-2">
-                <ThumbsUp className="h-4 w-4" />
-                <span>좋아요</span>
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Share2 className="h-4 w-4" />
-                <span>공유하기</span>
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Bookmark className="h-4 w-4" />
-                <span>저장</span>
-              </Button>
-            </div>
+          {/* 저장 및 공유 버튼 */}
+          <div className="flex items-center justify-center gap-4 py-6 border-t border-b mb-10">
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2 rounded-full px-6"
+            >
+              <Bookmark className="h-5 w-5" />
+              <span>저장하기</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2 rounded-full px-6"
+            >
+              <Share2 className="h-5 w-5" />
+              <span>공유하기</span>
+            </Button>
           </div>
 
           {/* 원본 콘텐츠 링크 */}

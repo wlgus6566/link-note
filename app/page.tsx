@@ -60,8 +60,8 @@ export default function Home() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (url.trim()) {
-      // 실제 구현에서는 API 호출 후 응답에 따라 리디렉션
-      router.push("/summarizing");
+      // URL이 있으면 요약 페이지로 이동
+      router.push(`/summarizing?url=${encodeURIComponent(url)}`);
     }
   };
 
@@ -102,8 +102,7 @@ export default function Home() {
                   정리하세요
                 </h1>
                 <p className="text-base text-gray-600 md:text-lg max-w-[500px] mx-auto">
-                  링크만 입력하면 AI가 콘텐츠를 분석하여 핵심 내용을 요약해
-                  드립니다. 복잡한 정보를 한눈에 파악하세요.
+                  링크 한 줄로, 당신만의 블로그 콘텐츠가 완성됩니다.
                 </p>
 
                 <div className="flex justify-center mt-6 gap-8">

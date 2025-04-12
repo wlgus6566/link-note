@@ -1,95 +1,193 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Bookmark, Share2, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import BottomNav from "@/components/bottom-nav";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import React from "react";
 
 export default function DigestPage({ params }: { params: { id: string } }) {
-  // 샘플 데이터 (실제로는 ID를 기반으로 데이터를 가져와야 함)
-  const digest = {
-    id: params.id,
-    title: "인공지능의 미래: 2025년 전망",
-    source: "YouTube",
-    sourceUrl: "https://youtube.com/watch?v=example",
-    date: "2025년 4월 10일",
-    author: {
-      name: "테크 인사이트",
-      role: "AI 전문가",
-      avatar: "/placeholder.svg?height=100&width=100",
-    },
-    readTime: "5분 소요",
-    tags: ["AI", "기술", "미래", "트렌드"],
-    image: "/placeholder.svg?height=400&width=800",
-    summary:
-      "이 영상은 2025년 인공지능 기술의 발전 방향과 산업에 미치는 영향에 대해 분석합니다. 특히 생성형 AI와 자율주행 기술의 발전이 주목됩니다.",
-    content: `
-      <h2>인공지능 기술의 현재와 미래</h2>
-      <p>2025년 인공지능 기술은 이전보다 더욱 발전된 형태로 우리 일상에 깊숙이 자리 잡게 될 것으로 예상됩니다. 특히 생성형 AI와 자율주행 기술의 발전이 주목됩니다.</p>
-      
-      <p>최근 몇 년간 인공지능 기술은 놀라운 속도로 발전해왔습니다. GPT와 같은 대규모 언어 모델은 인간과 거의 구분할 수 없는 텍스트를 생성할 수 있게 되었고, 이미지 생성 AI는 예술가들의 작업을 보완하거나 때로는 대체하기도 합니다.</p>
-      
-      <figure>
-        <img src="/placeholder.svg?height=400&width=800" alt="AI 생성 이미지 예시" />
-        <figcaption>AI로 생성된 이미지 예시. 기술이 발전함에 따라 더욱 정교한 이미지 생성이 가능해질 것입니다.</figcaption>
-      </figure>
-      
-      <h3>주요 발전 분야</h3>
-      <p>여러 분야에서 빠른 발전이 이루어지고 있습니다:</p>
-      <ul>
-        <li>생성형 AI의 고도화: 텍스트, 이미지를 넘어 동영상, 3D 콘텐츠 생성까지 확장</li>
-        <li>의료 AI: 질병 진단 및 신약 개발 분야에서의 혁신적 발전</li>
-        <li>자율주행: 레벨 4 이상의 자율주행 기술 상용화 확대</li>
-        <li>개인화된 AI 비서: 일상 생활 전반에 걸친 지능형 비서 서비스</li>
-      </ul>
-      
-      <p>특히 생성형 AI의 발전은 콘텐츠 제작 산업에 혁명적인 변화를 가져올 것으로 예상됩니다. 현재 텍스트와 이미지 생성에 주로 사용되는 AI 기술이 앞으로는 고품질의 동영상과 3D 모델까지 생성할 수 있게 될 것입니다. 이는 영화, 게임, 광고 등 다양한 산업에 큰 영향을 미칠 것입니다.</p>
-      
-      <blockquote>
-        <p>"AI는 단순한 도구가 아니라 창의적 파트너로 진화하고 있습니다. 앞으로 5년 내에 우리는 AI와 인간의 협업이 만들어내는 놀라운 결과물들을 보게 될 것입니다."</p>
-        <cite>- 김인공, AI 연구소장</cite>
-      </blockquote>
-      
-      <h3>산업에 미치는 영향</h3>
-      <p>AI 기술의 발전은 다양한 산업 분야에 혁신을 가져올 것으로 예상됩니다. 특히 제조업, 의료, 금융, 교육 분야에서 큰 변화가 예상됩니다.</p>
-      
-      <p>의료 분야에서는 AI를 활용한 질병 진단 시스템이 더욱 정확해지고, 신약 개발 과정이 크게 단축될 것입니다. 이미 일부 AI 시스템은 특정 질병의 진단에서 인간 의사보다 높은 정확도를 보이고 있으며, 이러한 추세는 더욱 강화될 것입니다.</p>
-      
-      <figure>
-        <img src="/placeholder.svg?height=400&width=800" alt="의료 AI 시스템" />
-        <figcaption>의료 AI 시스템은 방대한 의료 데이터를 분석하여 정확한 진단을 내리는 데 도움을 줍니다.</figcaption>
-      </figure>
-      
-      <p>금융 분야에서는 AI 기반 투자 자문과 리스크 관리 시스템이 보편화될 것이며, 교육 분야에서는 개인화된 학습 경험을 제공하는 AI 튜터가 널리 사용될 것입니다.</p>
-      
-      <h3>윤리적 고려사항</h3>
-      <p>기술의 발전과 함께 AI 윤리, 개인정보 보호, 일자리 변화 등에 대한 사회적 논의도 활발해질 것으로 보입니다.</p>
-      
-      <p>AI 기술이 발전함에 따라 데이터 프라이버시, 알고리즘 편향성, 자동화로 인한 일자리 감소 등의 문제가 더욱 중요해질 것입니다. 이에 대응하기 위해 국제적인 규제 프레임워크와 윤리 지침이 마련될 필요가 있습니다.</p>
-      
-      <p>또한 AI 기술의 혜택이 사회 전체에 고르게 분배되도록 하는 정책적 노력도 중요해질 것입니다. 기술 발전으로 인한 생산성 향상이 소수에게만 집중되지 않도록 하는 사회적 합의가 필요할 것입니다.</p>
-      
-      <h3>결론</h3>
-      <p>2025년까지 AI 기술은 우리 삶의 거의 모든 측면에 영향을 미치게 될 것입니다. 이러한 변화에 적응하고 혜택을 최대화하기 위해서는 기술적 발전뿐만 아니라 사회적, 윤리적 측면에서의 준비도 필요합니다. AI의 미래는 밝지만, 그 여정에는 신중한 접근이 요구됩니다.</p>
-    `,
-    relatedPosts: [
-      {
-        id: 2,
-        title: "AI와 일자리의 미래: 위협인가, 기회인가?",
-        image: "/placeholder.svg?height=200&width=400",
-      },
-      {
-        id: 3,
-        title: "생성형 AI의 윤리적 문제와 해결 방안",
-        image: "/placeholder.svg?height=200&width=400",
-      },
-      {
-        id: 4,
-        title: "의료 AI의 현재와 미래: 진단부터 치료까지",
-        image: "/placeholder.svg?height=200&width=400",
-      },
-    ],
-  };
+  const router = useRouter();
+  const [digest, setDigest] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // React.use()를 사용하여 params.id 추출
+  // 직접 id 를 문자열로 전달
+  const id = "3";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchDigest = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/digest/${id}`);
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || "요약을 불러오는데 실패했습니다.");
+        }
+
+        if (isMounted) {
+          setDigest(result.data);
+        }
+      } catch (error) {
+        console.error("요약 불러오기 에러:", error);
+        if (isMounted) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : "요약을 불러오는데 실패했습니다."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchDigest();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  // 에러 발생 시 UI
+  if (error) {
+    return (
+      <div className="flex flex-col min-h-screen bg-white">
+        <header className="sticky top-0 z-10 bg-white border-b">
+          <div className="container flex items-center justify-between h-16 px-5">
+            <Button variant="ghost" size="sm" className="p-0" asChild>
+              <Link href="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <div className="text-sm font-medium">오류 발생</div>
+            <div className="w-5"></div>
+          </div>
+        </header>
+
+        <main className="flex-1 container px-5 py-8 flex items-center justify-center">
+          <div className="max-w-md w-full bg-white p-8 space-y-6 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-8 w-8 text-red-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold text-gray-900">요약 로드 실패</h1>
+            <p className="text-gray-600">{error}</p>
+            <Button
+              onClick={() => router.push("/")}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              홈으로 돌아가기
+            </Button>
+          </div>
+        </main>
+
+        <BottomNav />
+      </div>
+    );
+  }
+
+  // 로딩 중 UI
+  if (loading || !digest) {
+    return (
+      <div className="flex flex-col min-h-screen bg-white pb-16">
+        <header className="sticky top-0 z-10 bg-white border-b">
+          <div className="container flex items-center justify-between h-16 px-5">
+            <Button variant="ghost" size="sm" className="p-0" asChild>
+              <Link href="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full"
+              >
+                <Bookmark className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full"
+              >
+                <Share2 className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1">
+          <article className="max-w-3xl mx-auto px-5 py-8">
+            {/* 태그 스켈레톤 */}
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              <Skeleton className="h-6 w-16 rounded-full" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-6 w-14 rounded-full" />
+            </div>
+
+            {/* 제목 스켈레톤 */}
+            <div className="mb-4">
+              <Skeleton className="h-8 w-3/4 mb-2" />
+              <Skeleton className="h-8 w-1/2" />
+            </div>
+
+            {/* 메타데이터 스켈레톤 */}
+            <div className="flex items-center gap-4 mb-6 pb-6 border-b">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="flex-1">
+                <Skeleton className="h-5 w-36 mb-2" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <div className="flex flex-col items-end">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+
+            {/* 이미지 스켈레톤 */}
+            <Skeleton className="h-64 md:h-80 w-full mb-8 rounded-xl" />
+
+            {/* 내용 스켈레톤 */}
+            <div className="space-y-6">
+              <Skeleton className="h-24 w-full rounded-lg" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </div>
+          </article>
+        </main>
+
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-white pb-16">
@@ -123,7 +221,7 @@ export default function DigestPage({ params }: { params: { id: string } }) {
         <article className="max-w-3xl mx-auto px-5 py-8">
           {/* 태그 및 메타데이터 */}
           <div className="flex flex-wrap gap-1.5 mb-4">
-            {digest.tags.map((tag) => (
+            {digest.tags.map((tag: string) => (
               <Link href={`/tag/${tag}`} key={tag}>
                 <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs hover:bg-blue-200 transition-colors">
                   {tag}
@@ -141,19 +239,31 @@ export default function DigestPage({ params }: { params: { id: string } }) {
           <div className="flex items-center gap-4 mb-6 pb-6 border-b">
             <Avatar className="h-12 w-12">
               <AvatarImage
-                src={digest.author.avatar || "/placeholder.svg"}
-                alt={digest.author.name}
+                src={digest.author?.avatar || "/placeholder.svg"}
+                alt={digest.author?.name || "작성자"}
               />
-              <AvatarFallback>{digest.author.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback>
+                {digest.author?.name?.charAt(0) || "A"}
+              </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <div className="font-medium">{digest.author.name}</div>
-              <div className="text-sm text-gray-500">{digest.author.role}</div>
+              <div className="font-medium">
+                {digest.author?.name || "AI 요약"}
+              </div>
+              <div className="text-sm text-gray-500">
+                {digest.author?.role || "자동 생성"}
+              </div>
             </div>
             <div className="flex flex-col items-end text-sm text-gray-500">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                <span>{digest.date}</span>
+                <span>
+                  {new Date(digest.date).toLocaleDateString("ko-KR", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5" />
@@ -165,7 +275,7 @@ export default function DigestPage({ params }: { params: { id: string } }) {
           {/* 메인 이미지 */}
           <div className="relative h-64 md:h-80 w-full mb-8 rounded-xl overflow-hidden">
             <Image
-              src={digest.image || "/placeholder.svg"}
+              src={digest.image || "/placeholder.svg?height=400&width=800"}
               alt={digest.title}
               fill
               className="object-cover"
@@ -176,58 +286,6 @@ export default function DigestPage({ params }: { params: { id: string } }) {
           {/* 요약 */}
           <div className="mb-8 p-5 bg-gray-50 border-l-4 border-blue-500 rounded-r-lg">
             <p className="text-base italic text-gray-700">{digest.summary}</p>
-          </div>
-
-          {/* 목차 */}
-          <div className="mb-8 p-5 bg-gray-50 rounded-lg">
-            <h2 className="text-lg font-semibold mb-3">목차</h2>
-            <ul className="space-y-2">
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                <Link
-                  href="#current-future"
-                  className="text-blue-600 hover:underline"
-                >
-                  인공지능 기술의 현재와 미래
-                </Link>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                <Link
-                  href="#key-areas"
-                  className="text-blue-600 hover:underline"
-                >
-                  주요 발전 분야
-                </Link>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                <Link
-                  href="#industry-impact"
-                  className="text-blue-600 hover:underline"
-                >
-                  산업에 미치는 영향
-                </Link>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                <Link
-                  href="#ethical-considerations"
-                  className="text-blue-600 hover:underline"
-                >
-                  윤리적 고려사항
-                </Link>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                <Link
-                  href="#conclusion"
-                  className="text-blue-600 hover:underline"
-                >
-                  결론
-                </Link>
-              </li>
-            </ul>
           </div>
 
           {/* 본문 콘텐츠 */}

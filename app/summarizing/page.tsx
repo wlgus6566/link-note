@@ -2,15 +2,23 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import BottomNav from "@/components/bottom-nav";
 
 export default function SummarizingPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const url = searchParams.get("url");
+
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [estimatedReadTime, setEstimatedReadTime] =
+    useState<string>("예상 시간 계산 중...");
 
   const steps = [
     "링크 분석 중...",
@@ -21,49 +29,173 @@ export default function SummarizingPage() {
     "요약 완료!",
   ];
 
-  // 가상의 URL (실제로는 URL 파라미터나 상태로 관리)
-  const url = "https://example.com/article-about-ai-future";
-
-  // 진행 상태를 시뮬레이션
   useEffect(() => {
-    const timer = setInterval(() => {
-      setProgress((prevProgress) => {
-        if (prevProgress >= 100) {
-          clearInterval(timer);
-          setIsComplete(true);
-          return 100;
+    if (!url) {
+      router.push("/");
+      return;
+    }
+
+    const fetchAndSummarize = async () => {
+      try {
+        // 1단계: 링크 분석
+        setCurrentStep(0);
+        setProgress(10);
+
+        // 2단계: YouTube 데이터 추출
+        setCurrentStep(1);
+        setProgress(20);
+
+        const extractResponse = await fetch("/api/youtube/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+
+        const extractData = await extractResponse.json();
+
+        if (!extractData.success) {
+          throw new Error(
+            extractData.error || "YouTube 정보를 가져오는데 실패했습니다."
+          );
         }
 
-        const newProgress = prevProgress + 2;
+        // 자막 길이에 따라 예상 읽기 시간 설정
+        const transcriptLength = extractData.data.transcript.length;
+        if (transcriptLength > 10000) {
+          setEstimatedReadTime("약 7-10분 소요");
+        } else if (transcriptLength > 5000) {
+          setEstimatedReadTime("약 5-7분 소요");
+        } else if (transcriptLength > 2000) {
+          setEstimatedReadTime("약 3-5분 소요");
+        } else {
+          setEstimatedReadTime("약 2-3분 소요");
+        }
 
-        // 진행 단계 업데이트
-        if (newProgress < 20) setCurrentStep(0);
-        else if (newProgress < 40) setCurrentStep(1);
-        else if (newProgress < 60) setCurrentStep(2);
-        else if (newProgress < 80) setCurrentStep(3);
-        else if (newProgress < 95) setCurrentStep(4);
-        else setCurrentStep(5);
+        setProgress(40);
 
-        return newProgress;
-      });
-    }, 100);
+        // 3단계: AI 요약 생성
+        setCurrentStep(2);
 
-    return () => {
-      clearInterval(timer);
+        const { videoInfo, transcript } = extractData.data;
+
+        const summarizeResponse = await fetch("/api/ai/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoInfo: {
+              title: videoInfo.title,
+              description: videoInfo.description,
+              channelTitle: videoInfo.channelTitle,
+              publishedAt: videoInfo.publishedAt,
+            },
+            transcript,
+          }),
+        });
+
+        const summarizeData = await summarizeResponse.json();
+
+        if (!summarizeData.success) {
+          throw new Error(
+            summarizeData.error || "AI 요약 생성에 실패했습니다."
+          );
+        }
+
+        // 4단계: 태그 생성 중
+        setCurrentStep(3);
+        setProgress(70);
+
+        // 5단계: 이미지 추출 중
+        setCurrentStep(4);
+        setProgress(85);
+
+        // 6단계: 요약 저장 및 완료
+        setCurrentStep(5);
+
+        const saveResponse = await fetch("/api/digest/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...summarizeData.data,
+            sourceUrl: url,
+            sourceType: "YouTube",
+          }),
+        });
+
+        const saveData = await saveResponse.json();
+
+        if (!saveData.success) {
+          throw new Error(saveData.error || "요약 저장에 실패했습니다.");
+        }
+
+        setProgress(100);
+        setIsComplete(true);
+
+        // 요약된 페이지로 이동
+        setTimeout(() => {
+          router.push(`/digest/${saveData.data.id}`);
+        }, 1500);
+      } catch (error) {
+        console.error("요약 과정 에러:", error);
+        setError(
+          error instanceof Error
+            ? error.message
+            : "요약 생성 중 오류가 발생했습니다."
+        );
+      }
     };
-  }, []);
 
-  // 완료 후 리디렉션 (실제로는 API 응답 후 리디렉션)
-  useEffect(() => {
-    if (isComplete) {
-      const redirectTimer = setTimeout(() => {
-        // 실제 구현에서는 여기서 새로 생성된 digest ID로 리디렉션
-        window.location.href = "/digest/1";
-      }, 1000);
+    fetchAndSummarize();
+  }, [url, router]);
 
-      return () => clearTimeout(redirectTimer);
-    }
-  }, [isComplete]);
+  // 에러 발생 시 UI
+  if (error) {
+    return (
+      <div className="flex flex-col min-h-screen bg-white">
+        <header className="sticky top-0 z-10 bg-white border-b">
+          <div className="container flex items-center justify-between h-16 px-5">
+            <Button variant="ghost" size="sm" className="p-0" asChild>
+              <Link href="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <div className="text-sm font-medium">오류 발생</div>
+            <div className="w-5"></div>
+          </div>
+        </header>
+
+        <main className="flex-1 container px-5 py-8 flex items-center justify-center">
+          <div className="max-w-md w-full bg-white p-8 space-y-6 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-8 w-8 text-red-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold text-gray-900">요약 생성 실패</h1>
+            <p className="text-gray-600">{error}</p>
+            <Button
+              onClick={() => router.push("/")}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              다시 시도하기
+            </Button>
+          </div>
+        </main>
+
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -88,7 +220,7 @@ export default function SummarizingPage() {
               <div className="text-sm font-medium mb-1 break-all">{url}</div>
               <div className="flex items-center text-xs text-gray-500">
                 <Clock className="h-3.5 w-3.5 mr-1" />
-                <span>약 1분 소요</span>
+                <span>{estimatedReadTime}</span>
               </div>
             </div>
           </div>

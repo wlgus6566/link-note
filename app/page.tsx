@@ -6,7 +6,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BookOpen, Plus } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Plus,
+  Search,
+  FileText,
+  Tag,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BottomNav from "@/components/bottom-nav";
@@ -60,7 +67,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-10 bg-white border-b">
+      <header className="sticky top-0 z-10 bg-white border-b  z-30">
         <div className="container flex items-center justify-between h-16 px-5">
           <Link href="/" className="flex items-center gap-1.5">
             <BookOpen className="w-5 h-5 text-blue-500" />
@@ -75,41 +82,78 @@ export default function Home() {
       </header>
 
       <main className="flex-1 pb-20">
-        <section className="w-full py-10 md:py-14 bg-white">
-          <div className="container px-5">
-            <div className="flex flex-col items-center justify-center space-y-6 text-center">
-              <div className="space-y-3 max-w-[300px] md:max-w-[500px]">
-                <h1 className="flex flex-col items-center text-2xl font-bold tracking-tight md:text-3xl ">
-                  콘텐츠를 스마트하게 정리하세요
-                </h1>
-                <p className="text-sm text-gray-500 md:text-base mt-10">
-                  링크만 입력하면 AI가 콘텐츠를 분석하여 핵심 내용을 요약해
-                  드립니다.
-                </p>
+        <section className="w-full pt-5 pb-14 md:py-20 bg-gradient-to-b from-blue-50 to-white relative overflow-hidden">
+          {/* 배경 장식 요소 */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute top-10 left-10 w-64 h-64 bg-blue-100 rounded-full opacity-20 blur-3xl"></div>
+            <div className="absolute bottom-10 right-10 w-80 h-80 bg-indigo-100 rounded-full opacity-20 blur-3xl"></div>
+          </div>
+
+          <div className="container px-5 relative z-10">
+            <div className="flex flex-col items-center justify-center space-y-8 text-center">
+              <div className="flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-2">
+                <BookOpen className="w-10 h-10 text-blue-500" />
               </div>
-              <div className="w-full max-w-md space-y-2 pt-2">
-                <form onSubmit={handleSubmit} className="flex space-x-2">
-                  <Input
-                    className="flex-1 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl"
-                    placeholder="YouTube, Instagram 또는 기사 링크 붙여넣기"
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    required
-                  />
-                  <Button
-                    type="submit"
-                    className="h-12 w-12 bg-blue-500 hover:bg-blue-600 rounded-xl p-0"
-                  >
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
+
+              <div className="space-y-8 max-w-[320px] md:max-w-[600px]">
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">
+                  콘텐츠를 <span className="text-blue-500">스마트하게</span>
+                  <br />
+                  정리하세요
+                </h1>
+                <p className="text-base text-gray-600 md:text-lg max-w-[500px] mx-auto">
+                  링크만 입력하면 AI가 콘텐츠를 분석하여 핵심 내용을 요약해
+                  드립니다. 복잡한 정보를 한눈에 파악하세요.
+                </p>
+
+                <div className="flex justify-center mt-6 gap-8">
+                  <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                      <FileText className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <span className="text-xs text-gray-600">핵심 요약</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                      <Tag className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <span className="text-xs text-gray-600">자동 태그</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                      <Search className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <span className="text-xs text-gray-600">쉬운 검색</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full max-w-lg pt-4">
+                <form onSubmit={handleSubmit} className="relative">
+                  <div className="flex items-center p-1.5 bg-white rounded-2xl shadow-lg border border-gray-100">
+                    <Input
+                      className="flex-1 h-14 border-0 shadow-none text-base focus:ring-0 pl-5 pr-4 rounded-xl"
+                      placeholder="링크를 붙여넣으세요."
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      required
+                    />
+                    <Button
+                      type="submit"
+                      className="h-12 px-4 bg-blue-500 hover:bg-blue-600 rounded-xl text-base font-medium"
+                    >
+                      <span className="mr-2">요약하기</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </form>
               </div>
             </div>
           </div>
         </section>
-
-        {/* <section className="w-full py-8">
+        {/* 
+        <section className="w-full py-8">
           <div className="container px-5">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">추천 콘텐츠</h2>
@@ -182,11 +226,11 @@ export default function Home() {
         </section>
       </main>
 
-      <div className="fixed bottom-20 right-5 z-20">
+      {/* <div className="fixed bottom-20 right-5 z-20">
         <Button className="h-14 w-14 rounded-full bg-blue-500 hover:bg-blue-600 shadow-lg">
           <Plus className="h-6 w-6" />
         </Button>
-      </div>
+      </div> */}
 
       <BottomNav />
     </div>

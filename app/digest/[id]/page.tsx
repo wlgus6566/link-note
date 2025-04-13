@@ -80,8 +80,29 @@ export default function DigestPage({
 
         if (result.success) {
           console.log("API에서 다이제스트 데이터 가져오기 성공:", result.data);
+
+          // 데이터 설정 전에 추가 정보 가져오기 (채널 정보)
+          let digestData = result.data;
+
+          // YouTube 데이터인 경우 채널 정보 가져오기
+          if (digestData.sourceType === "YouTube" && digestData.sourceUrl) {
+            try {
+              const videoId = getYouTubeVideoId(digestData.sourceUrl);
+
+              // 채널 썸네일 URL 구성
+              if (
+                !digestData.channelThumbnail &&
+                digestData.videoInfo?.channelId
+              ) {
+                digestData.channelThumbnail = `https://yt3.googleusercontent.com/ytc/${digestData.videoInfo.channelId}=s88-c-k-c0x00ffffff-no-rj`;
+              }
+            } catch (channelError) {
+              console.warn("채널 정보 가져오기 실패:", channelError);
+            }
+          }
+
           if (isMounted) {
-            setDigest(result.data);
+            setDigest(digestData);
           }
         } else {
           // API 응답 실패 처리
@@ -326,15 +347,93 @@ export default function DigestPage({
             </div>
           </div>
 
-          {/* 메인 이미지 */}
-          <div className="relative h-64 md:h-80 w-full mb-8 rounded-xl overflow-hidden">
-            <Image
-              src={digest.image || "/placeholder.svg?height=400&width=800"}
-              alt={digest.title}
-              fill
-              className="object-cover"
-              priority
-            />
+          {/* 메인 이미지 또는 YouTube 영상 */}
+          <div className="mb-8 rounded-xl overflow-hidden">
+            {digest.sourceType === "YouTube" && digest.sourceUrl ? (
+              <div className="flex flex-col bg-gray-100 rounded-xl overflow-hidden">
+                {/* YouTube 영상 임베드 */}
+                <div className="relative w-full h-64 md:h-80">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${getYouTubeVideoId(
+                      digest.sourceUrl
+                    )}`}
+                    title={digest.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="absolute top-0 left-0 w-full h-full border-0"
+                  />
+                </div>
+
+                {/* 유튜브 영상 정보 */}
+                <div className="p-4 space-y-3">
+                  {/* 제목 */}
+                  <h2 className="text-xl font-bold">{digest.title}</h2>
+
+                  {/* 유튜버 정보, 업로드 날짜, 조회수 */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200">
+                        {digest.videoInfo?.channelId ? (
+                          <Image
+                            src={`https://yt3.googleusercontent.com/ytc/${digest.videoInfo.channelId}=s88-c-k-c0x00ffffff-no-rj`}
+                            alt={
+                              digest.videoInfo?.channelTitle || "채널 이미지"
+                            }
+                            width={36}
+                            height={36}
+                            className="object-cover"
+                          />
+                        ) : (
+                          <Image
+                            src="/placeholder.svg?height=40&width=40"
+                            alt="채널 이미지"
+                            width={36}
+                            height={36}
+                            className="object-cover"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">
+                          {digest.videoInfo?.channelTitle || "채널명 없음"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {/* 업로드 날짜 포맷팅 */}
+                          {digest.videoInfo?.publishedAt
+                            ? new Date(
+                                digest.videoInfo.publishedAt
+                              ).toLocaleDateString("ko-KR", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "날짜 정보 없음"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 조회수 */}
+                    <div className="text-sm text-gray-500">
+                      {digest.videoInfo?.viewCount
+                        ? `조회수 ${formatViewCount(
+                            digest.videoInfo.viewCount
+                          )}회`
+                        : "조회수 정보 없음"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="relative h-64 md:h-80 w-full">
+                <Image
+                  src={digest.image || "/placeholder.svg?height=400&width=800"}
+                  alt={digest.title}
+                  fill
+                  className="object-cover"
+                  priority
+                />
+              </div>
+            )}
           </div>
 
           {/* 요약 */}
@@ -385,4 +484,38 @@ export default function DigestPage({
       <BottomNav />
     </div>
   );
+}
+
+// YouTube URL에서 비디오 ID를 추출하는 함수
+function getYouTubeVideoId(url: string): string {
+  if (!url) return "";
+
+  // 일반 YouTube URL (https://www.youtube.com/watch?v=VIDEO_ID)
+  const watchRegex = /youtube\.com\/watch\?v=([^&]+)/;
+  const watchMatch = url.match(watchRegex);
+  if (watchMatch) return watchMatch[1];
+
+  // 짧은 URL (https://youtu.be/VIDEO_ID)
+  const shortRegex = /youtu\.be\/([^?&]+)/;
+  const shortMatch = url.match(shortRegex);
+  if (shortMatch) return shortMatch[1];
+
+  // 임베드 URL (https://www.youtube.com/embed/VIDEO_ID)
+  const embedRegex = /youtube\.com\/embed\/([^?&]+)/;
+  const embedMatch = url.match(embedRegex);
+  if (embedMatch) return embedMatch[1];
+
+  return "";
+}
+
+// 유틸리티 함수: 조회수 포맷
+function formatViewCount(count: string | number): string {
+  if (!count) return "0";
+
+  const num = typeof count === "string" ? parseInt(count, 10) : count;
+
+  if (isNaN(num)) return "0";
+
+  // 조회수 포맷팅 (예: 1,234,567)
+  return num.toLocaleString("ko-KR");
 }

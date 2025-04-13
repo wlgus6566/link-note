@@ -8,6 +8,13 @@
       "when": 1744463898061,
       "tag": "0000_true_prowler",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1744504084547,
+      "tag": "0001_tense_scalphunter",
+      "breakpoints": true
     }
   ]
 }

@@ -202,6 +202,15 @@ export default function SummarizingPage() {
           ...summarizeData.data,
           sourceUrl: url,
           sourceType: "YouTube",
+          // YouTube 영상 정보도 함께 저장
+          videoInfo: {
+            channelId: videoInfo.channelId,
+            channelTitle: videoInfo.channelTitle,
+            publishedAt: videoInfo.publishedAt,
+            viewCount: videoInfo.viewCount,
+            description: videoInfo.description,
+            title: videoInfo.title,
+          },
         }),
       });
 

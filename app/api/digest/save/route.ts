@@ -22,6 +22,17 @@ const requestSchema = z.object({
     .optional(),
   sourceUrl: z.string().url(),
   sourceType: z.enum(["YouTube", "Instagram", "Medium", "Other"]),
+  // YouTube 동영상 정보 스키마 추가
+  videoInfo: z
+    .object({
+      channelId: z.string().optional(),
+      channelTitle: z.string().optional(),
+      publishedAt: z.string().optional(),
+      viewCount: z.string().optional(),
+      description: z.string().optional(),
+      title: z.string().optional(),
+    })
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -51,6 +62,8 @@ export async function POST(request: NextRequest) {
         role: "자동 생성",
         avatar: "/placeholder.svg",
       },
+      // videoInfo 필드 추가
+      videoInfo: digest.videoInfo || {},
       image: "/placeholder.svg?height=400&width=800", // 기본 이미지 설정
       createdAt: currentDate,
       updatedAt: currentDate,

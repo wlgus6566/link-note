@@ -22,6 +22,7 @@ export const digests = pgTable("digests", {
   image: text("image"),
   imageSuggestions: jsonb("image_suggestions").default([]),
   author: jsonb("author").default({}),
+  videoInfo: jsonb("video_info").default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

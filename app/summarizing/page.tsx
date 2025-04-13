@@ -1,12 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import BottomNav from "@/components/bottom-nav";
+
+// 타입 정의 추가
+interface ProcessState {
+  isProcessing: boolean;
+  currentUrl: string | null;
+}
+
+// 컴포넌트 외부에 전역 변수로 처리 상태 추적
+const processState: ProcessState = {
+  isProcessing: false,
+  currentUrl: null,
+};
 
 export default function SummarizingPage() {
   const router = useRouter();
@@ -20,6 +32,12 @@ export default function SummarizingPage() {
   const [estimatedReadTime, setEstimatedReadTime] =
     useState<string>("예상 시간 계산 중...");
 
+  // API 호출 시작했는지 추적하는 상태 추가
+  const [processingStarted, setProcessingStarted] = useState(false);
+
+  // useRef는 컴포넌트 최상위 레벨에서 호출해야 함
+  const processedUrlRef = useRef<string | null>(null);
+
   const steps = [
     "링크 분석 중...",
     "콘텐츠 추출 중...",
@@ -29,123 +47,203 @@ export default function SummarizingPage() {
     "요약 완료!",
   ];
 
+  // 컴포넌트 마운트 시 초기화 로직
   useEffect(() => {
-    if (!url) {
-      router.push("/");
-      return;
-    }
+    console.log("컴포넌트 마운트: URL =", url);
 
-    const fetchAndSummarize = async () => {
-      try {
-        // 1단계: 링크 분석
-        setCurrentStep(0);
-        setProgress(10);
-
-        // 2단계: YouTube 데이터 추출
-        setCurrentStep(1);
-        setProgress(20);
-
-        const extractResponse = await fetch("/api/youtube/extract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
-        });
-
-        const extractData = await extractResponse.json();
-
-        if (!extractData.success) {
-          throw new Error(
-            extractData.error || "YouTube 정보를 가져오는데 실패했습니다."
-          );
-        }
-
-        // 자막 길이에 따라 예상 읽기 시간 설정
-        const transcriptLength = extractData.data.transcript.length;
-        if (transcriptLength > 10000) {
-          setEstimatedReadTime("약 7-10분 소요");
-        } else if (transcriptLength > 5000) {
-          setEstimatedReadTime("약 5-7분 소요");
-        } else if (transcriptLength > 2000) {
-          setEstimatedReadTime("약 3-5분 소요");
-        } else {
-          setEstimatedReadTime("약 2-3분 소요");
-        }
-
-        setProgress(40);
-
-        // 3단계: AI 요약 생성
-        setCurrentStep(2);
-
-        const { videoInfo, transcript } = extractData.data;
-
-        const summarizeResponse = await fetch("/api/ai/summarize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            videoInfo: {
-              title: videoInfo.title,
-              description: videoInfo.description,
-              channelTitle: videoInfo.channelTitle,
-              publishedAt: videoInfo.publishedAt,
-            },
-            transcript,
-          }),
-        });
-
-        const summarizeData = await summarizeResponse.json();
-
-        if (!summarizeData.success) {
-          throw new Error(
-            summarizeData.error || "AI 요약 생성에 실패했습니다."
-          );
-        }
-
-        // 4단계: 태그 생성 중
-        setCurrentStep(3);
-        setProgress(70);
-
-        // 5단계: 이미지 추출 중
-        setCurrentStep(4);
-        setProgress(85);
-
-        // 6단계: 요약 저장 및 완료
-        setCurrentStep(5);
-
-        const saveResponse = await fetch("/api/digest/save", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...summarizeData.data,
-            sourceUrl: url,
-            sourceType: "YouTube",
-          }),
-        });
-
-        const saveData = await saveResponse.json();
-
-        if (!saveData.success) {
-          throw new Error(saveData.error || "요약 저장에 실패했습니다.");
-        }
-
-        setProgress(100);
-        setIsComplete(true);
-
-        // 요약된 페이지로 이동
-        setTimeout(() => {
-          router.push(`/digest/${saveData.data.id}`);
-        }, 1500);
-      } catch (error) {
-        console.error("요약 과정 에러:", error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : "요약 생성 중 오류가 발생했습니다."
-        );
+    // 처리가 시작되었는지 확인하는 함수
+    const checkAndStartProcessing = () => {
+      // 이전에 이미 처리한 URL과 동일하면 중복 처리 방지
+      if (processedUrlRef.current === url) {
+        console.log("이미 처리 완료된 URL입니다:", url);
+        return;
       }
+
+      if (!url) {
+        router.push("/");
+        return;
+      }
+
+      // 이미 동일한 URL에 대한 처리가 진행 중이면 중복 호출 방지
+      if (processState.isProcessing && processState.currentUrl === url) {
+        console.log("이미 처리 중인 URL입니다:", url);
+        return;
+      }
+
+      // 이미 처리가 시작되었으면 중복 실행 방지
+      if (processingStarted) {
+        console.log("이미 프로세스가 시작되었습니다.");
+        return;
+      }
+
+      // 새 프로세스 시작 표시
+      setProcessingStarted(true);
+      console.log("프로세스 시작 플래그 설정");
+
+      // 새 프로세스 초기화
+      processState.isProcessing = true;
+      processState.currentUrl = url;
+
+      // 현재 URL을 처리 완료된 URL로 기록
+      processedUrlRef.current = url;
+
+      console.log("fetchAndSummarize 함수 호출 예정");
+
+      // 약간의 지연 후 처리 시작 (React 18 이중 렌더링 이슈 방지)
+      const timeoutId = setTimeout(() => {
+        console.log("fetchAndSummarize 실행");
+        fetchAndSummarize();
+      }, 300);
+
+      // 컴포넌트 언마운트 시 타이머 정리
+      return () => clearTimeout(timeoutId);
     };
 
-    fetchAndSummarize();
-  }, [url, router]);
+    // 확인 및 시작
+    checkAndStartProcessing();
+
+    // 클린업 함수
+    return () => {
+      console.log("컴포넌트 언마운트 또는 의존성 변경");
+    };
+  }, [url, router]); // processingStarted는 의존성에서 제거하여 무한 루프 방지
+
+  const fetchAndSummarize = async () => {
+    console.log("fetchAndSummarize 함수 내부 시작");
+
+    try {
+      if (!url) {
+        console.error("URL이 없습니다");
+        setError("유효한 URL이 필요합니다");
+        return;
+      }
+
+      // 1단계: 링크 분석
+      setCurrentStep(0);
+      setProgress(10);
+
+      // 2단계: YouTube 데이터 추출
+      setCurrentStep(1);
+      setProgress(20);
+
+      console.log("YouTube 데이터 추출 시작");
+      const extractResponse = await fetch("/api/youtube/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      const extractData = await extractResponse.json();
+
+      if (!extractData.success) {
+        throw new Error(
+          extractData.error || "YouTube 정보를 가져오는데 실패했습니다."
+        );
+      }
+      console.log("YouTube 데이터 추출 완료");
+
+      // 자막 길이에 따라 예상 읽기 시간 설정
+      const transcriptLength = extractData.data.transcript.length;
+      if (transcriptLength > 10000) {
+        setEstimatedReadTime("약 7-10분 소요");
+      } else if (transcriptLength > 5000) {
+        setEstimatedReadTime("약 5-7분 소요");
+      } else if (transcriptLength > 2000) {
+        setEstimatedReadTime("약 3-5분 소요");
+      } else {
+        setEstimatedReadTime("약 2-3분 소요");
+      }
+
+      setProgress(40);
+
+      // 3단계: AI 요약 생성
+      setCurrentStep(2);
+
+      const { videoInfo, transcript } = extractData.data;
+
+      console.log("AI 요약 생성 시작");
+      const summarizeResponse = await fetch("/api/ai/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoInfo: {
+            title: videoInfo.title,
+            description: videoInfo.description,
+            channelTitle: videoInfo.channelTitle,
+            publishedAt: videoInfo.publishedAt,
+          },
+          transcript,
+        }),
+      });
+
+      const summarizeData = await summarizeResponse.json();
+
+      if (!summarizeData.success) {
+        throw new Error(summarizeData.error || "AI 요약 생성에 실패했습니다.");
+      }
+      console.log("AI 요약 생성 완료");
+
+      // 4단계: 태그 생성 중
+      setCurrentStep(3);
+      setProgress(70);
+
+      // 5단계: 이미지 추출 중
+      setCurrentStep(4);
+      setProgress(85);
+
+      // 6단계: 요약 저장 및 완료
+      setCurrentStep(5);
+
+      console.log("요약 저장 시작");
+      const saveResponse = await fetch("/api/digest/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...summarizeData.data,
+          sourceUrl: url,
+          sourceType: "YouTube",
+        }),
+      });
+
+      const saveData = await saveResponse.json();
+
+      if (!saveData.success) {
+        throw new Error(saveData.error || "요약 저장에 실패했습니다.");
+      }
+      console.log("요약 저장 완료");
+
+      setProgress(100);
+      setIsComplete(true);
+
+      // 저장된 다이제스트 ID 저장
+      const digestId = saveData.data.id;
+      console.log("이동할 다이제스트 ID:", digestId);
+
+      // 현재 타임스탬프 로깅
+      const timestamp = new Date().toISOString();
+      console.log(
+        `[${timestamp}] 다이제스트 저장 완료, 페이지 이동 준비 중...`
+      );
+
+      // 프로세스 상태 초기화
+      processState.isProcessing = false;
+      setProcessingStarted(false);
+
+      // 페이지 이동
+      console.log(`다이제스트 페이지로 이동: /digest/${digestId}`);
+      router.push(`/digest/${digestId}`);
+    } catch (error) {
+      console.error("요약 과정 에러:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "요약 생성 중 오류가 발생했습니다."
+      );
+      // 에러 발생 시 처리 플래그 리셋
+      processState.isProcessing = false;
+      setProcessingStarted(false);
+    }
+  };
 
   // 에러 발생 시 UI
   if (error) {
@@ -184,7 +282,12 @@ export default function SummarizingPage() {
             <h1 className="text-xl font-bold text-gray-900">요약 생성 실패</h1>
             <p className="text-gray-600">{error}</p>
             <Button
-              onClick={() => router.push("/")}
+              onClick={() => {
+                // 다시 시도 시 처리 플래그 리셋
+                processState.isProcessing = false;
+                setProcessingStarted(false);
+                router.push("/");
+              }}
               className="bg-blue-500 hover:bg-blue-600 text-white"
             >
               다시 시도하기
@@ -248,39 +351,22 @@ export default function SummarizingPage() {
             </div>
 
             {/* 태그 스켈레톤 */}
-            <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-6 w-16 rounded-full" />
-              <Skeleton className="h-6 w-20 rounded-full" />
-              <Skeleton className="h-6 w-14 rounded-full" />
+            <div className="flex flex-wrap gap-1.5">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-5 w-12 rounded-full" />
+              <Skeleton className="h-5 w-16 rounded-full" />
             </div>
 
-            {/* 썸네일 스켈레톤 */}
-            <Skeleton className="h-48 w-full rounded-xl" />
-
-            {/* 요약 스켈레톤 */}
-            <div className="space-y-2">
+            {/* 본문 스켈레톤 */}
+            <div className="space-y-3">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
-            </div>
-
-            {/* 핵심 포인트 스켈레톤 */}
-            <div className="space-y-3">
-              <Skeleton className="h-5 w-1/3" />
-              <div className="space-y-2 pl-6">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-4 rounded-full" />
-                  <Skeleton className="h-4 flex-1" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-4 rounded-full" />
-                  <Skeleton className="h-4 flex-1" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-4 rounded-full" />
-                  <Skeleton className="h-4 flex-1" />
-                </div>
-              </div>
+              <Skeleton className="h-32 w-full my-4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
             </div>
           </div>
         </div>

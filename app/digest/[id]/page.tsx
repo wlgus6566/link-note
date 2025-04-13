@@ -11,34 +11,84 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import React from "react";
 
-export default function DigestPage({ params }: { params: { id: string } }) {
+export default function DigestPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const router = useRouter();
   const [digest, setDigest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pageId, setPageId] = useState<string | null>(null);
 
-  // React.use()를 사용하여 params.id 추출
-  // 직접 id 를 문자열로 전달
-  const id = "3";
+  // params가 Promise이므로 useEffect에서 비동기적으로 처리
+  useEffect(() => {
+    const resolveParams = async () => {
+      try {
+        const resolvedParams = await params;
+        setPageId(resolvedParams.id);
+      } catch (error) {
+        console.error("params 해결 오류:", error);
+        setError("페이지 ID를 가져오는데 실패했습니다.");
+      }
+    };
+
+    resolveParams();
+  }, [params]);
 
   useEffect(() => {
+    // pageId가 설정된 경우에만 요약 데이터 가져오기
+    if (!pageId) return;
+
     let isMounted = true;
 
+    // 이미 데이터를 불러왔는지 확인하는 플래그
+    let isDataFetched = false;
+
     const fetchDigest = async () => {
+      // 이미 데이터가 있으면 중복 API 호출 방지
+      if (digest && digest.id === parseInt(pageId)) {
+        console.log(
+          `ID ${pageId}의 다이제스트 데이터가 이미 로드되어 있습니다.`
+        );
+        return;
+      }
+
+      // 이미 데이터를 가져오는 중이면 중복 호출 방지
+      if (isDataFetched) {
+        console.log("이미 데이터를 가져오는 중입니다.");
+        return;
+      }
+
+      isDataFetched = true;
+
       try {
         setLoading(true);
-        const response = await fetch(`/api/digest/${id}`);
+
+        console.log(`다이제스트 데이터 가져오기 시작: ID=${pageId}`);
+
+        // API 호출로 데이터 가져오기
+        const response = await fetch(`/api/digest/${pageId}`, {
+          // 캐시 방지 설정 추가
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        });
         const result = await response.json();
 
-        if (!result.success) {
+        if (result.success) {
+          console.log("API에서 다이제스트 데이터 가져오기 성공:", result.data);
+          if (isMounted) {
+            setDigest(result.data);
+          }
+        } else {
+          // API 응답 실패 처리
           throw new Error(result.error || "요약을 불러오는데 실패했습니다.");
         }
-
-        if (isMounted) {
-          setDigest(result.data);
-        }
       } catch (error) {
-        console.error("요약 불러오기 에러:", error);
+        console.error("요약 불러오기 오류:", error);
         if (isMounted) {
           setError(
             error instanceof Error
@@ -53,12 +103,16 @@ export default function DigestPage({ params }: { params: { id: string } }) {
       }
     };
 
-    fetchDigest();
+    // API 호출은 한 번만 실행되도록 setTimeout으로 지연
+    const timeoutId = setTimeout(() => {
+      fetchDigest();
+    }, 100);
 
     return () => {
       isMounted = false;
+      clearTimeout(timeoutId);
     };
-  }, [id]);
+  }, [pageId, digest]);
 
   // 에러 발생 시 UI
   if (error) {

@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-
-// 임시 저장소 가져오기 (실제로는 데이터베이스 조회로 변경 필요)
-// 주의: 서버 재시작 시 데이터가 초기화됩니다
-import { digests } from "../save/route";
+import { db } from "@/db";
+import { digests } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Next.js 15에서는 params가 Promise로 변경됨
-    // 하지만 await은 사용하지 않음 (params가 이미 해결된 객체임)
+    // params 확인 로깅
+    console.log("받은 params:", params);
+
+    // ID 파라미터 처리 - 문자열 또는 숫자 모두 처리 가능하도록
     const idStr = params?.id || "";
+    console.log("요청된 ID 문자열:", idStr);
+
+    // 숫자로 변환
     const id = parseInt(idStr);
+    console.log("파싱된 ID 숫자:", id);
 
     if (isNaN(id)) {
       return NextResponse.json(
@@ -24,55 +29,24 @@ export async function GET(
       );
     }
 
-    // 디버깅을 위한 로그 추가
-    console.log("요청된 ID:", id);
-    console.log(
-      "현재 저장된 다이제스트:",
-      digests.map((d) => `ID: ${d.id}, 제목: ${d.title}`)
-    );
+    // 데이터베이스에서 ID로 다이제스트 조회
+    console.log(`데이터베이스에서 ID ${id}의 다이제스트 조회 중...`);
+    const [digest] = await db.select().from(digests).where(eq(digests.id, id));
 
-    // ID로 데이터 찾기
-    const digest = digests.find((d) => d.id === id);
-
+    // 다이제스트를 찾지 못한 경우
     if (!digest) {
-      // ID가 존재하지 않는 경우, 더미 데이터 생성
-      const dummyDigest = {
-        id,
-        title: `데모 다이제스트 ${id}`,
-        summary: "이 다이제스트는 임시 데이터로 생성되었습니다.",
-        readTime: "3분 소요",
-        tags: ["데모", "임시", "테스트"],
-        content: `
-          <h2>임시 생성된 다이제스트</h2>
-          <p>이 다이제스트는 실제로 저장소에 존재하지 않아 임시로 생성되었습니다. 서버가 재시작되면 데이터가 초기화되어 이전에 생성된 다이제스트를 찾을 수 없는 경우가 발생합니다.</p>
-          <p>실제 프로덕션 환경에서는 데이터베이스를 사용하여 데이터가 영구적으로 저장되도록 해야 합니다.</p>
-        `,
-        sourceUrl: "https://example.com",
-        sourceType: "Other",
-        date: new Date().toISOString(),
-        author: {
-          name: "시스템",
-          role: "자동 생성",
-          avatar: "/placeholder.svg",
+      console.log(`ID ${id}에 해당하는 다이제스트를 찾을 수 없습니다.`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "해당 ID의 다이제스트를 찾을 수 없습니다.",
+          id: id, // 요청된 ID 반환
         },
-        image: "/placeholder.svg?height=400&width=800",
-        image_suggestions: [
-          {
-            caption: "임시 이미지",
-            placement: "도입부 후",
-          },
-        ],
-      };
-
-      // 임시 데이터를 digests 배열에 추가 (다음 요청에서 사용 가능하도록)
-      digests.push(dummyDigest);
-
-      return NextResponse.json({
-        success: true,
-        data: dummyDigest,
-      });
+        { status: 404 }
+      );
     }
 
+    console.log(`ID ${id} 다이제스트를 성공적으로 찾았습니다:`, digest.title);
     return NextResponse.json({
       success: true,
       data: digest,

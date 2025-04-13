@@ -82,17 +82,11 @@ export default function Home() {
       </header>
 
       <main className="flex-1 pb-20">
-        <section className="w-full pt-5 pb-14 md:py-20 bg-gradient-to-b from-blue-50 to-white relative overflow-hidden">
-          {/* 배경 장식 요소 */}
-          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-            <div className="absolute top-10 left-10 w-64 h-64 bg-blue-100 rounded-full opacity-20 blur-3xl"></div>
-            <div className="absolute bottom-10 right-10 w-80 h-80 bg-indigo-100 rounded-full opacity-20 blur-3xl"></div>
-          </div>
-
+        <section className="w-full pt-8 pb-14 md:py-20 bg-gradient-to-b from-blue-50 to-white relative overflow-hidden">
           <div className="container px-5 relative z-10">
             <div className="flex flex-col items-center justify-center space-y-8 text-center">
-              <div className="flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-2">
-                <BookOpen className="w-10 h-10 text-blue-500" />
+              <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-2">
+                <BookOpen className="w-8 h-8 text-blue-500" />
               </div>
 
               <div className="space-y-8 max-w-[320px] md:max-w-[600px]">

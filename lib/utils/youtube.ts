@@ -99,25 +99,75 @@ export async function getVideoTranscript(videoId: string) {
 
 // YouTube 영상 모든 데이터 가져오기 (통합 함수)
 export async function getYoutubeVideoData(url: string) {
+  console.log("getYoutubeVideoData 함수 호출됨, URL:", url);
+
   const videoId = getVideoId(url);
+  console.log("추출된 비디오 ID:", videoId);
 
   if (!videoId) {
+    console.error("유효한 YouTube URL이 아닙니다:", url);
     throw new Error("유효한 YouTube URL이 아닙니다.");
   }
 
   try {
-    const [videoInfo, transcript] = await Promise.all([
-      getVideoInfo(videoId),
-      getVideoTranscript(videoId).catch(() => "자막을 찾을 수 없습니다."),
-    ]);
+    console.log("비디오 정보 및 자막 가져오기 시작...");
 
-    return {
+    // 비디오 정보와 자막을 병렬로 가져오지만, 각각에 대한 오류 처리 개선
+    let videoInfo;
+    let transcript = "자막을 찾을 수 없습니다.";
+
+    try {
+      videoInfo = await getVideoInfo(videoId);
+      console.log(
+        "비디오 정보 가져오기 성공:",
+        JSON.stringify({
+          id: videoInfo.id,
+          title: videoInfo.title?.substring(0, 30) + "...",
+          duration: videoInfo.duration,
+        })
+      );
+    } catch (videoError) {
+      console.error("비디오 정보 가져오기 실패:", videoError);
+      videoInfo = {
+        id: videoId,
+        title: "제목을 가져올 수 없습니다",
+        description: "",
+        publishedAt: new Date().toISOString(),
+        channelTitle: "채널 정보 없음",
+        duration: "PT5M", // 기본 5분 설정
+      };
+    }
+
+    try {
+      transcript = await getVideoTranscript(videoId);
+      console.log("자막 가져오기 성공, 길이:", transcript.length);
+    } catch (transcriptError) {
+      console.error("자막 가져오기 실패:", transcriptError);
+    }
+
+    const result = {
       videoId,
       videoInfo,
       transcript,
     };
+
+    console.log("YouTube 데이터 추출 완료");
+    return result;
   } catch (error) {
-    console.error("YouTube 데이터 추출 에러:", error);
-    throw error;
+    console.error("YouTube 데이터 추출 치명적 오류:", error);
+    // 최소한의 데이터라도 반환하여 애플리케이션이 계속 작동하도록 함
+    return {
+      videoId,
+      videoInfo: {
+        id: videoId,
+        title: "제목을 가져올 수 없습니다",
+        description: "",
+        publishedAt: new Date().toISOString(),
+        channelTitle: "채널 정보 없음",
+        duration: "PT5M", // 기본 5분 설정
+      },
+      transcript:
+        "자막을 가져올 수 없습니다. 요약의 정확도가 낮을 수 있습니다.",
+    };
   }
 }

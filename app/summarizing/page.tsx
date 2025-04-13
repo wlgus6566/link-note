@@ -140,10 +140,26 @@ export default function SummarizingPage() {
           extractData.error || "YouTube 정보를 가져오는데 실패했습니다."
         );
       }
-      console.log("YouTube 데이터 추출 완료");
+      console.log("YouTube 데이터 추출 완료:", extractData.data);
+
+      // API 응답 구조에서 videoInfo와 transcript 추출 - 타입 안전성 확보
+      const videoInfo = extractData.data?.videoInfo || {
+        title: "제목 정보 없음",
+        description: "",
+        channelTitle: "채널 정보 없음",
+        publishedAt: new Date().toISOString(),
+      };
+
+      const transcript =
+        extractData.data?.transcript || "자막 정보가 없습니다.";
+      console.log("추출된 데이터 확인:", {
+        "videoInfo 확인": !!videoInfo,
+        "videoInfo 제목": videoInfo.title?.substring(0, 30),
+        "transcript 길이": transcript.length,
+      });
 
       // 자막 길이에 따라 예상 읽기 시간 설정
-      const transcriptLength = extractData.data.transcript.length;
+      const transcriptLength = transcript.length;
       if (transcriptLength > 10000) {
         setEstimatedReadTime("약 7-10분 소요");
       } else if (transcriptLength > 5000) {
@@ -159,8 +175,6 @@ export default function SummarizingPage() {
       // 3단계: AI 요약 생성
       setCurrentStep(2);
 
-      const { videoInfo, transcript } = extractData.data;
-
       console.log("AI 요약 생성 시작");
       const summarizeResponse = await fetch("/api/ai/summarize", {
         method: "POST",
@@ -173,6 +187,7 @@ export default function SummarizingPage() {
             publishedAt: videoInfo.publishedAt,
           },
           transcript,
+          sourceUrl: url,
         }),
       });
 
@@ -215,6 +230,7 @@ export default function SummarizingPage() {
       });
 
       const saveData = await saveResponse.json();
+      console.log("저장 API 응답 데이터:", JSON.stringify(saveData));
 
       if (!saveData.success) {
         throw new Error(saveData.error || "요약 저장에 실패했습니다.");
@@ -225,7 +241,7 @@ export default function SummarizingPage() {
       setIsComplete(true);
 
       // 저장된 다이제스트 ID 저장
-      const digestId = saveData.data.id;
+      const digestId = saveData.digest?.[0]?.id || saveData.digest?.id;
       console.log("이동할 다이제스트 ID:", digestId);
 
       // 현재 타임스탬프 로깅

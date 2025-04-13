@@ -20,6 +20,14 @@ const requestSchema = z.object({
       })
     )
     .optional(),
+  generatedImages: z
+    .array(
+      z.object({
+        url: z.string(),
+        caption: z.string(),
+      })
+    )
+    .optional(),
   sourceUrl: z.string().url(),
   sourceType: z.enum(["YouTube", "Instagram", "Medium", "Other"]),
   // YouTube 동영상 정보 스키마 추가
@@ -35,68 +43,119 @@ const requestSchema = z.object({
     .optional(),
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
+  console.log("다이제스트 저장 API 요청 수신");
   try {
-    // 요청 본문 가져오기
-    const body = await request.json();
+    const requestData = await req.json();
+    console.log("요청 데이터:", JSON.stringify(requestData));
 
-    // 요청 검증
-    const digest = requestSchema.parse(body);
+    const validatedData = requestSchema.safeParse(requestData);
 
-    // 날짜 객체 생성 (문자열 대신 Date 객체 사용)
-    const currentDate = new Date();
+    if (!validatedData.success) {
+      console.error("유효성 검사 실패:", validatedData.error);
+      return NextResponse.json(
+        { success: false, error: "유효하지 않은 다이제스트 데이터" },
+        { status: 400 }
+      );
+    }
 
-    // 데이터베이스에 저장할 객체 생성
-    const newDigest: NewDigest = {
-      title: digest.title,
-      summary: digest.summary,
-      readTime: digest.readTime,
-      tags: digest.tags,
-      content: digest.content,
-      sourceUrl: digest.sourceUrl,
-      sourceType: digest.sourceType,
-      date: currentDate, // 문자열이 아닌 Date 객체 사용
-      imageSuggestions: digest.image_suggestions || [],
-      author: {
-        name: "AI 요약",
-        role: "자동 생성",
-        avatar: "/placeholder.svg",
-      },
-      // videoInfo 필드 추가
-      videoInfo: digest.videoInfo || {},
-      image: "/placeholder.svg?height=400&width=800", // 기본 이미지 설정
-      createdAt: currentDate,
-      updatedAt: currentDate,
-    };
+    const data = validatedData.data;
 
-    // 데이터베이스에 저장
-    console.log("다이제스트를 데이터베이스에 저장 중...");
-    const [savedDigest] = await db
+    // 디버깅을 위한 로깅 추가
+    console.log("생성된 이미지:", JSON.stringify(data.generatedImages));
+    console.log("이미지 제안:", JSON.stringify(data.image_suggestions));
+
+    // 기본 이미지 URL 설정 (생성된 이미지가 없는 경우를 대비)
+    let imageUrl = "/placeholder.svg?height=400&width=800";
+
+    // 생성된 이미지가 있으면 첫 번째 이미지를 대표 이미지로 사용
+    if (data.generatedImages && data.generatedImages.length > 0) {
+      imageUrl = data.generatedImages[0].url;
+      console.log("대표 이미지 URL:", imageUrl);
+    } else if (data.image_suggestions && data.image_suggestions.length > 0) {
+      // 이미지 제안은 있지만 생성된 이미지가 없는 경우 (fallback)
+      console.log("생성된 이미지가 없어 YouTube 이미지 URL 생성 시도");
+
+      if (data.sourceUrl) {
+        const videoId = extractYouTubeVideoId(data.sourceUrl);
+        if (videoId) {
+          imageUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+          console.log("YouTube 썸네일 URL 생성:", imageUrl);
+
+          // generatedImages 배열 생성
+          data.generatedImages = [
+            {
+              url: imageUrl,
+              caption: data.image_suggestions[0].caption || "콘텐츠 이미지",
+            },
+          ];
+        }
+      }
+    }
+
+    // Prisma로 새 다이제스트 저장
+    const newDigest = await db
       .insert(digests)
-      .values(newDigest)
+      .values({
+        title: data.title,
+        summary: data.summary,
+        readTime: data.readTime || "3분",
+        tags: data.tags,
+        content: data.content,
+        sourceUrl: data.sourceUrl,
+        sourceType: data.sourceType,
+        date: new Date(),
+        imageSuggestions: data.image_suggestions || [],
+        generatedImages: data.generatedImages || [],
+        author: {
+          name: "AI 요약",
+          role: "자동 생성",
+          avatar: "/placeholder.svg",
+        },
+        videoInfo: data.videoInfo || {},
+        image: imageUrl,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
       .returning();
-    console.log("다이제스트 저장 완료:", savedDigest.id);
 
-    // 성공 응답 반환
+    console.log(
+      "다이제스트 저장 성공, 반환 데이터:",
+      JSON.stringify(newDigest)
+    );
+
     return NextResponse.json({
       success: true,
-      data: savedDigest,
+      message: "다이제스트 저장 성공",
+      digest: newDigest,
     });
   } catch (error) {
-    console.error("요약 저장 API 에러:", error);
-
-    // 에러 응답 반환
+    console.error("다이제스트 저장 오류:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "알 수 없는 오류가 발생했습니다.",
-      },
-      { status: 400 }
+      { success: false, error: "다이제스트 저장 중 오류 발생" },
+      { status: 500 }
     );
   }
+}
+
+// YouTube 비디오 ID 추출 함수
+function extractYouTubeVideoId(url: string): string | null {
+  if (!url) return null;
+
+  // YouTube URL 패턴 확인
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?\/]+)/,
+    /youtube\.com\/watch\?.*v=([^&]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
 }
 
 // 저장된 모든 요약 가져오기

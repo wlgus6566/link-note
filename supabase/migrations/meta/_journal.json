@@ -15,6 +15,13 @@
       "when": 1744504084547,
       "tag": "0001_tense_scalphunter",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1744511244649,
+      "tag": "0002_dark_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }

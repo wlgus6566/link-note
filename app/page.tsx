@@ -99,7 +99,7 @@ export default function Home() {
               height={20}
             />
             <span className="text-lg font-bold text-neutral-dark">
-              Link Digest
+              LinkNote
             </span>
           </Link>
           <Link href="/profile">
@@ -145,7 +145,7 @@ export default function Home() {
                   className="text-3xl md:text-4xl font-bold tracking-tight leading-tight text-neutral-dark"
                   variants={itemVariants}
                 >
-                  콘텐츠를
+                  콘텐츠를{" "}
                   <span className="text-primary-color">스마트하게</span>
                   <br />
                   정리하세요

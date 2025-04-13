@@ -1,9 +1,11 @@
-import OpenAI from "openai";
+import {
+  GoogleGenerativeAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} from "@google/generative-ai";
 
-// OpenAI 클라이언트 초기화
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Google Generative AI 클라이언트 초기화
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
 
 // 블로그 요약 생성을 위한 프롬프트 템플릿
 const getBlogPrompt = ({
@@ -56,9 +58,9 @@ ${transcript}
 6. HTML 형식으로 출력해주세요. (p, h2, h3, ul, li, blockquote 등의 태그 사용)
 7. 블로그 내용에는 figure와 figcaption을 포함한 이미지 플레이스홀더를 2-3개 제안해주세요. (실제 이미지는 나중에 삽입됩니다)
 8. 콘텐츠와 관련된 5-7개의 태그를 추천해주세요.
-9. 읽는 데 걸리는 예상 시간을 정확하게 계산해주세요 (평균 읽기 속도는 분당 200단어 기준, 최종 블로그의 단어 수를 계산하여 산정).
+9. 읽는 데 걸리는 예상 시간을 정확하게 계산해주세요 (평균 읽기 속도는 분당 500단어 기준, 최종 블로그의 단어 수를 계산하여 산정).
 
-결과는 다음 JSON 형식으로 제공해주세요:
+결과는 다음 JSON 형식으로 제공해주세요. 반드시 유효한 JSON 형식으로 응답해야 합니다:
 {
   "title": "블로그 제목",
   "summary": "간략한 요약 (1-2문장)",
@@ -91,9 +93,143 @@ export async function generateBlogSummary({
   transcript: string;
 }) {
   try {
+    console.log("Gemini API 호출 시작");
+
+    // Gemini 모델 초기화 - 더 안정적인 모델로 변경
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash", // gemini-1.5-flash에서 gemini-1.0-pro로 변경
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+      ],
+    });
+
+    console.log("Gemini 모델 초기화 완료");
+
+    // 프롬프트 생성
+    const prompt = getBlogPrompt({
+      title,
+      description,
+      channelTitle,
+      publishedAt,
+      transcript,
+    });
+
+    console.log("프롬프트 생성 완료");
+
+    // 채팅 없이 직접 생성 호출 사용
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+
+    console.log("Gemini API 응답 수신 완료");
+
+    // 응답 텍스트 추출
+    const responseText = response.text();
+
+    if (!responseText) {
+      throw new Error("AI가 응답을 생성하지 못했습니다.");
+    }
+
+    console.log(
+      "응답 텍스트 추출 완료",
+      responseText.substring(0, 100) + "..."
+    );
+
+    try {
+      // JSON 문자열을 파싱
+      // Gemini는 때때로 ```json 마크다운 형식으로 응답할 수 있으므로 정규식으로 처리
+      let jsonString = responseText;
+
+      // JSON 블록 추출 시도
+      const jsonBlockMatch = responseText.match(
+        /```(?:json)?\s*([\s\S]*?)\s*```/
+      );
+      if (jsonBlockMatch && jsonBlockMatch[1]) {
+        jsonString = jsonBlockMatch[1];
+        console.log("JSON 블록 추출 성공");
+      }
+
+      // 문자열 정제 - 잘못된 따옴표나 줄바꿈 등 처리
+      jsonString = jsonString.trim().replace(/[\u201C\u201D]/g, '"');
+
+      console.log("JSON 파싱 시도:", jsonString.substring(0, 100) + "...");
+
+      const parsedData = JSON.parse(jsonString);
+      console.log("JSON 파싱 성공");
+
+      // 필수 필드 검증
+      if (!parsedData.title || !parsedData.summary || !parsedData.content) {
+        console.error("필수 필드 누락:", parsedData);
+        throw new Error("AI 응답에 필수 필드가 누락되었습니다.");
+      }
+
+      return parsedData;
+    } catch (error) {
+      console.error("JSON 파싱 에러:", error);
+      console.error("원본 응답:", responseText);
+
+      // 파싱 실패 시 OpenAI API로 폴백
+      if (process.env.OPENAI_API_KEY) {
+        console.log("OpenAI API로 폴백 시도");
+        return await fallbackToOpenAI({
+          title,
+          description,
+          channelTitle,
+          publishedAt,
+          transcript,
+        });
+      }
+
+      throw new Error("AI 응답을 파싱하는 중 오류가 발생했습니다.");
+    }
+  } catch (error) {
+    console.error("Gemini API 에러:", error);
+    throw new Error("블로그 요약을 생성하는 중 오류가 발생했습니다.");
+  }
+}
+
+// OpenAI API로 폴백하는 함수
+async function fallbackToOpenAI({
+  title,
+  description,
+  channelTitle,
+  publishedAt,
+  transcript,
+}: {
+  title: string;
+  description: string;
+  channelTitle: string;
+  publishedAt: string;
+  transcript: string;
+}) {
+  try {
+    console.log("OpenAI 폴백 함수 호출");
+
+    // OpenAI SDK 동적 가져오기
+    const { OpenAI } = await import("openai");
+
+    // OpenAI 클라이언트 초기화
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
     // OpenAI API 호출
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo", // 또는 사용 가능한 최신 모델
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
@@ -118,18 +254,13 @@ export async function generateBlogSummary({
     const content = response.choices[0]?.message?.content;
 
     if (!content) {
-      throw new Error("AI가 응답을 생성하지 못했습니다.");
+      throw new Error("OpenAI가 응답을 생성하지 못했습니다.");
     }
 
-    try {
-      // JSON 문자열을 파싱
-      return JSON.parse(content);
-    } catch (error) {
-      console.error("JSON 파싱 에러:", error);
-      throw new Error("AI 응답을 파싱하는 중 오류가 발생했습니다.");
-    }
+    // JSON 문자열을 파싱
+    return JSON.parse(content);
   } catch (error) {
-    console.error("OpenAI API 에러:", error);
+    console.error("OpenAI 폴백 에러:", error);
     throw new Error("블로그 요약을 생성하는 중 오류가 발생했습니다.");
   }
 }

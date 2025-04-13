@@ -67,6 +67,10 @@
   scrollbar-width: none;
 }
 
+.prose h1 {
+  @apply text-2xl font-bold;
+}
+
 .prose h2 {
   @apply text-base font-semibold mt-4 mb-2;
 }

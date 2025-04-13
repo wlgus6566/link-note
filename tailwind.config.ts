@@ -53,11 +53,24 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // 디자인 시스템 컬러
+        "primary-color": "#6756D6",
+        "primary-light": "#ECEBFB",
+        "secondary-color": "#F5F6FA",
+        "neutral-dark": "#2E2E2E",
+        "neutral-medium": "#6E6E6E",
+        "border-line": "#E4E7EE",
+        success: "#31C48D",
+        warning: "#FBBF24",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "12px",
+      },
+      boxShadow: {
+        sm: "0px 4px 20px rgba(0, 0, 0, 0.05)",
       },
       keyframes: {
         "accordion-down": {

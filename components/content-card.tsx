@@ -1,30 +1,30 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { Bookmark, Share2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { Bookmark, BookmarkCheck, Share2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ContentCardProps {
   content: {
-    id: number
-    title: string
-    source: string
-    date: string
-    summary: string
-    tags: string[]
-    image: string
-  }
+    id: number;
+    title: string;
+    source: string;
+    date: string;
+    summary: string;
+    tags: string[];
+    image: string;
+  };
 }
 
 export default function ContentCard({ content }: ContentCardProps) {
-  const [isSaved, setIsSaved] = useState(false)
+  const [isSaved, setIsSaved] = useState(false);
 
   return (
     <motion.div
-      className="bg-white rounded-xl overflow-hidden shadow-sm"
+      className="content-card"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -33,21 +33,27 @@ export default function ContentCard({ content }: ContentCardProps) {
       <Link href={`/digest/${content.id}`}>
         <div className="p-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">{content.source}</div>
-            <div className="text-xs text-gray-500">{content.date}</div>
+            <div className="px-2 py-0.5 bg-primary-light text-primary-color rounded-full text-xs">
+              {content.source}
+            </div>
+            <div className="text-xs text-neutral-medium">{content.date}</div>
           </div>
 
-          <h3 className="font-medium text-base mb-2 line-clamp-2">{content.title}</h3>
-          <p className="text-sm text-gray-600 line-clamp-3 mb-4">{content.summary}</p>
+          <h3 className="font-semibold text-base mb-2 line-clamp-2 text-neutral-dark">
+            {content.title}
+          </h3>
+          <p className="text-sm text-neutral-medium line-clamp-3 mb-4">
+            {content.summary}
+          </p>
 
           <div className="flex flex-wrap gap-1.5 mb-4">
             {content.tags.slice(0, 3).map((tag) => (
-              <span key={tag} className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
+              <span key={tag} className="tag">
                 {tag}
               </span>
             ))}
             {content.tags.length > 3 && (
-              <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
+              <span className="text-xs bg-secondary-color text-neutral-medium px-2.5 py-0.5 rounded-full">
                 +{content.tags.length - 3}
               </span>
             )}
@@ -64,21 +70,28 @@ export default function ContentCard({ content }: ContentCardProps) {
         </div>
       </Link>
 
-      <div className="flex border-t">
+      <div className="flex border-t border-border-line">
         <Button
           variant="ghost"
-          className="flex-1 h-12 rounded-none text-sm font-medium"
+          className="flex-1 h-12 rounded-none text-sm font-medium text-neutral-dark hover:bg-primary-light hover:text-primary-color"
           onClick={() => setIsSaved(!isSaved)}
         >
-          <Bookmark className={`mr-2 h-4 w-4 ${isSaved ? "fill-blue-500 text-blue-500" : ""}`} />
+          {isSaved ? (
+            <BookmarkCheck className="mr-2 h-4 w-4 text-primary-color" />
+          ) : (
+            <Bookmark className="mr-2 h-4 w-4" />
+          )}
           {isSaved ? "저장됨" : "저장"}
         </Button>
-        <div className="w-px bg-gray-200"></div>
-        <Button variant="ghost" className="flex-1 h-12 rounded-none text-sm font-medium">
+        <div className="w-px bg-border-line"></div>
+        <Button
+          variant="ghost"
+          className="flex-1 h-12 rounded-none text-sm font-medium text-neutral-dark hover:bg-primary-light hover:text-primary-color"
+        >
           <Share2 className="mr-2 h-4 w-4" />
           공유
         </Button>
       </div>
     </motion.div>
-  )
+  );
 }

@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+@layer base {
+  :root {
+    --primary: #6756d6;
+    --primary-light: #ecebfb;
+    --secondary: #f5f6fa;
+    --neutral-dark: #2e2e2e;
+    --neutral-medium: #6e6e6e;
+    --border-line: #e4e7ee;
+    --success: #31c48d;
+    --warning: #fbbf24;
+  }
+
+  body {
+    font-family: "Inter", sans-serif;
+    @apply bg-secondary text-neutral-dark;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

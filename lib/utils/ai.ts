@@ -320,9 +320,9 @@ async function enhanceContentWithImages(
         /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
       );
       if (durationMatch) {
-        const hours = parseInt(durationMatch[1] || "0", 10);
-        const minutes = parseInt(durationMatch[2] || "0", 10);
-        const seconds = parseInt(durationMatch[3] || "0", 10);
+        const hours = Number.parseInt(durationMatch[1] || "0", 10);
+        const minutes = Number.parseInt(durationMatch[2] || "0", 10);
+        const seconds = Number.parseInt(durationMatch[3] || "0", 10);
         videoLength = hours * 3600 + minutes * 60 + seconds;
         console.log("비디오 길이:", videoLength, "초");
       }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { digests } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -16,7 +16,7 @@ export async function GET(
     console.log("요청된 ID 문자열:", idStr);
 
     // 숫자로 변환
-    const id = parseInt(idStr);
+    const id = Number.parseInt(idStr);
     console.log("파싱된 ID 숫자:", id);
 
     if (isNaN(id)) {

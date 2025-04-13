@@ -1,1 +1,0 @@
-ALTER TABLE "digests" ADD COLUMN "generated_images" jsonb DEFAULT '[]'::jsonb;

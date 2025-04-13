@@ -1,1 +1,0 @@
-ALTER TABLE "digests" ADD COLUMN "video_info" jsonb DEFAULT '{}'::jsonb;

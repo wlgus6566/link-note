@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { digests } from "@/db/schema";
-import { NewDigest } from "@/db/schema";
 import { desc } from "drizzle-orm";
 
 // 요청 스키마 정의
@@ -144,7 +143,7 @@ function extractYouTubeVideoId(url: string): string | null {
 
   // YouTube URL 패턴 확인
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?\/]+)/,
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/]+)/,
     /youtube\.com\/watch\?.*v=([^&]+)/,
   ];
 

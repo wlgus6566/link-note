@@ -2,50 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 255 67% 59%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.75rem;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 255 67% 59%;
+    --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 255 67% 59%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+
+  /* 디자인 시스템 컬러 */
+  :root {
+    --primary-color: #6756d6;
+    --primary-light: #ecebfb;
+    --secondary-color: #f5f6fa;
+    --neutral-dark: #2e2e2e;
+    --neutral-medium: #6e6e6e;
+    --border-line: #e4e7ee;
+    --success: #31c48d;
+    --warning: #fbbf24;
   }
 }
 
@@ -54,7 +68,18 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont,
+      "Apple SD Gothic Neo", sans-serif;
+    @apply bg-secondary-color text-neutral-dark;
+  }
+  h1 {
+    @apply text-2xl font-bold;
+  }
+  h2 {
+    @apply text-xl font-semibold;
+  }
+  h3 {
+    @apply text-lg font-medium;
   }
 }
 
@@ -66,7 +91,6 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
 .prose h1 {
   @apply text-2xl font-bold;
 }
@@ -89,4 +113,77 @@
 
 .prose li {
   @apply mb-1;
+}
+
+/* 카드 스타일 */
+.content-card {
+  @apply bg-white rounded-xl shadow-sm border border-border-line overflow-hidden;
+}
+
+/* 버튼 스타일 */
+.btn-primary {
+  @apply bg-primary-color text-white font-semibold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity;
+}
+
+.btn-secondary {
+  @apply bg-transparent border border-primary-color text-primary-color font-semibold py-2 px-4 rounded-lg hover:bg-primary-light transition-colors;
+}
+
+/* 태그 스타일 */
+.tag {
+  @apply text-xs bg-primary-light text-primary-color px-2 py-1 rounded-full;
+}
+
+/* 아이콘 컨테이너 */
+.icon-container {
+  @apply p-2 hover:bg-primary-light rounded-full transition-colors;
+}
+
+/* 플랫폼 아이콘 배지 */
+.platform-badge {
+  @apply absolute top-2 left-2 bg-white rounded-full p-1;
+}
+
+/* 검색 입력 필드 */
+.search-input {
+  @apply w-full py-3 pl-10 pr-4 rounded-lg border border-border-line focus:outline-none focus:border-primary-color;
+}
+
+/* 하단 네비게이션 */
+.bottom-nav {
+  @apply fixed bottom-3 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-md h-16 bg-white rounded-full shadow-sm border border-border-line;
+}
+
+.bottom-nav-item {
+  @apply flex flex-col items-center justify-center h-full;
+}
+
+.bottom-nav-item.active {
+  @apply text-primary-color;
+}
+
+.bottom-nav-item.inactive {
+  @apply text-neutral-medium;
+}
+
+/* 헤더 스타일 */
+.header {
+  @apply sticky top-0 z-30 bg-white border-b border-border-line;
+}
+
+/* 카테고리 필터 */
+.category-filter {
+  @apply flex gap-2 overflow-x-auto pb-2 scrollbar-hide;
+}
+
+.category-btn {
+  @apply text-xs whitespace-nowrap rounded-full px-3 py-1.5;
+}
+
+.category-btn.active {
+  @apply bg-primary-color text-white;
+}
+
+.category-btn.inactive {
+  @apply bg-white border border-border-line text-neutral-medium hover:border-primary-color hover:text-primary-color transition-colors;
 }

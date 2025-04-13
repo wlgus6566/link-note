@@ -1,12 +1,18 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Filter, Grid, List } from "lucide-react";
+import { Search, Filter, Grid, List, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BottomNav from "@/components/bottom-nav";
+import { motion } from "framer-motion";
 
 export default function LibraryPage() {
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
   // 샘플 데이터
   const savedContent = [
     {
@@ -15,7 +21,7 @@ export default function LibraryPage() {
       source: "YouTube",
       date: "4월 10일",
       summary:
-        "이 영상은 2025년 인공지능 기술의 발전 방향과 산업에 미치는 영향에 대해 분석합니다.",
+        "이 영상은 2025년 인공지능 기술의 발전 방향과 산업에 미치는 영향에 대해 분석합니다. 특히 생성형 AI와 자율주행 기술의 발전이 주목됩니다.",
       tags: ["AI", "기술", "미래", "트렌드"],
       image: "/placeholder.svg?height=200&width=400",
     },
@@ -25,7 +31,7 @@ export default function LibraryPage() {
       source: "Instagram",
       date: "4월 8일",
       summary:
-        "영양사가 추천하는 건강한 식습관을 위한 10가지 실천 가능한 팁을 소개합니다.",
+        "영양사가 추천하는 건강한 식습관을 위한 10가지 실천 가능한 팁을 소개합니다. 균형 잡힌 식단과 규칙적인 식사 시간의 중요성이 강조됩니다.",
       tags: ["건강", "식습관", "영양", "웰빙"],
       image: "/placeholder.svg?height=200&width=400",
     },
@@ -35,7 +41,7 @@ export default function LibraryPage() {
       source: "Medium",
       date: "4월 5일",
       summary:
-        "재택근무의 생산성을 높이기 위한 환경 구성과 습관에 대해 다룹니다.",
+        "재택근무의 생산성을 높이기 위한 환경 구성과 습관에 대해 다룹니다. 적절한 조명, 인체공학적 가구, 업무 루틴 설정의 중요성을 설명합니다.",
       tags: ["재택근무", "생산성", "업무환경"],
       image: "/placeholder.svg?height=200&width=400",
     },
@@ -63,27 +69,52 @@ export default function LibraryPage() {
   // 콘텐츠 기반 인기 태그
   const popularTags = ["기술", "웰빙", "생산성", "AI", "건강", "디자인"];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+      },
+    },
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 pb-16">
-      <header className="sticky top-0 z-10 bg-white border-b">
+    <div className="flex flex-col min-h-screen pb-24">
+      <header className="header">
         <div className="container px-5 py-4">
-          <h1 className="text-xl font-bold mb-4">내 보관함</h1>
+          <div className="flex items-center mb-4">
+            <Bookmark className="h-5 w-5 text-primary-color mr-2" />
+            <h1 className="text-xl font-bold text-neutral-dark">내 보관함</h1>
+          </div>
 
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-medium" />
             <Input
-              className="pl-9 h-10 bg-white border-gray-200 rounded-xl"
+              className="search-input"
               placeholder="저장된 콘텐츠 검색"
               type="search"
             />
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="category-filter">
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs whitespace-nowrap rounded-full"
+                className="category-btn active"
               >
                 전체
               </Button>
@@ -92,7 +123,7 @@ export default function LibraryPage() {
                   key={tag}
                   variant="outline"
                   size="sm"
-                  className="text-xs whitespace-nowrap rounded-full"
+                  className="category-btn inactive"
                 >
                   {tag}
                 </Button>
@@ -102,7 +133,7 @@ export default function LibraryPage() {
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-full flex-shrink-0"
+              className="h-8 w-8 rounded-full bg-white border-border-line flex-shrink-0 hover:border-primary-color hover:text-primary-color"
             >
               <Filter className="h-4 w-4" />
             </Button>
@@ -111,75 +142,116 @@ export default function LibraryPage() {
       </header>
 
       <main className="flex-1">
-        <div className="container px-5 py-4  bg-gradient-to-b from-blue-50 to-white">
+        <div className="container px-5 py-4">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-neutral-medium">
               {savedContent.length}개 항목
             </div>
 
-            <Tabs defaultValue="grid" className="w-auto">
-              <TabsList className="h-8 p-1">
-                <TabsTrigger value="grid" className="h-6 w-6 p-0">
+            <Tabs
+              defaultValue={viewMode}
+              className="w-auto"
+              onValueChange={(value) => setViewMode(value as "grid" | "list")}
+            >
+              <TabsList className="h-8 p-1 bg-secondary-color">
+                <TabsTrigger
+                  value="grid"
+                  className="h-6 w-6 p-0 data-[state=active]:bg-primary-light data-[state=active]:text-primary-color"
+                >
                   <Grid className="h-4 w-4" />
                 </TabsTrigger>
-                <TabsTrigger value="list" className="h-6 w-6 p-0">
+                <TabsTrigger
+                  value="list"
+                  className="h-6 w-6 p-0 data-[state=active]:bg-primary-light data-[state=active]:text-primary-color"
+                >
                   <List className="h-4 w-4" />
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {savedContent.map((content) => (
+          <motion.div
+            className={
+              viewMode === "grid" ? "grid grid-cols-2 gap-4" : "space-y-4"
+            }
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {savedContent.map((content, index) => (
               <Link
                 href={`/digest/${content.id}`}
                 key={content.id}
                 className="group"
               >
-                <div className="bg-white rounded-xl overflow-hidden shadow-sm transition-all duration-200 group-hover:shadow-md h-full flex flex-col">
-                  <div className="relative h-32 w-full">
+                <motion.div
+                  className={`bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm group-hover:border-primary-color ${
+                    viewMode === "grid" ? "h-full flex flex-col" : "flex"
+                  }`}
+                  variants={itemVariants}
+                  whileHover={{ y: -5 }}
+                >
+                  <div
+                    className={`relative ${
+                      viewMode === "grid"
+                        ? "h-32 w-full"
+                        : "h-20 w-20 flex-shrink-0"
+                    }`}
+                  >
                     <Image
                       src={content.image || "/placeholder.svg"}
                       alt={content.title}
                       fill
-                      className="object-cover"
+                      className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
                     />
                     <div className="absolute top-2 left-2">
-                      <div className="px-2 py-0.5 bg-black/60 text-white rounded-full text-[10px]">
+                      <div className="px-2 py-0.5 bg-white rounded-full text-[10px] text-neutral-dark">
                         {content.source}
                       </div>
                     </div>
                   </div>
-                  <div className="p-3 flex-1 flex flex-col">
-                    <div className="text-xs text-gray-500 mb-1">
+
+                  <div
+                    className={`p-3 ${
+                      viewMode === "grid" ? "flex-1 flex flex-col" : "flex-1"
+                    }`}
+                  >
+                    <div className="text-xs text-neutral-medium mb-1">
                       {content.date}
                     </div>
-                    <h3 className="font-medium text-sm mb-1 line-clamp-2">
+                    <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
                       {content.title}
                     </h3>
-                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">
-                      {content.summary}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-auto">
-                      {content.tags.slice(0, 2).map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px]"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {content.tags.length > 2 && (
-                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px]">
-                          +{content.tags.length - 2}
+
+                    {viewMode === "list" && (
+                      <p className="text-xs text-neutral-medium line-clamp-2 mb-2">
+                        {content.summary}
+                      </p>
+                    )}
+
+                    <div
+                      className={`flex flex-wrap gap-1 ${
+                        viewMode === "grid" ? "mt-auto" : ""
+                      }`}
+                    >
+                      {content.tags
+                        .slice(0, viewMode === "grid" ? 2 : 3)
+                        .map((tag) => (
+                          <span key={tag} className="tag">
+                            {tag}
+                          </span>
+                        ))}
+                      {content.tags.length > (viewMode === "grid" ? 2 : 3) && (
+                        <span className="text-xs bg-secondary-color text-neutral-medium px-1.5 py-0.5 rounded-full">
+                          +{content.tags.length - (viewMode === "grid" ? 2 : 3)}
                         </span>
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </Link>
             ))}
-          </div>
+          </motion.div>
         </div>
       </main>
 

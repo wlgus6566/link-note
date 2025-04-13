@@ -3,13 +3,20 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Bookmark, Share2, Calendar, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark,
+  BookmarkCheck,
+  Share2,
+  Calendar,
+  Clock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import BottomNav from "@/components/bottom-nav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import React from "react";
+import { motion } from "framer-motion";
 
 export default function DigestPage({
   params,
@@ -21,6 +28,7 @@ export default function DigestPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pageId, setPageId] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
 
   // params가 Promise이므로 useEffect에서 비동기적으로 처리
   useEffect(() => {
@@ -48,7 +56,7 @@ export default function DigestPage({
 
     const fetchDigest = async () => {
       // 이미 데이터가 있으면 중복 API 호출 방지
-      if (digest && digest.id === parseInt(pageId)) {
+      if (digest && digest.id === Number.parseInt(pageId)) {
         console.log(
           `ID ${pageId}의 다이제스트 데이터가 이미 로드되어 있습니다.`
         );
@@ -82,7 +90,7 @@ export default function DigestPage({
           console.log("API에서 다이제스트 데이터 가져오기 성공:", result.data);
 
           // 데이터 설정 전에 추가 정보 가져오기 (채널 정보)
-          let digestData = result.data;
+          const digestData = result.data;
 
           // YouTube 데이터인 경우 채널 정보 가져오기
           if (digestData.sourceType === "YouTube" && digestData.sourceUrl) {
@@ -138,22 +146,29 @@ export default function DigestPage({
   // 에러 발생 시 UI
   if (error) {
     return (
-      <div className="flex flex-col min-h-screen bg-white">
-        <header className="sticky top-0 z-10 bg-white border-b">
+      <div className="flex flex-col min-h-screen">
+        <header className="header">
           <div className="container flex items-center justify-between h-16 px-5">
-            <Button variant="ghost" size="sm" className="p-0" asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-0 hover:bg-transparent"
+              asChild
+            >
               <Link href="/">
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
               </Link>
             </Button>
-            <div className="text-sm font-medium">오류 발생</div>
+            <div className="text-sm font-medium text-neutral-dark">
+              오류 발생
+            </div>
             <div className="w-5"></div>
           </div>
         </header>
 
         <main className="flex-1 container px-5 py-8 flex items-center justify-center">
-          <div className="max-w-md w-full bg-white p-8 space-y-6 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+          <div className="max-w-md w-full bg-white p-8 space-y-6 text-center rounded-xl border border-border-line shadow-sm">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto border border-red-500/30">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-8 w-8 text-red-500"
@@ -169,11 +184,13 @@ export default function DigestPage({
                 />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-gray-900">요약 로드 실패</h1>
-            <p className="text-gray-600">{error}</p>
+            <h1 className="text-xl font-bold text-neutral-dark">
+              요약 로드 실패
+            </h1>
+            <p className="text-neutral-medium">{error}</p>
             <Button
               onClick={() => router.push("/")}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              className="bg-primary-color hover:bg-primary-color/90 text-white"
             >
               홈으로 돌아가기
             </Button>
@@ -188,28 +205,33 @@ export default function DigestPage({
   // 로딩 중 UI
   if (loading || !digest) {
     return (
-      <div className="flex flex-col min-h-screen bg-white pb-16">
-        <header className="sticky top-0 z-10 bg-white border-b">
+      <div className="flex flex-col min-h-screen pb-24">
+        <header className="header">
           <div className="container flex items-center justify-between h-16 px-5">
-            <Button variant="ghost" size="sm" className="p-0" asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-0 hover:bg-transparent"
+              asChild
+            >
               <Link href="/">
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
               </Link>
             </Button>
             <div className="flex gap-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full"
+                className="h-9 w-9 rounded-full hover:bg-primary-light"
               >
-                <Bookmark className="h-5 w-5" />
+                <Bookmark className="h-5 w-5 text-neutral-dark" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full"
+                className="h-9 w-9 rounded-full hover:bg-primary-light"
               >
-                <Share2 className="h-5 w-5" />
+                <Share2 className="h-5 w-5 text-neutral-dark" />
               </Button>
             </div>
           </div>
@@ -219,41 +241,41 @@ export default function DigestPage({
           <article className="max-w-3xl mx-auto px-5 py-8">
             {/* 태그 스켈레톤 */}
             <div className="flex flex-wrap gap-1.5 mb-4">
-              <Skeleton className="h-6 w-16 rounded-full" />
-              <Skeleton className="h-6 w-20 rounded-full" />
-              <Skeleton className="h-6 w-14 rounded-full" />
+              <Skeleton className="h-6 w-16 rounded-full bg-secondary-color" />
+              <Skeleton className="h-6 w-20 rounded-full bg-secondary-color" />
+              <Skeleton className="h-6 w-14 rounded-full bg-secondary-color" />
             </div>
 
             {/* 제목 스켈레톤 */}
             <div className="mb-4">
-              <Skeleton className="h-8 w-3/4 mb-2" />
-              <Skeleton className="h-8 w-1/2" />
+              <Skeleton className="h-8 w-3/4 mb-2 bg-secondary-color" />
+              <Skeleton className="h-8 w-1/2 bg-secondary-color" />
             </div>
 
             {/* 메타데이터 스켈레톤 */}
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b">
-              <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border-line">
+              <Skeleton className="h-12 w-12 rounded-full bg-secondary-color" />
               <div className="flex-1">
-                <Skeleton className="h-5 w-36 mb-2" />
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-36 mb-2 bg-secondary-color" />
+                <Skeleton className="h-4 w-24 bg-secondary-color" />
               </div>
               <div className="flex flex-col items-end">
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24 mb-2 bg-secondary-color" />
+                <Skeleton className="h-4 w-20 bg-secondary-color" />
               </div>
             </div>
 
             {/* 이미지 스켈레톤 */}
-            <Skeleton className="h-64 md:h-80 w-full mb-8 rounded-xl" />
+            <Skeleton className="h-64 md:h-80 w-full mb-8 rounded-xl bg-secondary-color" />
 
             {/* 내용 스켈레톤 */}
             <div className="space-y-6">
-              <Skeleton className="h-24 w-full rounded-lg" />
+              <Skeleton className="h-24 w-full rounded-lg bg-secondary-color" />
               <div className="space-y-2">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-6 w-40 bg-secondary-color" />
+                <Skeleton className="h-4 w-full bg-secondary-color" />
+                <Skeleton className="h-4 w-full bg-secondary-color" />
+                <Skeleton className="h-4 w-3/4 bg-secondary-color" />
               </div>
             </div>
           </article>
@@ -265,28 +287,38 @@ export default function DigestPage({
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-white pb-16">
-      <header className="sticky top-0 z-10 bg-white border-b">
+    <div className="flex flex-col min-h-screen pb-24">
+      <header className="header">
         <div className="container flex items-center justify-between h-16 px-5">
-          <Button variant="ghost" size="sm" className="p-0" asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-0 hover:bg-transparent"
+            asChild
+          >
             <Link href="/">
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 text-neutral-dark" />
             </Link>
           </Button>
           <div className="flex gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full"
+              className="h-9 w-9 rounded-full hover:bg-primary-light"
+              onClick={() => setIsSaved(!isSaved)}
             >
-              <Bookmark className="h-5 w-5" />
+              {isSaved ? (
+                <BookmarkCheck className="h-5 w-5 text-primary-color" />
+              ) : (
+                <Bookmark className="h-5 w-5 text-neutral-dark" />
+              )}
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full"
+              className="h-9 w-9 rounded-full hover:bg-primary-light"
             >
-              <Share2 className="h-5 w-5" />
+              <Share2 className="h-5 w-5 text-neutral-dark" />
             </Button>
           </div>
         </div>
@@ -295,41 +327,53 @@ export default function DigestPage({
       <main className="flex-1">
         <article className="max-w-3xl mx-auto px-5 py-8">
           {/* 태그 및 메타데이터 */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
+          <motion.div
+            className="flex flex-wrap gap-1.5 mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
             {digest.tags.map((tag: string) => (
               <Link href={`/tag/${tag}`} key={tag}>
-                <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs hover:bg-blue-200 transition-colors">
-                  {tag}
-                </span>
+                <span className="tag">{tag}</span>
               </Link>
             ))}
-          </div>
+          </motion.div>
 
           {/* 제목 */}
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-4">
+          <motion.h1
+            className="text-2xl md:text-3xl font-bold tracking-tight mb-4 text-neutral-dark"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
             {digest.title}
-          </h1>
+          </motion.h1>
 
           {/* 저자 정보 및 메타데이터 */}
-          <div className="flex items-center gap-4 mb-6 pb-6 border-b">
-            <Avatar className="h-12 w-12">
+          <motion.div
+            className="flex items-center gap-4 mb-6 pb-6 border-b border-border-line"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Avatar className="h-12 w-12 border-2 border-primary-color/50">
               <AvatarImage
                 src={digest.author?.avatar || "/placeholder.svg"}
                 alt={digest.author?.name || "작성자"}
               />
-              <AvatarFallback>
+              <AvatarFallback className="bg-primary-light text-primary-color">
                 {digest.author?.name?.charAt(0) || "A"}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <div className="font-medium">
+              <div className="font-medium text-neutral-dark">
                 {digest.author?.name || "AI 요약"}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-neutral-medium">
                 {digest.author?.role || "자동 생성"}
               </div>
             </div>
-            <div className="flex flex-col items-end text-sm text-gray-500">
+            <div className="flex flex-col items-end text-sm text-neutral-medium">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
                 <span>
@@ -345,14 +389,19 @@ export default function DigestPage({
                 <span>{digest.readTime}</span>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* 메인 이미지 또는 YouTube 영상 */}
-          <div className="mb-8 rounded-xl overflow-hidden">
+          <motion.div
+            className="mb-8 rounded-xl overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
             {digest.sourceType === "YouTube" && digest.sourceUrl ? (
-              <div className="flex flex-col bg-gray-100 rounded-xl overflow-hidden">
+              <div className="flex flex-col bg-white rounded-xl overflow-hidden border border-border-line shadow-sm">
                 {/* YouTube 영상 임베드 */}
-                <div className="relative w-full h-64 md:h-80">
+                <div className="relative w-full h-48 md:h-80">
                   <iframe
                     src={`https://www.youtube.com/embed/${getYouTubeVideoId(
                       digest.sourceUrl
@@ -367,12 +416,14 @@ export default function DigestPage({
                 {/* 유튜브 영상 정보 */}
                 <div className="p-4 space-y-3">
                   {/* 제목 */}
-                  <h2 className="text-xl font-bold">{digest.title}</h2>
+                  <h2 className="text-xl font-bold text-neutral-dark">
+                    {digest.title}
+                  </h2>
 
                   {/* 유튜버 정보, 업로드 날짜, 조회수 */}
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
-                      <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200">
+                      <div className="w-9 h-9 rounded-full overflow-hidden bg-secondary-color border border-border-line">
                         {digest.videoInfo?.channelId ? (
                           <Image
                             src={`https://yt3.googleusercontent.com/ytc/${digest.videoInfo.channelId}=s88-c-k-c0x00ffffff-no-rj`}
@@ -394,10 +445,10 @@ export default function DigestPage({
                         )}
                       </div>
                       <div>
-                        <div className="font-medium text-sm">
+                        <div className="font-medium text-sm text-neutral-dark">
                           {digest.videoInfo?.channelTitle || "채널명 없음"}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-neutral-medium">
                           {/* 업로드 날짜 포맷팅 */}
                           {digest.videoInfo?.publishedAt
                             ? new Date(
@@ -413,7 +464,7 @@ export default function DigestPage({
                     </div>
 
                     {/* 조회수 */}
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-neutral-medium">
                       {digest.videoInfo?.viewCount
                         ? `조회수 ${formatViewCount(
                             digest.videoInfo.viewCount
@@ -424,60 +475,89 @@ export default function DigestPage({
                 </div>
               </div>
             ) : (
-              <div className="relative h-64 md:h-80 w-full">
+              <div className="relative h-64 md:h-80 w-full bg-white rounded-xl border border-border-line shadow-sm">
                 <Image
                   src={digest.image || "/placeholder.svg?height=400&width=800"}
                   alt={digest.title}
                   fill
-                  className="object-cover"
+                  className="object-cover opacity-80"
                   priority
                 />
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* 요약 */}
-          <div className="mb-8 p-5 bg-gray-50 border-l-4 border-blue-500 rounded-r-lg">
-            <p className="text-base italic text-gray-700">{digest.summary}</p>
-          </div>
+          <motion.div
+            className="mb-8 p-5 bg-primary-light rounded-lg border-l-4 border-primary-color"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <p className="text-base italic text-neutral-dark">
+              {digest.summary}
+            </p>
+          </motion.div>
 
           {/* 본문 콘텐츠 */}
-          <div
+          <motion.div
             className="prose prose-blue prose-lg max-w-none mb-10"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
             dangerouslySetInnerHTML={{ __html: digest.content }}
           />
 
           {/* 저장 및 공유 버튼 */}
-          <div className="flex items-center justify-center gap-4 py-6 border-t border-b mb-10">
+          <motion.div
+            className="flex items-center justify-center gap-4 py-6 border-t border-b border-border-line mb-10"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
             <Button
               variant="outline"
               size="lg"
-              className="gap-2 rounded-full px-6"
+              className="gap-2 rounded-full px-6 bg-white border-border-line hover:border-primary-color hover:bg-primary-light"
+              onClick={() => setIsSaved(!isSaved)}
             >
-              <Bookmark className="h-5 w-5" />
-              <span>저장하기</span>
+              {isSaved ? (
+                <BookmarkCheck className="h-5 w-5 text-primary-color" />
+              ) : (
+                <Bookmark className="h-5 w-5 text-neutral-dark" />
+              )}
+              <span className="text-neutral-dark">
+                {isSaved ? "저장됨" : "저장하기"}
+              </span>
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="gap-2 rounded-full px-6"
+              className="gap-2 rounded-full px-6 bg-white border-border-line hover:border-primary-color hover:bg-primary-light"
             >
-              <Share2 className="h-5 w-5" />
-              <span>공유하기</span>
+              <Share2 className="h-5 w-5 text-neutral-dark" />
+              <span className="text-neutral-dark">공유하기</span>
             </Button>
-          </div>
+          </motion.div>
 
           {/* 원본 콘텐츠 링크 */}
-          <div className="mt-8 pt-6 border-t">
-            <h3 className="text-sm font-medium mb-3">원본 콘텐츠</h3>
+          <motion.div
+            className="mt-8 pt-6 border-t border-border-line"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <h3 className="text-sm font-medium mb-3 text-neutral-dark">
+              원본 콘텐츠
+            </h3>
             <Link
               href={digest.sourceUrl}
               target="_blank"
-              className="flex items-center justify-center w-full p-3.5 bg-gray-100 rounded-xl text-sm text-blue-600 font-medium hover:bg-gray-200 transition-colors"
+              className="flex items-center justify-center w-full p-3.5 bg-white rounded-xl text-sm text-primary-color font-medium hover:bg-primary-light transition-colors border border-border-line"
             >
               원본 보기
             </Link>
-          </div>
+          </motion.div>
         </article>
       </main>
 
@@ -512,7 +592,7 @@ function getYouTubeVideoId(url: string): string {
 function formatViewCount(count: string | number): string {
   if (!count) return "0";
 
-  const num = typeof count === "string" ? parseInt(count, 10) : count;
+  const num = typeof count === "string" ? Number.parseInt(count, 10) : count;
 
   if (isNaN(num)) return "0";
 

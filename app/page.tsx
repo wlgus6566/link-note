@@ -9,15 +9,15 @@ import Image from "next/image";
 import {
   ArrowRight,
   BookOpen,
-  Plus,
   Search,
   FileText,
   Tag,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BottomNav from "@/components/bottom-nav";
-import ContentCard from "@/components/content-card";
+import { motion } from "framer-motion";
 
 export default function Home() {
   const router = useRouter();
@@ -65,67 +65,133 @@ export default function Home() {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+      },
+    },
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-10 bg-white border-b  z-30">
+    <div className="flex flex-col min-h-screen">
+      <header className="header">
         <div className="container flex items-center justify-between h-16 px-5">
           <Link href="/" className="flex items-center gap-1.5">
-            <BookOpen className="w-5 h-5 text-blue-500" />
-            <span className="text-lg font-bold">Link Digest</span>
+            <BookOpen className="w-5 h-5 text-primary-color" />
+            <span className="text-lg font-bold text-neutral-dark">
+              Link Digest
+            </span>
           </Link>
           <Link href="/profile">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-sm font-medium text-blue-600">김링</span>
+            <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center border border-primary-color/30">
+              <span className="text-sm font-medium text-primary-color">
+                김링
+              </span>
             </div>
           </Link>
         </div>
       </header>
 
-      <main className="flex-1 pb-20">
-        <section className="w-full pt-8 pb-14 md:py-20 bg-gradient-to-b from-blue-50 to-white relative overflow-hidden">
+      <main className="flex-1 pb-24">
+        <motion.section
+          className="w-full pt-8 pb-14 md:py-20 relative overflow-hidden"
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
           <div className="container px-5 relative z-10">
             <div className="flex flex-col items-center justify-center space-y-8 text-center">
-              <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-2">
-                <BookOpen className="w-8 h-8 text-blue-500" />
-              </div>
+              <motion.div
+                className="relative"
+                variants={itemVariants}
+                animate={{ y: [0, -10, 0] }}
+                transition={{
+                  repeat: Number.POSITIVE_INFINITY,
+                  duration: 3,
+                  ease: "easeInOut",
+                }}
+              >
+                <div className="absolute inset-0 rounded-full bg-primary-light blur-xl animate-pulse"></div>
+                <Image
+                  src="/images/logo1.png"
+                  alt="logo"
+                  width={64}
+                  height={64}
+                  className="relative z-10 rounded-full border-2 border-primary-color/50"
+                />
+              </motion.div>
 
               <div className="space-y-8 max-w-[320px] md:max-w-[600px]">
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">
-                  콘텐츠를 <span className="text-blue-500">스마트하게</span>
+                <motion.h1
+                  className="text-3xl md:text-4xl font-bold tracking-tight leading-tight text-neutral-dark"
+                  variants={itemVariants}
+                >
+                  콘텐츠를{" "}
+                  <span className="text-primary-color">스마트하게</span>
                   <br />
                   정리하세요
-                </h1>
-                <p className="text-base text-gray-600 md:text-lg max-w-[500px] mx-auto">
+                </motion.h1>
+                <motion.p
+                  className="text-base text-neutral-medium md:text-lg max-w-[500px] mx-auto"
+                  variants={itemVariants}
+                >
                   링크 한 줄로, 당신만의 블로그 콘텐츠가 완성됩니다.
-                </p>
+                </motion.p>
 
-                <div className="flex justify-center mt-6 gap-8">
+                <motion.div
+                  className="flex justify-center mt-6 gap-8"
+                  variants={itemVariants}
+                >
                   <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2">
-                      <FileText className="h-5 w-5 text-blue-500" />
+                    <div className="w-12 h-12 rounded-full bg-primary-light flex items-center justify-center mb-2 border border-primary-color/30">
+                      <FileText className="h-5 w-5 text-primary-color" />
                     </div>
-                    <span className="text-xs text-gray-600">핵심 요약</span>
+                    <span className="text-xs text-neutral-medium">
+                      핵심 요약
+                    </span>
                   </div>
                   <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2">
-                      <Tag className="h-5 w-5 text-blue-500" />
+                    <div className="w-12 h-12 rounded-full bg-primary-light flex items-center justify-center mb-2 border border-primary-color/30">
+                      <Tag className="h-5 w-5 text-primary-color" />
                     </div>
-                    <span className="text-xs text-gray-600">자동 태그</span>
+                    <span className="text-xs text-neutral-medium">
+                      자동 태그
+                    </span>
                   </div>
                   <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2">
-                      <Search className="h-5 w-5 text-blue-500" />
+                    <div className="w-12 h-12 rounded-full bg-primary-light flex items-center justify-center mb-2 border border-primary-color/30">
+                      <Search className="h-5 w-5 text-primary-color" />
                     </div>
-                    <span className="text-xs text-gray-600">쉬운 검색</span>
+                    <span className="text-xs text-neutral-medium">
+                      쉬운 검색
+                    </span>
                   </div>
-                </div>
+                </motion.div>
               </div>
 
-              <div className="w-full max-w-lg pt-4">
+              <motion.div
+                className="w-full max-w-lg pt-4"
+                variants={itemVariants}
+              >
                 <form onSubmit={handleSubmit} className="relative">
-                  <div className="flex items-center p-1.5 bg-white rounded-2xl shadow-lg border border-gray-100">
+                  <div className="flex items-center p-1.5 bg-white rounded-2xl border border-border-line shadow-sm">
                     <Input
-                      className="flex-1 h-14 border-0 shadow-none text-base focus:ring-0 pl-5 pr-4 rounded-xl"
+                      className="flex-1 h-14 border-0 shadow-none text-base focus:ring-0 pl-5 pr-4 rounded-xl bg-transparent text-neutral-dark"
                       placeholder="링크를 붙여넣으세요."
                       type="url"
                       value={url}
@@ -134,96 +200,84 @@ export default function Home() {
                     />
                     <Button
                       type="submit"
-                      className="h-12 px-4 bg-blue-500 hover:bg-blue-600 rounded-xl text-base font-medium"
+                      className="h-12 px-4 bg-primary-color hover:bg-primary-color/90 rounded-xl text-base text-white font-medium"
                     >
-                      <span className="mr-2">요약하기</span>
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </form>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Background decorative elements */}
+          <div className="absolute top-20 left-10 w-32 h-32 bg-primary-light rounded-full blur-3xl"></div>
+          <div className="absolute bottom-10 right-10 w-40 h-40 bg-primary-light rounded-full blur-3xl"></div>
+          <div className="absolute top-40 right-20 w-24 h-24 bg-primary-light rounded-full blur-3xl"></div>
+        </motion.section>
+
+        <section className="w-full py-8">
+          <div className="container px-5">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <Sparkles className="h-5 w-5 text-primary-color mr-2" />
+                <h2 className="text-xl font-bold text-neutral-dark">
+                  최근 추가됨
+                </h2>
               </div>
-            </div>
-          </div>
-        </section>
-        {/* 
-        <section className="w-full py-8">
-          <div className="container px-5">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">추천 콘텐츠</h2>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-blue-500 font-medium p-0"
-              >
-                전체보기
-              </Button>
-            </div>
-
-            <div className="space-y-5">
-              {recentContent.map((content) => (
-                <ContentCard key={content.id} content={content} />
-              ))}
-            </div>
-          </div>
-        </section> */}
-
-        <section className="w-full py-8">
-          <div className="container px-5">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">최근 추가됨</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-blue-500 font-medium p-0"
+                className="text-primary-color font-medium p-0 hover:bg-transparent"
               >
                 전체보기
               </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {recentContent.slice(0, 4).map((content) => (
+              {recentContent.slice(0, 4).map((content, index) => (
                 <Link
                   href={`/digest/${content.id}`}
                   key={content.id}
                   className="group"
                 >
-                  <div className="bg-white rounded-xl overflow-hidden shadow-sm transition-all duration-200 group-hover:shadow-md h-full flex flex-col">
+                  <motion.div
+                    className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm h-full flex flex-col group-hover:border-primary-color"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ y: -5 }}
+                  >
                     <div className="relative h-24 w-full">
                       <Image
                         src={content.image || "/placeholder.svg"}
                         alt={content.title}
                         fill
-                        className="object-cover"
+                        className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
                       />
                       <div className="absolute top-2 left-2">
-                        <div className="px-2 py-0.5 bg-black/60 text-white rounded-full text-[10px]">
+                        <div className="px-2 py-0.5 bg-white text-neutral-dark rounded-full text-[10px]">
                           {content.source}
                         </div>
                       </div>
                     </div>
                     <div className="p-3 flex-1 flex flex-col">
-                      <h3 className="font-medium text-sm mb-1 line-clamp-2">
+                      <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
                         {content.title}
                       </h3>
                       <div className="mt-auto pt-2">
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-neutral-medium">
                           {content.date}
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 </Link>
               ))}
             </div>
           </div>
         </section>
       </main>
-
-      {/* <div className="fixed bottom-20 right-5 z-20">
-        <Button className="h-14 w-14 rounded-full bg-blue-500 hover:bg-blue-600 shadow-lg">
-          <Plus className="h-6 w-6" />
-        </Button>
-      </div> */}
 
       <BottomNav />
     </div>

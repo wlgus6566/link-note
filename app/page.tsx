@@ -92,7 +92,12 @@ export default function Home() {
       <header className="header">
         <div className="container flex items-center justify-between h-16 px-5">
           <Link href="/" className="flex items-center gap-1.5">
-            <BookOpen className="w-5 h-5 text-primary-color" />
+            <Image
+              src="/images/logo_00.png"
+              alt="logo"
+              width={20}
+              height={20}
+            />
             <span className="text-lg font-bold text-neutral-dark">
               Link Digest
             </span>
@@ -126,13 +131,12 @@ export default function Home() {
                   ease: "easeInOut",
                 }}
               >
-                <div className="absolute inset-0 rounded-full bg-primary-light blur-xl animate-pulse"></div>
                 <Image
-                  src="/images/logo1.png"
+                  src="/images/logo_00.png"
                   alt="logo"
                   width={64}
                   height={64}
-                  className="relative z-10 rounded-full border-2 border-primary-color/50"
+                  className="relative z-10"
                 />
               </motion.div>
 
@@ -141,7 +145,7 @@ export default function Home() {
                   className="text-3xl md:text-4xl font-bold tracking-tight leading-tight text-neutral-dark"
                   variants={itemVariants}
                 >
-                  콘텐츠를{" "}
+                  콘텐츠를
                   <span className="text-primary-color">스마트하게</span>
                   <br />
                   정리하세요
@@ -150,7 +154,8 @@ export default function Home() {
                   className="text-base text-neutral-medium md:text-lg max-w-[500px] mx-auto"
                   variants={itemVariants}
                 >
-                  링크 한 줄로, 당신만의 블로그 콘텐츠가 완성됩니다.
+                  링크 한 줄로, 당신만의 블로그
+                  <br /> 콘텐츠가 완성됩니다.
                 </motion.p>
 
                 <motion.div

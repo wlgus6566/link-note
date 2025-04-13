@@ -14,7 +14,6 @@ import {
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
-
 export default function DesignSystem() {
   return (
     <div className="min-h-screen bg-secondary p-6 md:p-10 font-inter">

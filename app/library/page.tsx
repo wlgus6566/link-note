@@ -172,7 +172,7 @@ export default function LibraryPage() {
 
           <motion.div
             className={
-              viewMode === "grid" ? "grid grid-cols-2 gap-4" : "space-y-4"
+              viewMode === "grid" ? "grid grid-cols-2 gap-4" : "space-y-4 grid"
             }
             variants={containerVariants}
             initial="hidden"

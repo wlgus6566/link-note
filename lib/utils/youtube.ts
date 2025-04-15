@@ -7,6 +7,77 @@ import { google } from "googleapis";
 import { getSubtitles } from "youtube-captions-scraper";
 import { z } from "zod";
 
+// 시간(초)를 mm:ss 형식으로 변환하는 함수
+export function secondsToTimestamp(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const secs = Math.floor(seconds % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${mins}:${secs}`;
+}
+
+// 자막 타임라인 타입 정의
+export interface SubtitleItem {
+  start: string;
+  end: string;
+  text: string;
+  startSeconds: number;
+}
+
+export interface TimelineGroup {
+  range: string;
+  subtitles: SubtitleItem[];
+}
+
+// 자막을 5분 단위로 그룹화하는 함수
+export function createSubtitleTimeline(captions: any[]): TimelineGroup[] {
+  if (!captions || captions.length === 0) {
+    return [];
+  }
+
+  const TIMELINE_SECONDS = 5 * 60; // 300초 (5분)
+  const timelineMap: Record<string, SubtitleItem[]> = {};
+
+  captions.forEach((caption) => {
+    const startSeconds = caption.start || 0;
+    const duration = caption.dur || caption.duration || 2; // 기본 지속 시간 2초
+
+    const groupIndex = Math.floor(startSeconds / TIMELINE_SECONDS);
+    const startTime = groupIndex * TIMELINE_SECONDS;
+    const endTime = startTime + TIMELINE_SECONDS;
+
+    const rangeLabel = `${secondsToTimestamp(startTime)} - ${secondsToTimestamp(
+      endTime
+    )}`;
+
+    if (!timelineMap[rangeLabel]) {
+      timelineMap[rangeLabel] = [];
+    }
+
+    timelineMap[rangeLabel].push({
+      start: secondsToTimestamp(startSeconds),
+      end: secondsToTimestamp(startSeconds + duration),
+      startSeconds: startSeconds,
+      text: caption.text,
+    });
+  });
+
+  // 객체를 배열로 변환하고 시간순으로 정렬
+  return Object.entries(timelineMap)
+    .map(([range, subtitles]) => ({
+      range,
+      subtitles: subtitles.sort((a, b) => a.startSeconds - b.startSeconds),
+    }))
+    .sort((a, b) => {
+      // 시간대 시작 부분으로 정렬
+      const aStart = a.range.split(" - ")[0];
+      const bStart = b.range.split(" - ")[0];
+      return aStart.localeCompare(bStart);
+    });
+}
+
 // YouTube URL에서 비디오 ID 추출
 export function getVideoId(url: string): string | null {
   const urlSchema = z.string().url();
@@ -90,7 +161,10 @@ export async function getVideoTranscript(videoId: string) {
     // 자막 텍스트만 추출하여 문자열로 결합
     const transcriptText = captions.map((item) => item.text).join(" ");
 
-    return transcriptText;
+    return {
+      transcriptText,
+      captions,
+    };
   } catch (error) {
     console.error("자막 추출 에러:", error);
     throw new Error("비디오 자막을 가져오는 중 오류가 발생했습니다.");
@@ -115,6 +189,7 @@ export async function getYoutubeVideoData(url: string) {
     // 비디오 정보와 자막을 병렬로 가져오지만, 각각에 대한 오류 처리 개선
     let videoInfo;
     let transcript = "자막을 찾을 수 없습니다.";
+    let rawCaptions = [];
 
     try {
       videoInfo = await getVideoInfo(videoId);
@@ -139,16 +214,24 @@ export async function getYoutubeVideoData(url: string) {
     }
 
     try {
-      transcript = await getVideoTranscript(videoId);
+      // 자막 및 원시 캡션 데이터 가져오기
+      const captionResult = await getVideoTranscript(videoId);
+      transcript = captionResult.transcriptText;
+      rawCaptions = captionResult.captions;
       console.log("자막 가져오기 성공, 길이:", transcript.length);
     } catch (transcriptError) {
       console.error("자막 가져오기 실패:", transcriptError);
     }
 
+    // 타임라인 생성
+    const timeline = createSubtitleTimeline(rawCaptions);
+    console.log(`타임라인 그룹 생성 완료: ${timeline.length}개 그룹`);
+
     const result = {
       videoId,
       videoInfo,
       transcript,
+      timeline,
     };
 
     console.log("YouTube 데이터 추출 완료");
@@ -168,6 +251,7 @@ export async function getYoutubeVideoData(url: string) {
       },
       transcript:
         "자막을 가져올 수 없습니다. 요약의 정확도가 낮을 수 있습니다.",
+      timeline: [],
     };
   }
 }

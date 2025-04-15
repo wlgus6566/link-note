@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
         videoId: videoData.videoId,
         hasVideoInfo: !!videoData.videoInfo,
         transcriptLength: videoData.transcript?.length || 0,
+        timelineGroupsCount: videoData.timeline?.length || 0,
       })
     );
 
@@ -42,12 +43,13 @@ export async function POST(request: NextRequest) {
 
     console.log("추출된 비디오 정보:", JSON.stringify(videoInfo));
 
-    // 성공 응답 반환
+    // 성공 응답 반환 (타임라인 데이터 포함)
     return NextResponse.json({
       success: true,
       data: {
         videoInfo,
         transcript: videoData.transcript || "",
+        timeline: videoData.timeline || [],
       },
     });
   } catch (error) {

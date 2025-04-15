@@ -10,6 +10,9 @@ import {
   Share2,
   Calendar,
   Clock,
+  AlignJustify,
+  Info,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +20,19 @@ import BottomNav from "@/components/bottom-nav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { TimelineAccordion } from "@/components/timeline/TimelineAccordion";
+import { TimelineGroup } from "@/lib/utils/youtube";
+import { SimpleTooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { SimpleToast } from "@/components/ui/toast";
+import { MemoPopup } from "@/components/ui/memo-popup";
+
+interface BookmarkItem {
+  id: string;
+  seconds: number;
+  text: string;
+  memo?: string;
+  timestamp: number;
+}
 
 export default function DigestPage({
   params,
@@ -29,8 +45,19 @@ export default function DigestPage({
   const [error, setError] = useState<string | null>(null);
   const [pageId, setPageId] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
+  const [showTimeline, setShowTimeline] = useState(true);
 
-  // params가 Promise이므로 useEffect에서 비동기적으로 처리
+  const [bookmarkedItems, setBookmarkedItems] = useState<
+    Record<string, BookmarkItem>
+  >({});
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [showMemoPopup, setShowMemoPopup] = useState(false);
+  const [currentBookmarkId, setCurrentBookmarkId] = useState<string | null>(
+    null
+  );
+
   useEffect(() => {
     const resolveParams = async () => {
       try {
@@ -46,16 +73,55 @@ export default function DigestPage({
   }, [params]);
 
   useEffect(() => {
-    // pageId가 설정된 경우에만 요약 데이터 가져오기
+    if (!pageId) return;
+
+    try {
+      const timelineKey = `timeline_${pageId}`;
+      const storedTimeline = localStorage.getItem(timelineKey);
+
+      if (storedTimeline) {
+        const parsedTimeline = JSON.parse(storedTimeline);
+        setTimelineData(parsedTimeline);
+        console.log(
+          `타임라인 데이터 로드 완료: ${parsedTimeline.length}개 그룹`
+        );
+      } else {
+        console.log("타임라인 데이터가 없습니다.");
+      }
+    } catch (error) {
+      console.error("타임라인 데이터 로딩 오류:", error);
+    }
+  }, [pageId]);
+
+  useEffect(() => {
+    if (!pageId) return;
+
+    try {
+      const bookmarkKey = `bookmarks_timeline_${pageId}`;
+      const storedBookmarks = localStorage.getItem(bookmarkKey);
+
+      if (storedBookmarks) {
+        const parsedBookmarks = JSON.parse(storedBookmarks);
+        setBookmarkedItems(parsedBookmarks);
+        console.log(
+          `북마크 데이터 로드 완료: ${
+            Object.keys(parsedBookmarks).length
+          }개 항목`
+        );
+      }
+    } catch (error) {
+      console.error("북마크 데이터 로딩 오류:", error);
+    }
+  }, [pageId]);
+
+  useEffect(() => {
     if (!pageId) return;
 
     let isMounted = true;
 
-    // 이미 데이터를 불러왔는지 확인하는 플래그
     let isDataFetched = false;
 
     const fetchDigest = async () => {
-      // 이미 데이터가 있으면 중복 API 호출 방지
       if (digest && digest.id === Number.parseInt(pageId)) {
         console.log(
           `ID ${pageId}의 다이제스트 데이터가 이미 로드되어 있습니다.`
@@ -63,7 +129,6 @@ export default function DigestPage({
         return;
       }
 
-      // 이미 데이터를 가져오는 중이면 중복 호출 방지
       if (isDataFetched) {
         console.log("이미 데이터를 가져오는 중입니다.");
         return;
@@ -76,9 +141,7 @@ export default function DigestPage({
 
         console.log(`다이제스트 데이터 가져오기 시작: ID=${pageId}`);
 
-        // API 호출로 데이터 가져오기
         const response = await fetch(`/api/digest/${pageId}`, {
-          // 캐시 방지 설정 추가
           cache: "no-store",
           headers: {
             "Cache-Control": "no-cache",
@@ -89,15 +152,12 @@ export default function DigestPage({
         if (result.success) {
           console.log("API에서 다이제스트 데이터 가져오기 성공:", result.data);
 
-          // 데이터 설정 전에 추가 정보 가져오기 (채널 정보)
           const digestData = result.data;
 
-          // YouTube 데이터인 경우 채널 정보 가져오기
           if (digestData.sourceType === "YouTube" && digestData.sourceUrl) {
             try {
               const videoId = getYouTubeVideoId(digestData.sourceUrl);
 
-              // 채널 썸네일 URL 구성
               if (
                 !digestData.channelThumbnail &&
                 digestData.videoInfo?.channelId
@@ -113,7 +173,6 @@ export default function DigestPage({
             setDigest(digestData);
           }
         } else {
-          // API 응답 실패 처리
           throw new Error(result.error || "요약을 불러오는데 실패했습니다.");
         }
       } catch (error) {
@@ -132,7 +191,6 @@ export default function DigestPage({
       }
     };
 
-    // API 호출은 한 번만 실행되도록 setTimeout으로 지연
     const timeoutId = setTimeout(() => {
       fetchDigest();
     }, 100);
@@ -143,7 +201,83 @@ export default function DigestPage({
     };
   }, [pageId, digest]);
 
-  // 에러 발생 시 UI
+  const handleBookmark = (id: string, seconds: number, text: string) => {
+    if (!pageId) return;
+
+    const bookmarkKey = `bookmarks_timeline_${pageId}`;
+    let newBookmarkedItems = { ...bookmarkedItems };
+
+    if (newBookmarkedItems[id]) {
+      delete newBookmarkedItems[id];
+      setToastMessage("타임라인에서 제거되었어요.");
+    } else {
+      newBookmarkedItems[id] = {
+        id,
+        seconds,
+        text,
+        timestamp: Date.now(),
+      };
+      setToastMessage("🔖 타임라인에 저장했어요!");
+      setCurrentBookmarkId(id);
+    }
+
+    setBookmarkedItems(newBookmarkedItems);
+    localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
+    setShowToast(true);
+  };
+
+  const handleSaveMemo = (memo: string) => {
+    if (!currentBookmarkId || !pageId) return;
+
+    const bookmarkKey = `bookmarks_timeline_${pageId}`;
+    let newBookmarkedItems = { ...bookmarkedItems };
+
+    if (newBookmarkedItems[currentBookmarkId]) {
+      newBookmarkedItems[currentBookmarkId] = {
+        ...newBookmarkedItems[currentBookmarkId],
+        memo,
+      };
+
+      setBookmarkedItems(newBookmarkedItems);
+      localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
+
+      setToastMessage("메모가 저장되었습니다.");
+      setShowToast(true);
+    }
+  };
+
+  const handleCloseToast = () => {
+    setShowToast(false);
+  };
+
+  const handleCloseMemoPopup = () => {
+    setShowMemoPopup(false);
+    setCurrentBookmarkId(null);
+  };
+
+  const handleSeekTo = (seconds: number) => {
+    if (!digest || digest.sourceType !== "YouTube") return;
+
+    const videoId = getYouTubeVideoId(digest.sourceUrl);
+    if (!videoId) return;
+
+    const iframe = document.querySelector("iframe");
+    if (!iframe) return;
+
+    try {
+      const currentSrc = iframe.src;
+      const baseUrl = currentSrc.split("?")[0];
+
+      const newSrc = `${baseUrl}?start=${Math.floor(seconds)}&autoplay=1`;
+
+      iframe.src = newSrc;
+
+      console.log(`${seconds}초 위치로 이동`);
+    } catch (error) {
+      console.error("비디오 탐색 오류:", error);
+    }
+  };
+
   if (error) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -167,7 +301,7 @@ export default function DigestPage({
         </header>
 
         <main className="flex-1 container px-5 py-8 flex items-center justify-center">
-          <div className="max-w-md w-full bg-white p-8 space-y-6 text-center rounded-xl border border-border-line shadow-sm">
+          <div className="max-w-sm w-full bg-white p-8 space-y-6 text-center rounded-xl border border-border-line shadow-sm">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto border border-red-500/30">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -202,7 +336,6 @@ export default function DigestPage({
     );
   }
 
-  // 로딩 중 UI
   if (loading || !digest) {
     return (
       <div className="flex flex-col min-h-screen pb-24">
@@ -239,20 +372,17 @@ export default function DigestPage({
 
         <main className="flex-1">
           <article className="max-w-3xl mx-auto px-5 py-8">
-            {/* 태그 스켈레톤 */}
             <div className="flex flex-wrap gap-1.5 mb-4">
               <Skeleton className="h-6 w-16 rounded-full bg-secondary-color" />
               <Skeleton className="h-6 w-20 rounded-full bg-secondary-color" />
               <Skeleton className="h-6 w-14 rounded-full bg-secondary-color" />
             </div>
 
-            {/* 제목 스켈레톤 */}
             <div className="mb-4">
               <Skeleton className="h-8 w-3/4 mb-2 bg-secondary-color" />
               <Skeleton className="h-8 w-1/2 bg-secondary-color" />
             </div>
 
-            {/* 메타데이터 스켈레톤 */}
             <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border-line">
               <Skeleton className="h-12 w-12 rounded-full bg-secondary-color" />
               <div className="flex-1">
@@ -265,10 +395,8 @@ export default function DigestPage({
               </div>
             </div>
 
-            {/* 이미지 스켈레톤 */}
             <Skeleton className="h-64 md:h-80 w-full mb-8 rounded-xl bg-secondary-color" />
 
-            {/* 내용 스켈레톤 */}
             <div className="space-y-6">
               <Skeleton className="h-24 w-full rounded-lg bg-secondary-color" />
               <div className="space-y-2">
@@ -287,300 +415,389 @@ export default function DigestPage({
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-24">
-      <header className="header">
-        <div className="container flex items-center justify-between h-16 px-5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-0 hover:bg-transparent"
-            asChild
-          >
-            <Link href="/">
-              <ArrowLeft className="h-5 w-5 text-neutral-dark" />
-            </Link>
-          </Button>
-          <div className="flex gap-2">
+    <TooltipProvider>
+      <div className="flex flex-col min-h-screen pb-24">
+        <header className="header">
+          <div className="container flex items-center justify-between h-16 px-5">
             <Button
               variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-full hover:bg-primary-light"
-              onClick={() => setIsSaved(!isSaved)}
+              size="sm"
+              className="p-0 hover:bg-transparent"
+              asChild
             >
-              {isSaved ? (
-                <BookmarkCheck className="h-5 w-5 text-primary-color" />
-              ) : (
-                <Bookmark className="h-5 w-5 text-neutral-dark" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-full hover:bg-primary-light"
-            >
-              <Share2 className="h-5 w-5 text-neutral-dark" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1">
-        <article className="max-w-3xl mx-auto px-5 py-8">
-          {/* 태그 및 메타데이터 */}
-          <motion.div
-            className="flex flex-wrap gap-1.5 mb-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            {digest.tags.map((tag: string) => (
-              <Link href={`/tag/${tag}`} key={tag}>
-                <span className="tag">{tag}</span>
+              <Link href="/">
+                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
               </Link>
-            ))}
-          </motion.div>
-
-          {/* 제목 */}
-          <motion.h1
-            className="text-2xl md:text-3xl font-bold tracking-tight mb-4 text-neutral-dark"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            {digest.title}
-          </motion.h1>
-
-          {/* 저자 정보 및 메타데이터 */}
-          <motion.div
-            className="flex items-center gap-4 mb-6 pb-6 border-b border-border-line"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Avatar className="h-12 w-12 border-2 border-primary-color/50">
-              <AvatarImage
-                src={digest.author?.avatar || "/placeholder.svg"}
-                alt={digest.author?.name || "작성자"}
-              />
-              <AvatarFallback className="bg-primary-light text-primary-color">
-                {digest.author?.name?.charAt(0) || "A"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <div className="font-medium text-neutral-dark">
-                {digest.author?.name || "AI 요약"}
-              </div>
-              <div className="text-sm text-neutral-medium">
-                {digest.author?.role || "자동 생성"}
-              </div>
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full hover:bg-primary-light"
+                onClick={() => setIsSaved(!isSaved)}
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="h-5 w-5 text-primary-color" />
+                ) : (
+                  <Bookmark className="h-5 w-5 text-neutral-dark" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full hover:bg-primary-light"
+              >
+                <Share2 className="h-5 w-5 text-neutral-dark" />
+              </Button>
             </div>
-            <div className="flex flex-col items-end text-sm text-neutral-medium">
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>
-                  {new Date(digest.date).toLocaleDateString("ko-KR", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                <span>{digest.readTime}</span>
-              </div>
-            </div>
-          </motion.div>
+          </div>
+        </header>
 
-          {/* 메인 이미지 또는 YouTube 영상 */}
-          <motion.div
-            className="mb-8 rounded-xl overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            {digest.sourceType === "YouTube" && digest.sourceUrl ? (
-              <div className="flex flex-col bg-white rounded-xl overflow-hidden border border-border-line shadow-sm">
-                {/* YouTube 영상 임베드 */}
-                <div className="relative w-full h-48 md:h-80">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${getYouTubeVideoId(
-                      digest.sourceUrl
-                    )}`}
-                    title={digest.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="absolute top-0 left-0 w-full h-full border-0"
-                  />
+        <main className="flex-1">
+          <article className="max-w-3xl mx-auto px-5 py-8">
+            <motion.div
+              className="flex flex-wrap gap-1.5 mb-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {digest.tags.map((tag: string) => (
+                <Link href={`/tag/${tag}`} key={tag}>
+                  <span className="tag">{tag}</span>
+                </Link>
+              ))}
+            </motion.div>
+
+            <motion.h1
+              className="text-2xl md:text-3xl font-bold tracking-tight mb-4 text-neutral-dark"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              {digest.title}
+            </motion.h1>
+
+            <motion.div
+              className="flex items-center gap-4 mb-6 pb-6 border-b border-border-line"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Avatar className="h-12 w-12 border-2 border-primary-color/50">
+                <AvatarImage
+                  src={digest.author?.avatar || "/placeholder.svg"}
+                  alt={digest.author?.name || "작성자"}
+                />
+                <AvatarFallback className="bg-primary-light text-primary-color">
+                  {digest.author?.name?.charAt(0) || "A"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <div className="font-medium text-neutral-dark">
+                  {digest.author?.name || "AI 요약"}
                 </div>
+                <div className="text-sm text-neutral-medium">
+                  {digest.author?.role || "자동 생성"}
+                </div>
+              </div>
+              <div className="flex flex-col items-end text-sm text-neutral-medium">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>
+                    {new Date(digest.date).toLocaleDateString("ko-KR", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{digest.readTime}</span>
+                </div>
+              </div>
+            </motion.div>
 
-                {/* 유튜브 영상 정보 */}
-                <div className="p-4 space-y-3">
-                  {/* 제목 */}
-                  <h2 className="text-xl font-bold text-neutral-dark">
-                    {digest.title}
-                  </h2>
+            <motion.div
+              className="mb-8 rounded-xl overflow-hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              {digest.sourceType === "YouTube" && digest.sourceUrl ? (
+                <div className="flex flex-col bg-white rounded-xl overflow-hidden border border-border-line shadow-sm">
+                  <div className="relative w-full h-48 md:h-80">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${getYouTubeVideoId(
+                        digest.sourceUrl
+                      )}`}
+                      title={digest.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="absolute top-0 left-0 w-full h-full border-0"
+                    />
+                  </div>
 
-                  {/* 유튜버 정보, 업로드 날짜, 조회수 */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-9 h-9 rounded-full overflow-hidden bg-secondary-color border border-border-line">
-                        {digest.videoInfo?.channelId ? (
-                          <Image
-                            src={`https://yt3.googleusercontent.com/ytc/${digest.videoInfo.channelId}=s88-c-k-c0x00ffffff-no-rj`}
-                            alt={
-                              digest.videoInfo?.channelTitle || "채널 이미지"
-                            }
-                            width={36}
-                            height={36}
-                            className="object-cover"
-                          />
-                        ) : (
-                          <Image
-                            src="/placeholder.svg?height=40&width=40"
-                            alt="채널 이미지"
-                            width={36}
-                            height={36}
-                            className="object-cover"
-                          />
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm text-neutral-dark">
-                          {digest.videoInfo?.channelTitle || "채널명 없음"}
+                  <div className="p-4 space-y-3">
+                    <h2 className="text-xl font-bold text-neutral-dark">
+                      {digest.title}
+                    </h2>
+
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-9 h-9 rounded-full overflow-hidden bg-secondary-color border border-border-line">
+                          {digest.videoInfo?.channelId ? (
+                            <Image
+                              src={`https://yt3.googleusercontent.com/ytc/${digest.videoInfo.channelId}=s88-c-k-c0x00ffffff-no-rj`}
+                              alt={
+                                digest.videoInfo?.channelTitle || "채널 이미지"
+                              }
+                              width={36}
+                              height={36}
+                              className="object-cover"
+                            />
+                          ) : (
+                            <Image
+                              src="/placeholder.svg?height=40&width=40"
+                              alt="채널 이미지"
+                              width={36}
+                              height={36}
+                              className="object-cover"
+                            />
+                          )}
                         </div>
-                        <div className="text-xs text-neutral-medium">
-                          {/* 업로드 날짜 포맷팅 */}
-                          {digest.videoInfo?.publishedAt
-                            ? new Date(
-                                digest.videoInfo.publishedAt
-                              ).toLocaleDateString("ko-KR", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              })
-                            : "날짜 정보 없음"}
+                        <div>
+                          <div className="font-medium text-sm text-neutral-dark">
+                            {digest.videoInfo?.channelTitle || "채널명 없음"}
+                          </div>
+                          <div className="text-xs text-neutral-medium">
+                            {digest.videoInfo?.publishedAt
+                              ? new Date(
+                                  digest.videoInfo.publishedAt
+                                ).toLocaleDateString("ko-KR", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                })
+                              : "날짜 정보 없음"}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* 조회수 */}
-                    <div className="text-sm text-neutral-medium">
-                      {digest.videoInfo?.viewCount
-                        ? `조회수 ${formatViewCount(
-                            digest.videoInfo.viewCount
-                          )}회`
-                        : "조회수 정보 없음"}
+                      <div className="text-sm text-neutral-medium">
+                        {digest.videoInfo?.viewCount
+                          ? `조회수 ${formatViewCount(
+                              digest.videoInfo.viewCount
+                            )}회`
+                          : "조회수 정보 없음"}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="relative h-64 md:h-80 w-full bg-white rounded-xl border border-border-line shadow-sm">
-                <Image
-                  src={digest.image || "/placeholder.svg?height=400&width=800"}
-                  alt={digest.title}
-                  fill
-                  className="object-cover opacity-80"
-                  priority
-                />
-              </div>
-            )}
-          </motion.div>
-
-          {/* 요약 */}
-          <motion.div
-            className="mb-8 p-5 bg-primary-light rounded-lg border-l-4 border-primary-color"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <p className="text-base italic text-neutral-dark">
-              {digest.summary}
-            </p>
-          </motion.div>
-
-          {/* 본문 콘텐츠 */}
-          <motion.div
-            className="prose prose-blue prose-lg max-w-none mb-10"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            dangerouslySetInnerHTML={{ __html: digest.content }}
-          />
-
-          {/* 저장 및 공유 버튼 */}
-          <motion.div
-            className="flex items-center justify-center gap-4 py-6 border-t border-b border-border-line mb-10"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <Button
-              variant="outline"
-              size="lg"
-              className="gap-2 rounded-full px-6 bg-white border-border-line hover:border-primary-color hover:bg-primary-light"
-              onClick={() => setIsSaved(!isSaved)}
-            >
-              {isSaved ? (
-                <BookmarkCheck className="h-5 w-5 text-primary-color" />
               ) : (
-                <Bookmark className="h-5 w-5 text-neutral-dark" />
+                <div className="relative h-64 md:h-80 w-full bg-white rounded-xl border border-border-line shadow-sm">
+                  <Image
+                    src={
+                      digest.image || "/placeholder.svg?height=400&width=800"
+                    }
+                    alt={digest.title}
+                    fill
+                    className="object-cover opacity-80"
+                    priority
+                  />
+                </div>
               )}
-              <span className="text-neutral-dark">
-                {isSaved ? "저장됨" : "저장하기"}
-              </span>
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="gap-2 rounded-full px-6 bg-white border-border-line hover:border-primary-color hover:bg-primary-light"
-            >
-              <Share2 className="h-5 w-5 text-neutral-dark" />
-              <span className="text-neutral-dark">공유하기</span>
-            </Button>
-          </motion.div>
+            </motion.div>
 
-          {/* 원본 콘텐츠 링크 */}
-          <motion.div
-            className="mt-8 pt-6 border-t border-border-line"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <h3 className="text-sm font-medium mb-3 text-neutral-dark">
-              원본 콘텐츠
-            </h3>
-            <Link
-              href={digest.sourceUrl}
-              target="_blank"
-              className="flex items-center justify-center w-full p-3.5 bg-white rounded-xl text-sm text-primary-color font-medium hover:bg-primary-light transition-colors border border-border-line"
+            <motion.div
+              className="mb-8 p-5 bg-primary-light rounded-lg border-l-4 border-primary-color"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
             >
-              원본 보기
-            </Link>
-          </motion.div>
-        </article>
-      </main>
+              <p className="text-base italic text-neutral-dark">
+                {digest.summary}
+              </p>
+            </motion.div>
 
-      <BottomNav />
-    </div>
+            {digest.sourceType === "YouTube" && timelineData.length > 0 && (
+              <motion.div
+                className="mb-10"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-xl font-bold text-neutral-dark">
+                      타임라인
+                    </h2>
+                    <SimpleTooltip
+                      content={
+                        <div className="relative py-1">
+                          <div className="flex gap-2">
+                            <p className="text-xs">
+                              <span className="mr-1">🔖</span> 타임라인을
+                              북마크하면 나중에 쉽게 찾아볼 수 있어요!
+                            </p>
+                            <button
+                              className="absolute top-0 right-0 p-1 text-white/60 hover:text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const tooltipElement =
+                                  e.currentTarget.closest('[role="tooltip"]');
+                                if (tooltipElement) {
+                                  tooltipElement.classList.add("opacity-1");
+                                  setTimeout(() => {
+                                    tooltipElement.classList.add("hidden");
+                                  }, 300);
+                                }
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      }
+                      delay={100}
+                    >
+                      <button
+                        className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary-color/10 text-primary-color hover:bg-primary-color/20 transition-colors"
+                        aria-label="타임라인 정보"
+                      >
+                        <Info className="h-3 w-3" />
+                      </button>
+                    </SimpleTooltip>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-sm text-neutral-medium rounded-full px-3"
+                    onClick={() => setShowTimeline(!showTimeline)}
+                  >
+                    <AlignJustify className="h-4 w-4 mr-1" />
+                    {showTimeline ? "타임라인 숨기기" : "타임라인 보기"}
+                  </Button>
+                </div>
+
+                {showTimeline && (
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <TimelineAccordion
+                      timelineGroups={timelineData}
+                      onSeek={handleSeekTo}
+                      bookmarkedItems={Object.keys(bookmarkedItems).reduce(
+                        (acc, key) => ({
+                          ...acc,
+                          [key]: true,
+                        }),
+                        {}
+                      )}
+                      onBookmark={handleBookmark}
+                    />
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            <motion.div
+              className="prose prose-blue prose-lg max-w-none mb-10"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              dangerouslySetInnerHTML={{ __html: digest.content }}
+            />
+
+            <motion.div
+              className="flex items-center justify-center gap-4 py-6 border-t border-b border-border-line mb-10"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 rounded-full px-6 bg-white border-border-line hover:border-primary-color hover:bg-primary-light"
+                onClick={() => setIsSaved(!isSaved)}
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="h-5 w-5 text-primary-color" />
+                ) : (
+                  <Bookmark className="h-5 w-5 text-neutral-dark" />
+                )}
+                <span className="text-neutral-dark">
+                  {isSaved ? "저장됨" : "저장하기"}
+                </span>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 rounded-full px-6 bg-white border-border-line hover:border-primary-color hover:bg-primary-light"
+              >
+                <Share2 className="h-5 w-5 text-neutral-dark" />
+                <span className="text-neutral-dark">공유하기</span>
+              </Button>
+            </motion.div>
+
+            <motion.div
+              className="mt-8 pt-6 border-t border-border-line"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              <h3 className="text-sm font-medium mb-3 text-neutral-dark">
+                원본 콘텐츠
+              </h3>
+              <Link
+                href={digest.sourceUrl}
+                target="_blank"
+                className="flex items-center justify-center w-full p-3.5 bg-white rounded-xl text-sm text-primary-color font-medium hover:bg-primary-light transition-colors border border-border-line"
+              >
+                원본 보기
+              </Link>
+            </motion.div>
+          </article>
+        </main>
+
+        <BottomNav />
+
+        <SimpleToast
+          isVisible={showToast}
+          message={toastMessage}
+          onClose={handleCloseToast}
+          actionLabel={
+            currentBookmarkId && !showMemoPopup ? "메모 추가하기" : undefined
+          }
+          onAction={
+            currentBookmarkId ? () => setShowMemoPopup(true) : undefined
+          }
+        />
+
+        <MemoPopup
+          isOpen={showMemoPopup}
+          onClose={handleCloseMemoPopup}
+          onSave={handleSaveMemo}
+          initialMemo={
+            currentBookmarkId
+              ? bookmarkedItems[currentBookmarkId]?.memo || ""
+              : ""
+          }
+          title="타임라인 메모 추가하기"
+        />
+      </div>
+    </TooltipProvider>
   );
 }
 
-// YouTube URL에서 비디오 ID를 추출하는 함수
 function getYouTubeVideoId(url: string): string {
   if (!url) return "";
 
-  // 일반 YouTube URL (https://www.youtube.com/watch?v=VIDEO_ID)
   const watchRegex = /youtube\.com\/watch\?v=([^&]+)/;
   const watchMatch = url.match(watchRegex);
   if (watchMatch) return watchMatch[1];
 
-  // 짧은 URL (https://youtu.be/VIDEO_ID)
   const shortRegex = /youtu\.be\/([^?&]+)/;
   const shortMatch = url.match(shortRegex);
   if (shortMatch) return shortMatch[1];
 
-  // 임베드 URL (https://www.youtube.com/embed/VIDEO_ID)
   const embedRegex = /youtube\.com\/embed\/([^?&]+)/;
   const embedMatch = url.match(embedRegex);
   if (embedMatch) return embedMatch[1];
@@ -588,7 +805,6 @@ function getYouTubeVideoId(url: string): string {
   return "";
 }
 
-// 유틸리티 함수: 조회수 포맷
 function formatViewCount(count: string | number): string {
   if (!count) return "0";
 
@@ -596,6 +812,5 @@ function formatViewCount(count: string | number): string {
 
   if (isNaN(num)) return "0";
 
-  // 조회수 포맷팅 (예: 1,234,567)
   return num.toLocaleString("ko-KR");
 }

@@ -135,128 +135,162 @@ export default function SummarizingPage() {
 
       const extractData = await extractResponse.json();
 
-      if (!extractData.success) {
-        throw new Error(
-          extractData.error || "YouTube 정보를 가져오는데 실패했습니다."
+      if (extractData.success) {
+        console.log("YouTube 영상 데이터 추출 완료");
+
+        // 타임라인 데이터가 있는 경우 로컬 스토리지에 임시 저장
+        if (
+          extractData.data?.timeline &&
+          extractData.data.timeline.length > 0
+        ) {
+          // 타임라인 데이터를 로컬 스토리지에 저장할 때는 저장 시점의 URL을 키로 사용
+          // 나중에 다이제스트 ID를 키로 변경
+          localStorage.setItem(
+            `timeline_temp_${encodeURIComponent(url)}`,
+            JSON.stringify(extractData.data.timeline)
+          );
+          console.log("타임라인 데이터 임시 저장 완료");
+        }
+
+        // API 응답 구조에서 videoInfo와 transcript 추출 - 타입 안전성 확보
+        const videoInfo = extractData.data?.videoInfo || {
+          title: "제목 정보 없음",
+          description: "",
+          channelTitle: "채널 정보 없음",
+          publishedAt: new Date().toISOString(),
+        };
+
+        const transcript =
+          extractData.data?.transcript || "자막 정보가 없습니다.";
+        console.log("추출된 데이터 확인:", {
+          "videoInfo 확인": !!videoInfo,
+          "videoInfo 제목": videoInfo.title?.substring(0, 30),
+          "transcript 길이": transcript.length,
+        });
+
+        // 자막 길이에 따라 예상 읽기 시간 설정
+        const transcriptLength = transcript.length;
+        if (transcriptLength > 10000) {
+          setEstimatedReadTime("약 7-10분 소요");
+        } else if (transcriptLength > 5000) {
+          setEstimatedReadTime("약 5-7분 소요");
+        } else if (transcriptLength > 2000) {
+          setEstimatedReadTime("약 3-5분 소요");
+        } else {
+          setEstimatedReadTime("약 2-3분 소요");
+        }
+
+        setProgress(40);
+
+        // 3단계: AI 요약 생성
+        setCurrentStep(2);
+
+        console.log("AI 요약 생성 시작");
+        const summarizeResponse = await fetch("/api/ai/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            videoInfo: {
+              title: videoInfo.title,
+              description: videoInfo.description,
+              channelTitle: videoInfo.channelTitle,
+              publishedAt: videoInfo.publishedAt,
+            },
+            transcript,
+            sourceUrl: url,
+          }),
+        });
+
+        const summarizeData = await summarizeResponse.json();
+
+        if (!summarizeData.success) {
+          throw new Error(
+            summarizeData.error || "AI 요약 생성에 실패했습니다."
+          );
+        }
+        console.log("AI 요약 생성 완료");
+
+        // 4단계: 태그 생성 중
+        setCurrentStep(3);
+        setProgress(70);
+
+        // 5단계: 이미지 추출 중
+        setCurrentStep(4);
+        setProgress(85);
+
+        // 6단계: 요약 저장 및 완료
+        setCurrentStep(5);
+
+        console.log("요약 저장 시작");
+        const saveResponse = await fetch("/api/digest/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...summarizeData.data,
+            sourceUrl: url,
+            sourceType: "YouTube",
+            // YouTube 영상 정보도 함께 저장
+            videoInfo: {
+              channelId: videoInfo.channelId,
+              channelTitle: videoInfo.channelTitle,
+              publishedAt: videoInfo.publishedAt,
+              viewCount: videoInfo.viewCount,
+              description: videoInfo.description,
+              title: videoInfo.title,
+            },
+          }),
+        });
+
+        const saveData = await saveResponse.json();
+        console.log("저장 API 응답 데이터:", JSON.stringify(saveData));
+
+        if (!saveData.success) {
+          throw new Error(saveData.error || "요약 저장에 실패했습니다.");
+        }
+        console.log("요약 저장 완료");
+
+        setProgress(100);
+        setIsComplete(true);
+
+        // 저장된 다이제스트 ID 저장
+        const digestId = saveData.digest?.[0]?.id || saveData.digest?.id;
+        console.log("이동할 다이제스트 ID:", digestId);
+
+        // 타임라인 데이터 키 업데이트
+        if (digestId) {
+          try {
+            const tempTimelineKey = `timeline_temp_${encodeURIComponent(url)}`;
+            const timelineData = localStorage.getItem(tempTimelineKey);
+
+            if (timelineData) {
+              // 새 키로 저장
+              localStorage.setItem(`timeline_${digestId}`, timelineData);
+              // 임시 데이터 삭제
+              localStorage.removeItem(tempTimelineKey);
+              console.log("타임라인 데이터 키 업데이트 완료:", digestId);
+            }
+          } catch (storageError) {
+            console.error("로컬 스토리지 업데이트 오류:", storageError);
+            // 오류가 발생해도 계속 진행
+          }
+        }
+
+        // 현재 타임스탬프 로깅
+        const timestamp = new Date().toISOString();
+        console.log(
+          `[${timestamp}] 다이제스트 저장 완료, 페이지 이동 준비 중...`
         );
-      }
-      console.log("YouTube 데이터 추출 완료:", extractData.data);
 
-      // API 응답 구조에서 videoInfo와 transcript 추출 - 타입 안전성 확보
-      const videoInfo = extractData.data?.videoInfo || {
-        title: "제목 정보 없음",
-        description: "",
-        channelTitle: "채널 정보 없음",
-        publishedAt: new Date().toISOString(),
-      };
+        // 프로세스 상태 초기화
+        processState.isProcessing = false;
+        setProcessingStarted(false);
 
-      const transcript =
-        extractData.data?.transcript || "자막 정보가 없습니다.";
-      console.log("추출된 데이터 확인:", {
-        "videoInfo 확인": !!videoInfo,
-        "videoInfo 제목": videoInfo.title?.substring(0, 30),
-        "transcript 길이": transcript.length,
-      });
-
-      // 자막 길이에 따라 예상 읽기 시간 설정
-      const transcriptLength = transcript.length;
-      if (transcriptLength > 10000) {
-        setEstimatedReadTime("약 7-10분 소요");
-      } else if (transcriptLength > 5000) {
-        setEstimatedReadTime("약 5-7분 소요");
-      } else if (transcriptLength > 2000) {
-        setEstimatedReadTime("약 3-5분 소요");
+        // 페이지 이동
+        console.log(`다이제스트 페이지로 이동: /digest/${digestId}`);
+        router.push(`/digest/${digestId}`);
       } else {
-        setEstimatedReadTime("약 2-3분 소요");
+        throw new Error(extractData.error || "YouTube 데이터 추출 실패");
       }
-
-      setProgress(40);
-
-      // 3단계: AI 요약 생성
-      setCurrentStep(2);
-
-      console.log("AI 요약 생성 시작");
-      const summarizeResponse = await fetch("/api/ai/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          videoInfo: {
-            title: videoInfo.title,
-            description: videoInfo.description,
-            channelTitle: videoInfo.channelTitle,
-            publishedAt: videoInfo.publishedAt,
-          },
-          transcript,
-          sourceUrl: url,
-        }),
-      });
-
-      const summarizeData = await summarizeResponse.json();
-
-      if (!summarizeData.success) {
-        throw new Error(summarizeData.error || "AI 요약 생성에 실패했습니다.");
-      }
-      console.log("AI 요약 생성 완료");
-
-      // 4단계: 태그 생성 중
-      setCurrentStep(3);
-      setProgress(70);
-
-      // 5단계: 이미지 추출 중
-      setCurrentStep(4);
-      setProgress(85);
-
-      // 6단계: 요약 저장 및 완료
-      setCurrentStep(5);
-
-      console.log("요약 저장 시작");
-      const saveResponse = await fetch("/api/digest/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...summarizeData.data,
-          sourceUrl: url,
-          sourceType: "YouTube",
-          // YouTube 영상 정보도 함께 저장
-          videoInfo: {
-            channelId: videoInfo.channelId,
-            channelTitle: videoInfo.channelTitle,
-            publishedAt: videoInfo.publishedAt,
-            viewCount: videoInfo.viewCount,
-            description: videoInfo.description,
-            title: videoInfo.title,
-          },
-        }),
-      });
-
-      const saveData = await saveResponse.json();
-      console.log("저장 API 응답 데이터:", JSON.stringify(saveData));
-
-      if (!saveData.success) {
-        throw new Error(saveData.error || "요약 저장에 실패했습니다.");
-      }
-      console.log("요약 저장 완료");
-
-      setProgress(100);
-      setIsComplete(true);
-
-      // 저장된 다이제스트 ID 저장
-      const digestId = saveData.digest?.[0]?.id || saveData.digest?.id;
-      console.log("이동할 다이제스트 ID:", digestId);
-
-      // 현재 타임스탬프 로깅
-      const timestamp = new Date().toISOString();
-      console.log(
-        `[${timestamp}] 다이제스트 저장 완료, 페이지 이동 준비 중...`
-      );
-
-      // 프로세스 상태 초기화
-      processState.isProcessing = false;
-      setProcessingStarted(false);
-
-      // 페이지 이동
-      console.log(`다이제스트 페이지로 이동: /digest/${digestId}`);
-      router.push(`/digest/${digestId}`);
     } catch (error) {
       console.error("요약 과정 에러:", error);
       setError(

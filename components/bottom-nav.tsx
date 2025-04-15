@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Bookmark, User } from "lucide-react";
+import { Home, Clock, Bookmark } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 
@@ -10,15 +10,18 @@ export default function BottomNav() {
 
   const navItems = [
     { icon: Home, label: "홈", href: "/" },
+    { icon: Clock, label: "타임라인", href: "/timelines" },
     { icon: Bookmark, label: "보관함", href: "/library" },
-    { icon: User, label: "프로필", href: "/profile" },
   ];
 
   return (
     <div className="bottom-nav">
       <div className="grid h-full grid-cols-3 max-w-md mx-auto">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            item.href === "/"
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
           const Icon = item.icon;
 
           return (

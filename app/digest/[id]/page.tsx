@@ -25,6 +25,11 @@ import { TimelineGroup } from "@/lib/utils/youtube";
 import { SimpleTooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { SimpleToast } from "@/components/ui/toast";
 import { MemoPopup } from "@/components/ui/memo-popup";
+import {
+  syncLocalTimelineBookmarks,
+  saveTimelineBookmark,
+  deleteTimelineBookmark,
+} from "@/lib/utils/timeline";
 
 interface BookmarkItem {
   id: string;
@@ -201,7 +206,7 @@ export default function DigestPage({
     };
   }, [pageId, digest]);
 
-  const handleBookmark = (id: string, seconds: number, text: string) => {
+  const handleBookmark = async (id: string, seconds: number, text: string) => {
     if (!pageId) return;
 
     const bookmarkKey = `bookmarks_timeline_${pageId}`;
@@ -210,6 +215,14 @@ export default function DigestPage({
     if (newBookmarkedItems[id]) {
       delete newBookmarkedItems[id];
       setToastMessage("타임라인에서 제거되었어요.");
+      setCurrentBookmarkId(null);
+
+      // Supabase에서 북마크 삭제
+      if (digest.id) {
+        deleteTimelineBookmark(id, Number(digest.id)).catch((err) =>
+          console.error("북마크 삭제 오류:", err)
+        );
+      }
     } else {
       newBookmarkedItems[id] = {
         id,
@@ -219,6 +232,13 @@ export default function DigestPage({
       };
       setToastMessage("🔖 타임라인에 저장했어요!");
       setCurrentBookmarkId(id);
+
+      // Supabase에 북마크 저장
+      if (digest.id) {
+        saveTimelineBookmark(Number(digest.id), id, seconds, text).catch(
+          (err) => console.error("북마크 저장 오류:", err)
+        );
+      }
     }
 
     setBookmarkedItems(newBookmarkedItems);
@@ -226,7 +246,7 @@ export default function DigestPage({
     setShowToast(true);
   };
 
-  const handleSaveMemo = (memo: string) => {
+  const handleSaveMemo = async (memo: string) => {
     if (!currentBookmarkId || !pageId) return;
 
     const bookmarkKey = `bookmarks_timeline_${pageId}`;
@@ -240,6 +260,18 @@ export default function DigestPage({
 
       setBookmarkedItems(newBookmarkedItems);
       localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
+
+      // Supabase에 메모 업데이트
+      if (digest.id) {
+        const bookmark = newBookmarkedItems[currentBookmarkId];
+        saveTimelineBookmark(
+          Number(digest.id),
+          currentBookmarkId,
+          bookmark.seconds,
+          bookmark.text,
+          memo
+        ).catch((err) => console.error("메모 저장 오류:", err));
+      }
 
       setToastMessage("메모가 저장되었습니다.");
       setShowToast(true);
@@ -646,7 +678,7 @@ export default function DigestPage({
                                 const tooltipElement =
                                   e.currentTarget.closest('[role="tooltip"]');
                                 if (tooltipElement) {
-                                  tooltipElement.classList.add("opacity-1");
+                                  tooltipElement.classList.add("opacity-0");
                                   setTimeout(() => {
                                     tooltipElement.classList.add("hidden");
                                   }, 300);

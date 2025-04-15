@@ -154,7 +154,7 @@ export function SimpleToast({
 
   return (
     <div
-      className={`fixed bottom-4 right-4 z-50 flex items-center justify-between min-w-[320px] p-4 bg-white rounded-lg shadow-lg border border-gray-200 transform transition-transform ${
+      className={`fixed bottom-4 right-4 z-50 flex items-center justify-between min-w-[320px] p-4 bg-[#ecebfb] rounded-lg shadow-lg border border-gray-200 transform transition-transform ${
         isExiting ? "translate-y-2 opacity-0" : "translate-y-0 opacity-100"
       }`}
     >

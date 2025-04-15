@@ -1,10 +1,10 @@
-import Link from "next/link"
-import Image from "next/image"
-import { Search, Settings } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import BottomNav from "@/components/bottom-nav"
+import Link from "next/link";
+import Image from "next/image";
+import { Search, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import BottomNav from "@/components/bottom-nav";
 
 export default function ArchivePage() {
   // 샘플 데이터
@@ -39,7 +39,7 @@ export default function ArchivePage() {
       tags: ["재택근무", "생산성", "업무환경", "라이프스타일"],
       image: "/placeholder.svg?height=200&width=400",
     },
-  ]
+  ];
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-16">
@@ -62,7 +62,7 @@ export default function ArchivePage() {
             />
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+          {/* <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
             <Button variant="outline" size="sm" className="text-xs whitespace-nowrap rounded-full">
               최신순
             </Button>
@@ -78,27 +78,44 @@ export default function ArchivePage() {
             <Button variant="outline" size="sm" className="text-xs whitespace-nowrap rounded-full">
               블로그
             </Button>
-          </div>
+          </div> */}
 
           <div className="space-y-3">
             {archivedItems.map((item) => (
               <Link href={`/digest/${item.id}`} key={item.id}>
                 <div className="bg-white rounded-xl overflow-hidden shadow-sm">
                   <div className="relative h-40 w-full">
-                    <Image src={item.image || "/placeholder.svg"} alt={item.title} fill className="object-cover" />
+                    <Image
+                      src={item.image || "/placeholder.svg"}
+                      alt={item.title}
+                      fill
+                      className="object-cover"
+                    />
                     <div className="absolute top-2 left-2">
-                      <Badge variant="secondary" className="bg-blue-500 text-white text-xs">
+                      <Badge
+                        variant="secondary"
+                        className="bg-blue-500 text-white text-xs"
+                      >
                         {item.source}
                       </Badge>
                     </div>
                   </div>
                   <div className="p-3">
-                    <div className="text-xs text-gray-500 mb-1">{item.date}</div>
-                    <h3 className="font-medium text-sm mb-1 line-clamp-1">{item.title}</h3>
-                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">{item.summary}</p>
+                    <div className="text-xs text-gray-500 mb-1">
+                      {item.date}
+                    </div>
+                    <h3 className="font-medium text-sm mb-1 line-clamp-1">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">
+                      {item.summary}
+                    </p>
                     <div className="flex flex-wrap gap-1">
                       {item.tags.slice(0, 3).map((tag) => (
-                        <span key={tag} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px]">
+                        <span
+                          key={tag}
+                          className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px]"
+                        >
                           {tag}
                         </span>
                       ))}
@@ -117,5 +134,5 @@ export default function ArchivePage() {
       </main>
       <BottomNav />
     </div>
-  )
+  );
 }

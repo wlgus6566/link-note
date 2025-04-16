@@ -11,22 +11,6 @@ const requestSchema = z.object({
   readTime: z.string(),
   tags: z.array(z.string()),
   content: z.string(),
-  image_suggestions: z
-    .array(
-      z.object({
-        caption: z.string(),
-        placement: z.string(),
-      })
-    )
-    .optional(),
-  generatedImages: z
-    .array(
-      z.object({
-        url: z.string(),
-        caption: z.string(),
-      })
-    )
-    .optional(),
   sourceUrl: z.string().url(),
   sourceType: z.enum(["YouTube", "Instagram", "Medium", "Other"]),
   // YouTube 동영상 정보 스키마 추가
@@ -60,35 +44,15 @@ export async function POST(req: Request) {
 
     const data = validatedData.data;
 
-    // 디버깅을 위한 로깅 추가
-    console.log("생성된 이미지:", JSON.stringify(data.generatedImages));
-    console.log("이미지 제안:", JSON.stringify(data.image_suggestions));
-
-    // 기본 이미지 URL 설정 (생성된 이미지가 없는 경우를 대비)
+    // 기본 이미지 URL 설정
     let imageUrl = "/placeholder.svg?height=400&width=800";
 
-    // 생성된 이미지가 있으면 첫 번째 이미지를 대표 이미지로 사용
-    if (data.generatedImages && data.generatedImages.length > 0) {
-      imageUrl = data.generatedImages[0].url;
-      console.log("대표 이미지 URL:", imageUrl);
-    } else if (data.image_suggestions && data.image_suggestions.length > 0) {
-      // 이미지 제안은 있지만 생성된 이미지가 없는 경우 (fallback)
-      console.log("생성된 이미지가 없어 YouTube 이미지 URL 생성 시도");
-
-      if (data.sourceUrl) {
-        const videoId = extractYouTubeVideoId(data.sourceUrl);
-        if (videoId) {
-          imageUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-          console.log("YouTube 썸네일 URL 생성:", imageUrl);
-
-          // generatedImages 배열 생성
-          data.generatedImages = [
-            {
-              url: imageUrl,
-              caption: data.image_suggestions[0].caption || "콘텐츠 이미지",
-            },
-          ];
-        }
+    // YouTube URL이라면 썸네일 이미지 추출
+    if (data.sourceType === "YouTube" && data.sourceUrl) {
+      const videoId = extractYouTubeVideoId(data.sourceUrl);
+      if (videoId) {
+        imageUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+        console.log("YouTube 썸네일 URL 생성:", imageUrl);
       }
     }
 
@@ -104,8 +68,6 @@ export async function POST(req: Request) {
         sourceUrl: data.sourceUrl,
         sourceType: data.sourceType,
         date: new Date(),
-        imageSuggestions: data.image_suggestions || [],
-        generatedImages: data.generatedImages || [],
         author: {
           name: "AI 요약",
           role: "자동 생성",

@@ -20,8 +20,6 @@ export const digests = pgTable("digests", {
   sourceType: varchar("source_type", { length: 20 }).notNull(),
   date: timestamp("date").defaultNow(),
   image: text("image"),
-  imageSuggestions: jsonb("image_suggestions").default([]),
-  generatedImages: jsonb("generated_images").default([]),
   author: jsonb("author").default({}),
   videoInfo: jsonb("video_info").default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),

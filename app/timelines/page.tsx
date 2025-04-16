@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Clock, Play, Edit, Trash, Calendar } from "lucide-react";
+import {
+  Search,
+  Clock,
+  Play,
+  Edit,
+  Trash,
+  Calendar,
+  LogIn,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,8 +22,11 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { SimpleToast } from "@/components/ui/toast";
 import { MemoPopup } from "@/components/ui/memo-popup";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function TimelinesPage() {
+  const router = useRouter();
   const [bookmarks, setBookmarks] = useState<TimelineBookmark[]>([]);
   const [filteredBookmarks, setFilteredBookmarks] = useState<
     TimelineBookmark[]
@@ -28,8 +39,37 @@ export default function TimelinesPage() {
   const [showMemoPopup, setShowMemoPopup] = useState(false);
   const [currentBookmark, setCurrentBookmark] =
     useState<TimelineBookmark | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
+  // 사용자 인증 상태 확인
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+
+        setIsAuthenticated(!!sessionData.session);
+
+        if (!sessionData.session) {
+          console.log("사용자가 로그인하지 않았습니다.");
+          setAuthError("로그인이 필요한 서비스입니다.");
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("인증 상태 확인 오류:", error);
+        setAuthError("인증 상태를 확인하는데 실패했습니다.");
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // 북마크 데이터 가져오기 (인증된 경우에만)
+  useEffect(() => {
+    if (isAuthenticated !== true) return;
+
     const fetchBookmarks = async () => {
       try {
         setLoading(true);
@@ -40,18 +80,24 @@ export default function TimelinesPage() {
           setFilteredBookmarks(response.data);
         } else {
           console.error("북마크 로드 오류:", response.error);
+          setToastMessage("북마크를 불러오는데 실패했습니다.");
+          setShowToast(true);
         }
       } catch (error) {
         console.error("북마크 로드 오류:", error);
+        setToastMessage("북마크를 불러오는데 실패했습니다.");
+        setShowToast(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchBookmarks();
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
+    if (!bookmarks.length) return;
+
     let result = [...bookmarks];
 
     // 검색 필터링
@@ -146,6 +192,10 @@ export default function TimelinesPage() {
     );
   };
 
+  const redirectToLogin = () => {
+    router.push("/login"); // 로그인 페이지 경로
+  };
+
   const getYouTubeVideoId = (url: string): string => {
     if (!url) return "";
 
@@ -179,6 +229,43 @@ export default function TimelinesPage() {
       ));
   };
 
+  // 인증되지 않은 상태 렌더링
+  if (isAuthenticated === false) {
+    return (
+      <div className="flex flex-col min-h-screen pb-20">
+        <header className="sticky top-0 z-10 bg-white border-b border-border-line">
+          <div className="container px-5 py-4">
+            <h1 className="text-xl font-bold mb-4 text-neutral-dark">
+              타임라인
+            </h1>
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center p-5">
+          <div className="max-w-md w-full bg-white p-8 rounded-xl border border-border-line shadow-sm text-center">
+            <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-4">
+              <LogIn className="h-8 w-8 text-primary-color" />
+            </div>
+            <h2 className="text-xl font-bold mb-2 text-neutral-dark">
+              로그인이 필요합니다
+            </h2>
+            <p className="text-neutral-medium mb-6">
+              타임라인을 보고 관리하려면 로그인이 필요합니다.
+            </p>
+            <Button
+              className="bg-primary-color hover:bg-primary-color/90 text-white"
+              onClick={redirectToLogin}
+            >
+              로그인하기
+            </Button>
+          </div>
+        </main>
+
+        <BottomNav />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen pb-20">
       <header className="sticky top-0 z-10 bg-white border-b border-border-line">
@@ -196,7 +283,7 @@ export default function TimelinesPage() {
                 onChange={handleSearch}
               />
             </div>
-            {/* <Button
+            <Button
               variant="ghost"
               size="sm"
               className="flex items-center gap-1 text-sm border border-border-line px-3"
@@ -204,7 +291,7 @@ export default function TimelinesPage() {
             >
               <Clock className="h-4 w-4" />
               {sortOrder === "newest" ? "최신순" : "오래된순"}
-            </Button> */}
+            </Button>
           </div>
 
           <div className="flex items-center justify-between">
@@ -216,7 +303,7 @@ export default function TimelinesPage() {
       </header>
 
       <main className="flex-1">
-        {loading ? (
+        {loading && isAuthenticated !== false ? (
           renderSkeletons()
         ) : filteredBookmarks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 p-8 text-center">

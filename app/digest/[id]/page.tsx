@@ -30,6 +30,7 @@ import {
   saveTimelineBookmark,
   deleteTimelineBookmark,
 } from "@/lib/utils/timeline";
+import { createClient } from "@/lib/supabase/client";
 
 interface BookmarkItem {
   id: string;
@@ -62,6 +63,8 @@ export default function DigestPage({
   const [currentBookmarkId, setCurrentBookmarkId] = useState<string | null>(
     null
   );
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [syncNeeded, setSyncNeeded] = useState(false);
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -206,23 +209,56 @@ export default function DigestPage({
     };
   }, [pageId, digest]);
 
+  // 사용자 인증 상태 확인
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+        setIsAuthenticated(!!sessionData.session);
+
+        // 로그인한 경우 로컬 북마크를 서버와 동기화
+        if (sessionData.session && pageId && !syncNeeded) {
+          setSyncNeeded(true);
+        }
+      } catch (error) {
+        console.error("인증 상태 확인 오류:", error);
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+  }, [pageId]);
+
+  // 로컬 스토리지의 북마크를 서버와 동기화
+  useEffect(() => {
+    if (isAuthenticated && syncNeeded && pageId && digest?.id) {
+      syncLocalTimelineBookmarks(Number(digest.id))
+        .then((result) => {
+          if (result?.success) {
+            console.log(
+              `로컬 북마크 ${result.syncCount}개가 서버와 동기화되었습니다.`
+            );
+            setSyncNeeded(false);
+          } else if (result?.error) {
+            console.error("북마크 동기화 오류:", result.error);
+          }
+        })
+        .catch((err) => console.error("북마크 동기화 실패:", err));
+    }
+  }, [isAuthenticated, syncNeeded, pageId, digest?.id]);
+
   const handleBookmark = async (id: string, seconds: number, text: string) => {
     if (!pageId) return;
 
     const bookmarkKey = `bookmarks_timeline_${pageId}`;
     let newBookmarkedItems = { ...bookmarkedItems };
 
+    // 북마크 추가/제거를 로컬 스토리지에 먼저 반영
     if (newBookmarkedItems[id]) {
       delete newBookmarkedItems[id];
       setToastMessage("타임라인에서 제거되었어요.");
       setCurrentBookmarkId(null);
-
-      // Supabase에서 북마크 삭제
-      if (digest.id) {
-        deleteTimelineBookmark(id, Number(digest.id)).catch((err) =>
-          console.error("북마크 삭제 오류:", err)
-        );
-      }
     } else {
       newBookmarkedItems[id] = {
         id,
@@ -232,18 +268,40 @@ export default function DigestPage({
       };
       setToastMessage("🔖 타임라인에 저장했어요!");
       setCurrentBookmarkId(id);
-
-      // Supabase에 북마크 저장
-      if (digest.id) {
-        saveTimelineBookmark(Number(digest.id), id, seconds, text).catch(
-          (err) => console.error("북마크 저장 오류:", err)
-        );
-      }
     }
 
+    // 로컬 스토리지에 저장
     setBookmarkedItems(newBookmarkedItems);
     localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
     setShowToast(true);
+
+    // 로그인한 경우에만 서버에 저장/삭제 시도
+    if (isAuthenticated && digest?.id) {
+      try {
+        if (!newBookmarkedItems[id]) {
+          // 서버에서 북마크 삭제
+          const result = await deleteTimelineBookmark(id, Number(digest.id));
+          if (!result.success) {
+            console.error("서버 북마크 삭제 오류:", result.error);
+          }
+        } else {
+          // 서버에 북마크 저장
+          const result = await saveTimelineBookmark(
+            Number(digest.id),
+            id,
+            seconds,
+            text
+          );
+          if (!result.success) {
+            console.error("서버 북마크 저장 오류:", result.error);
+          }
+        }
+      } catch (err) {
+        console.error("타임라인 북마크 처리 오류:", err);
+      }
+    } else if (!isAuthenticated) {
+      console.log("로그인하지 않았습니다. 로컬에만 북마크가 저장됩니다.");
+    }
   };
 
   const handleSaveMemo = async (memo: string) => {
@@ -253,6 +311,7 @@ export default function DigestPage({
     let newBookmarkedItems = { ...bookmarkedItems };
 
     if (newBookmarkedItems[currentBookmarkId]) {
+      // 로컬 스토리지에 메모 추가
       newBookmarkedItems[currentBookmarkId] = {
         ...newBookmarkedItems[currentBookmarkId],
         memo,
@@ -261,16 +320,26 @@ export default function DigestPage({
       setBookmarkedItems(newBookmarkedItems);
       localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
 
-      // Supabase에 메모 업데이트
-      if (digest.id) {
-        const bookmark = newBookmarkedItems[currentBookmarkId];
-        saveTimelineBookmark(
-          Number(digest.id),
-          currentBookmarkId,
-          bookmark.seconds,
-          bookmark.text,
-          memo
-        ).catch((err) => console.error("메모 저장 오류:", err));
+      // 로그인한 경우에만 서버에 메모 업데이트 시도
+      if (isAuthenticated && digest?.id) {
+        try {
+          const bookmark = newBookmarkedItems[currentBookmarkId];
+          const result = await saveTimelineBookmark(
+            Number(digest.id),
+            currentBookmarkId,
+            bookmark.seconds,
+            bookmark.text,
+            memo
+          );
+
+          if (!result.success) {
+            console.error("서버 메모 저장 오류:", result.error);
+          }
+        } catch (err) {
+          console.error("메모 저장 오류:", err);
+        }
+      } else if (!isAuthenticated) {
+        console.log("로그인하지 않았습니다. 로컬에만 메모가 저장됩니다.");
       }
 
       setToastMessage("메모가 저장되었습니다.");

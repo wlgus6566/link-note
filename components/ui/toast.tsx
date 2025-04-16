@@ -5,6 +5,7 @@ import * as ToastPrimitives from "@radix-ui/react-toast";
 import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
@@ -118,78 +119,73 @@ type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>;
 type ToastActionElement = React.ReactElement<typeof ToastAction>;
 
 interface SimpleToastProps {
-  message: string;
   isVisible: boolean;
+  message: string;
   onClose: () => void;
   duration?: number;
-  actionLabel?: string;
-  onAction?: () => void;
+  type?: "success" | "error" | "info" | "warning";
 }
 
-export function SimpleToast({
-  message,
+export const SimpleToast: React.FC<SimpleToastProps> = ({
   isVisible,
+  message,
   onClose,
   duration = 3000,
-  actionLabel,
-  onAction,
-}: SimpleToastProps) {
-  const [isExiting, setIsExiting] = useState(false);
-
+  type = "error",
+}) => {
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (isVisible) {
-      const timer = setTimeout(() => {
-        setIsExiting(true);
-        setTimeout(() => {
-          onClose();
-          setIsExiting(false);
-        }, 300); // 애니메이션 시간
+      timer = setTimeout(() => {
+        onClose();
       }, duration);
-
-      return () => clearTimeout(timer);
     }
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [isVisible, duration, onClose]);
 
-  if (!isVisible) return null;
+  const getBgColor = () => {
+    switch (type) {
+      case "success":
+        return "bg-green-50 border-green-500 text-green-800";
+      case "error":
+        return "bg-red-50 border-red-500 text-red-800";
+      case "warning":
+        return "bg-yellow-50 border-yellow-500 text-yellow-800";
+      case "info":
+      default:
+        return "bg-blue-50 border-blue-500 text-blue-800";
+    }
+  };
 
   return (
-    <div
-      className={`fixed bottom-4 right-4 z-50 flex items-center justify-between min-w-[320px] p-4 bg-[#ecebfb] rounded-lg shadow-lg border border-gray-200 transform transition-transform ${
-        isExiting ? "translate-y-2 opacity-0" : "translate-y-0 opacity-100"
-      }`}
-    >
-      <div className="flex-1">
-        <p className="text-sm font-medium text-gray-900">{message}</p>
-      </div>
-      <div className="flex items-center gap-2 ml-4">
-        {actionLabel && onAction && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs text-primary-color hover:text-primary-color/80"
-            onClick={onAction}
-          >
-            {actionLabel}
-          </Button>
-        )}
-        {/* <Button
-          variant="ghost"
-          size="sm"
-          className="p-1 h-auto text-gray-500 hover:text-gray-900"
-          onClick={() => {
-            setIsExiting(true);
-            setTimeout(() => {
-              onClose();
-              setIsExiting(false);
-            }, 300);
-          }}
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
         >
-          <X className="h-4 w-4" />
-        </Button> */}
-      </div>
-    </div>
+          <div
+            className={`py-3 px-4 rounded-lg shadow-md border-l-4 flex items-center ${getBgColor()}`}
+          >
+            <p className="flex-1 text-sm font-medium">{message}</p>
+            <button
+              onClick={onClose}
+              className="ml-3 text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
-}
+};
 
 export {
   type ToastProps,

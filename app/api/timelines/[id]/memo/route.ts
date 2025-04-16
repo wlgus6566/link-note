@@ -6,9 +6,11 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // 메모 정보 추출
     const bookmarkId = params.id;
     const { memo } = await req.json();
 
+    // Supabase 클라이언트 생성
     const supabase = createClient();
 
     // 유저 세션 확인
@@ -28,23 +30,25 @@ export async function PUT(
       .single();
 
     if (userError || !userData) {
+      console.error("사용자 정보 로드 오류:", userError);
       return NextResponse.json(
         { error: "사용자 정보를 가져오는데 실패했습니다" },
         { status: 500 }
       );
     }
 
-    // 북마크 소유권 확인
+    // 북마크 조회 및 소유권 확인
     const { data: bookmarkData, error: bookmarkError } = await supabase
       .from("timeline_bookmarks")
-      .select("id")
+      .select("*")
       .eq("id", bookmarkId)
       .eq("user_id", userData.id)
       .single();
 
     if (bookmarkError || !bookmarkData) {
+      console.error("북마크 소유권 확인 오류:", bookmarkError);
       return NextResponse.json(
-        { error: "접근 권한이 없거나 북마크를 찾을 수 없습니다" },
+        { error: "북마크를 찾을 수 없거나 접근 권한이 없습니다" },
         { status: 403 }
       );
     }
@@ -52,23 +56,27 @@ export async function PUT(
     // 메모 업데이트
     const { data, error } = await supabase
       .from("timeline_bookmarks")
-      .update({ memo, updated_at: new Date().toISOString() })
+      .update({
+        memo,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", bookmarkId)
       .select()
       .single();
 
     if (error) {
+      console.error("메모 업데이트 오류:", error);
       return NextResponse.json(
         { error: "메모 업데이트에 실패했습니다" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ data, success: true });
+    return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error("메모 업데이트 오류:", error);
+    console.error("메모 업데이트 처리 오류:", error);
     return NextResponse.json(
-      { error: "서버 오류가 발생했습니다" },
+      { error: "메모 업데이트에 실패했습니다" },
       { status: 500 }
     );
   }

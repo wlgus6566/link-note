@@ -1,4 +1,4 @@
-import type { Config } from "tailwindcss"
+import type { Config } from "tailwindcss";
 
 const config = {
   darkMode: ["class"],
@@ -53,24 +53,24 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // 디자인 시스템 컬러
-        "primary-color": "#6756D6",
-        "primary-light": "#ECEBFB",
-        "secondary-color": "#F5F6FA",
-        "neutral-dark": "#2E2E2E",
-        "neutral-medium": "#6E6E6E",
-        "border-line": "#E4E7EE",
-        success: "#31C48D",
-        warning: "#FBBF24",
+        // YouTube 브랜드 컬러 추가
+        "primary-color": "#ff0000",
+        "primary-hover": "#cc0000",
+        "primary-light": "#ffebeb",
+        "secondary-color": "#f9f9f9",
+        "neutral-dark": "#282828",
+        "neutral-medium": "#606060",
+        "neutral-light": "#e5e5e5",
+        "border-line": "#e5e5e5",
+        success: "#2ba640",
+        warning: "#ffc107",
+        error: "#ff0000",
+        info: "#4285f4",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        xl: "12px",
-      },
-      boxShadow: {
-        sm: "0px 4px 20px rgba(0, 0, 0, 0.05)",
       },
       keyframes: {
         "accordion-down": {
@@ -88,7 +88,7 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
-} satisfies Config
+  plugins: [require("tailwindcss-animate")],
+} satisfies Config;
 
-export default config
+export default config;

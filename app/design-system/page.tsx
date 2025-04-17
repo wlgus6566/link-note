@@ -19,10 +19,10 @@ export default function DesignSystem() {
     <div className="min-h-screen bg-secondary p-6 md:p-10 font-inter">
       <header className="mb-10">
         <h1 className="text-3xl font-bold text-neutral-dark mb-2">
-          디자인 시스템 v0
+          TubeLink 디자인 시스템
         </h1>
         <p className="text-neutral-medium">
-          스마트하고 신뢰감 있는 정보 요약 앱을 위한 디자인 가이드
+          YouTube 영상 요약 및 타임라인 북마크를 위한 디자인 가이드
         </p>
       </header>
 
@@ -32,14 +32,14 @@ export default function DesignSystem() {
           컬러 시스템
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <ColorCard name="Primary" hex="#6756D6" textColor="white" />
-          <ColorCard name="Primary Light" hex="#ECEBFB" textColor="#6756D6" />
-          <ColorCard name="Secondary" hex="#F5F6FA" textColor="#2E2E2E" />
-          <ColorCard name="Neutral Dark" hex="#2E2E2E" textColor="white" />
-          <ColorCard name="Neutral Medium" hex="#6E6E6E" textColor="white" />
-          <ColorCard name="Border / Line" hex="#E4E7EE" textColor="#2E2E2E" />
-          <ColorCard name="Success" hex="#31C48D" textColor="white" />
-          <ColorCard name="Warning" hex="#FBBF24" textColor="white" />
+          <ColorCard name="Primary" hex="#FF0000" textColor="white" />
+          <ColorCard name="Primary Light" hex="#FFEBEB" textColor="#FF0000" />
+          <ColorCard name="Secondary" hex="#F9F9F9" textColor="#282828" />
+          <ColorCard name="Neutral Dark" hex="#282828" textColor="white" />
+          <ColorCard name="Neutral Medium" hex="#606060" textColor="white" />
+          <ColorCard name="Border / Line" hex="#E5E5E5" textColor="#282828" />
+          <ColorCard name="Success" hex="#2BA640" textColor="white" />
+          <ColorCard name="Warning" hex="#FFC107" textColor="white" />
         </div>
       </section>
 
@@ -48,7 +48,7 @@ export default function DesignSystem() {
         <h2 className="text-2xl font-semibold text-neutral-dark mb-6">
           타이포그래피
         </h2>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E4E7EE]">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E5E5E5]">
           <div className="mb-6">
             <span className="text-sm text-neutral-medium mb-2 block">
               Title (H1) - 24px, 700
@@ -98,7 +98,7 @@ export default function DesignSystem() {
         <h2 className="text-2xl font-semibold text-neutral-dark mb-6">
           버튼 스타일
         </h2>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E4E7EE]">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E5E5E5]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-lg font-medium text-neutral-dark mb-4">
@@ -141,7 +141,7 @@ export default function DesignSystem() {
         <h2 className="text-2xl font-semibold text-neutral-dark mb-6">
           아이콘 & 썸네일 스타일
         </h2>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E4E7EE]">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E5E5E5]">
           <h3 className="text-lg font-medium text-neutral-dark mb-4">
             기본 아이콘 (24px)
           </h3>
@@ -213,11 +213,11 @@ export default function DesignSystem() {
           </h3>
           <div className="flex flex-wrap gap-6">
             <div className="flex flex-col items-center">
-              <CheckCircle size={24} className="text-[#31C48D] mb-2" />
+              <CheckCircle size={24} className="text-[#2BA640] mb-2" />
               <span className="text-xs text-neutral-medium">Success</span>
             </div>
             <div className="flex flex-col items-center">
-              <AlertTriangle size={24} className="text-[#FBBF24] mb-2" />
+              <AlertTriangle size={24} className="text-[#FFC107] mb-2" />
               <span className="text-xs text-neutral-medium">Warning</span>
             </div>
           </div>
@@ -232,7 +232,7 @@ export default function DesignSystem() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 가로형 카드 */}
-          <div className="bg-white rounded-xl shadow-sm border border-[#E4E7EE] overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-[#E5E5E5] overflow-hidden">
             <div className="flex flex-col md:flex-row">
               <div className="md:w-1/3 h-48 md:h-auto relative">
                 <img
@@ -282,7 +282,7 @@ export default function DesignSystem() {
           </div>
 
           {/* 세로형 카드 */}
-          <div className="bg-white rounded-xl shadow-sm border border-[#E4E7EE] overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-[#E5E5E5] overflow-hidden">
             <div className="relative h-48">
               <img
                 src="/placeholder.svg?height=200&width=400"
@@ -290,27 +290,27 @@ export default function DesignSystem() {
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-3 left-3 bg-white rounded-full p-1">
-                <Instagram size={16} className="text-[#E1306C]" />
+                <Youtube size={16} className="text-[#FF0000]" />
               </div>
             </div>
             <div className="p-4">
               <h3 className="text-xl font-semibold text-neutral-dark mb-2 line-clamp-2">
-                건강한 식습관을 위한 10가지 팁
+                효과적인 프로그래밍 학습법: 10가지 팁
               </h3>
               <p className="text-neutral-medium text-sm mb-4 line-clamp-3">
-                영양사가 추천하는 건강한 식습관을 위한 10가지 실천 가능한 팁을
-                소개합니다. 균형 잡힌 식단과 규칙적인 식사 시간의 중요성이
-                강조됩니다.
+                개발자가 추천하는 효과적인 프로그래밍 학습을 위한 10가지 실천
+                가능한 팁을 소개합니다. 체계적인 학습 방법과 실전 프로젝트의
+                중요성이 강조됩니다.
               </p>
               <div className="flex flex-wrap gap-2 mb-4">
                 <span className="text-xs bg-primary-light text-primary px-2 py-1 rounded-full">
-                  건강
+                  프로그래밍
                 </span>
                 <span className="text-xs bg-primary-light text-primary px-2 py-1 rounded-full">
-                  식습관
+                  학습법
                 </span>
                 <span className="text-xs bg-primary-light text-primary px-2 py-1 rounded-full">
-                  웰빙
+                  개발
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -336,14 +336,14 @@ export default function DesignSystem() {
         <h2 className="text-2xl font-semibold text-neutral-dark mb-6">
           앱 예시
         </h2>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E4E7EE]">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E5E5E5]">
           <div className="max-w-md mx-auto">
             {/* 앱 헤더 */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                <BookOpen size={24} className="text-primary" />
+                <Youtube size={24} className="text-primary" />
                 <h1 className="text-xl font-bold text-neutral-dark">
-                  InfoDigest
+                  TubeLink
                 </h1>
               </div>
               <button className="p-2 hover:bg-primary-light rounded-full">
@@ -356,7 +356,7 @@ export default function DesignSystem() {
               <input
                 type="text"
                 placeholder="검색어를 입력하세요"
-                className="w-full py-3 pl-10 pr-4 rounded-lg border border-[#E4E7EE] focus:outline-none focus:border-primary"
+                className="w-full py-3 pl-10 pr-4 rounded-lg border border-[#E5E5E5] focus:outline-none focus:border-primary"
               />
               <Search
                 size={20}
@@ -369,23 +369,23 @@ export default function DesignSystem() {
               <button className="bg-primary text-white text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
                 전체
               </button>
-              <button className="bg-white border border-[#E4E7EE] text-neutral-medium text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
+              <button className="bg-white border border-[#E5E5E5] text-neutral-medium text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
                 기술
               </button>
-              <button className="bg-white border border-[#E4E7EE] text-neutral-medium text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
-                건강
+              <button className="bg-white border border-[#E5E5E5] text-neutral-medium text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
+                교육
               </button>
-              <button className="bg-white border border-[#E4E7EE] text-neutral-medium text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
-                비즈니스
+              <button className="bg-white border border-[#E5E5E5] text-neutral-medium text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
+                엔터테인먼트
               </button>
-              <button className="bg-white border border-[#E4E7EE] text-neutral-medium text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
-                라이프스타일
+              <button className="bg-white border border-[#E5E5E5] text-neutral-medium text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap">
+                게임
               </button>
             </div>
 
             {/* 콘텐츠 카드 */}
             <div className="space-y-4 mb-6">
-              <div className="bg-white rounded-xl shadow-sm border border-[#E4E7EE] overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm border border-[#E5E5E5] overflow-hidden">
                 <div className="flex">
                   <div className="w-1/3 h-24 relative">
                     <img
@@ -417,7 +417,7 @@ export default function DesignSystem() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-[#E4E7EE] overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm border border-[#E5E5E5] overflow-hidden">
                 <div className="flex">
                   <div className="w-1/3 h-24 relative">
                     <img
@@ -426,16 +426,16 @@ export default function DesignSystem() {
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute top-2 left-2 bg-white rounded-full p-1">
-                      <Instagram size={12} className="text-[#E1306C]" />
+                      <Youtube size={12} className="text-[#FF0000]" />
                     </div>
                   </div>
                   <div className="p-3 w-2/3">
                     <h3 className="text-base font-semibold text-neutral-dark mb-1 line-clamp-1">
-                      건강한 식습관을 위한 10가지 팁
+                      효과적인 프로그래밍 학습법: 10가지 팁
                     </h3>
                     <p className="text-neutral-medium text-xs mb-2 line-clamp-2">
-                      영양사가 추천하는 건강한 식습관을 위한 10가지 실천 가능한
-                      팁을 소개합니다.
+                      개발자가 추천하는 효과적인 프로그래밍 학습을 위한 10가지
+                      실천 가능한 팁을 소개합니다.
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-neutral-medium">
@@ -451,7 +451,7 @@ export default function DesignSystem() {
             </div>
 
             {/* 하단 탭 바 */}
-            <div className="flex justify-around items-center py-4 bg-white rounded-full shadow-sm border border-[#E4E7EE]">
+            <div className="flex justify-around items-center py-4 bg-white rounded-full shadow-sm border border-[#E5E5E5]">
               <button className="flex flex-col items-center">
                 <Home size={24} className="text-primary mb-1" />
                 <span className="text-xs font-medium text-primary">홈</span>
@@ -487,7 +487,7 @@ function ColorCard({
   textColor: string;
 }) {
   return (
-    <div className="rounded-xl overflow-hidden border border-[#E4E7EE]">
+    <div className="rounded-xl overflow-hidden border border-[#E5E5E5]">
       <div
         className="h-24 flex items-center justify-center"
         style={{ backgroundColor: hex, color: textColor }}

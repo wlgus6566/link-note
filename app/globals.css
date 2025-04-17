@@ -50,20 +50,20 @@
     --ring: 0 0% 83.1%;
   }
 
-  /* 디자인 시스템 컬러 */
+  /* 디자인 시스템 컬러 - YouTube 브랜드 컬러로 업데이트 */
   :root {
-    --primary-color: #3b82f6;
-    --primary-hover: #2563eb;
-    --primary-light: #dbeafe;
-    --secondary-color: #f3f4f6;
-    --neutral-dark: #1f2937;
-    --neutral-medium: #6b7280;
-    --neutral-light: #e5e7eb;
-    --border-line: #f0f0f0;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --error: #ef4444;
-    --info: #6366f1;
+    --primary-color: #ff0000;
+    --primary-hover: #cc0000;
+    --primary-light: #ffebeb;
+    --secondary-color: #f9f9f9;
+    --neutral-dark: #282828;
+    --neutral-medium: #606060;
+    --neutral-light: #e5e5e5;
+    --border-line: #e5e5e5;
+    --success: #2ba640;
+    --warning: #ffc107;
+    --error: #ff0000;
+    --info: #4285f4;
   }
 }
 

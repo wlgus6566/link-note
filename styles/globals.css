@@ -2,15 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 @layer base {
   :root {
@@ -33,21 +25,9 @@ body {
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -68,19 +48,28 @@ body {
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* 디자인 시스템 컬러 - YouTube 브랜드 컬러로 업데이트 */
+  :root {
+    --primary-color: #ff0000;
+    --primary-hover: #cc0000;
+    --primary-light: #ffebeb;
+    --secondary-color: #f9f9f9;
+    --neutral-dark: #282828;
+    --neutral-medium: #606060;
+    --neutral-light: #e5e5e5;
+    --border-line: #e5e5e5;
+    --success: #2ba640;
+    --warning: #ffc107;
+    --error: #ff0000;
+    --info: #4285f4;
+  }
+
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont,
+      "Apple SD Gothic Neo", sans-serif;
+    @apply bg-secondary-color text-neutral-dark;
   }
 }
 
@@ -88,10 +77,163 @@ body {
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   h1 {
     @apply text-2xl font-bold;
+  }
+  h2 {
+    @apply text-xl font-semibold;
+  }
+  h3 {
+    @apply text-lg font-medium;
+  }
+
+  .tag {
+    @apply px-3 py-1.5 text-xs font-medium bg-secondary-color/70 hover:bg-secondary-color/90 text-primary-color rounded-full cursor-pointer transition;
+  }
+}
+
+@layer components {
+  .header {
+    @apply sticky top-0 z-30 bg-white border-b border-border-line;
+  }
+
+  .content-card {
+    @apply bg-white rounded-xl shadow-sm border border-border-line overflow-hidden;
+  }
+
+  .btn-primary {
+    @apply bg-primary-color text-white font-semibold py-2 px-4 rounded-lg hover:bg-primary-hover transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent border border-primary-color text-primary-color font-semibold py-2 px-4 rounded-lg hover:bg-primary-light transition-colors;
+  }
+
+  .tag {
+    @apply text-xs bg-primary-light text-primary-color px-2 py-1 rounded-full;
+  }
+
+  .icon-container {
+    @apply p-2 hover:bg-primary-light rounded-full transition-colors;
+  }
+}
+
+.prose h1 {
+  @apply text-2xl font-bold;
+}
+
+.prose h2 {
+  @apply text-base font-semibold mt-4 mb-2;
+}
+
+.prose h3 {
+  @apply text-sm font-medium mt-3 mb-1.5;
+}
+
+.prose p {
+  @apply text-sm mb-3;
+}
+
+.prose ul {
+  @apply text-sm pl-5 mb-3 list-disc;
+}
+
+.prose li {
+  @apply mb-1;
+}
+
+/* 카드 스타일 */
+
+/* 버튼 스타일 */
+
+/* 태그 스타일 */
+
+/* 아이콘 컨테이너 */
+
+/* 플랫폼 아이콘 배지 */
+.platform-badge {
+  @apply absolute top-2 left-2 bg-white rounded-full p-1;
+}
+
+/* 검색 입력 필드 */
+.search-input {
+  @apply w-full py-3 pl-10 pr-4 rounded-lg border border-border-line focus:outline-none focus:border-primary-color;
+}
+
+/* 하단 네비게이션 */
+.bottom-nav {
+  @apply fixed bottom-3 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-md h-16 bg-white rounded-full shadow-sm border border-border-line;
+}
+
+.bottom-nav-item {
+  @apply flex flex-col items-center justify-center h-full;
+}
+
+.bottom-nav-item.active {
+  @apply text-primary-color;
+}
+
+.bottom-nav-item.inactive {
+  @apply text-neutral-medium;
+}
+
+/* 헤더 스타일 */
+
+/* 카테고리 필터 */
+.category-filter {
+  @apply flex gap-2 overflow-x-auto pb-2 scrollbar-hide;
+}
+
+.category-btn {
+  @apply text-xs whitespace-nowrap rounded-full px-3 py-1.5;
+}
+
+.category-btn.active {
+  @apply bg-primary-color text-white;
+}
+
+.category-btn.inactive {
+  @apply bg-white border border-border-line text-neutral-medium hover:border-primary-color hover:text-primary-color transition-colors;
+}
+
+/* 툴팁 애니메이션 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out forwards;
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.3s ease-in-out forwards;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

@@ -6,14 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ArrowRight,
-  BookOpen,
-  Search,
-  FileText,
-  Tag,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, Search, FileText, Tag, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BottomNav from "@/components/bottom-nav";
@@ -93,13 +86,13 @@ export default function Home() {
         <div className="container flex items-center justify-between h-16 px-5">
           <Link href="/" className="flex items-center gap-1.5">
             <Image
-              src="/images/logo_00.png"
+              src="/images/logo_tube.png"
               alt="logo"
               width={20}
               height={20}
             />
             <span className="text-lg font-bold text-neutral-dark">
-              LinkNote
+              TubeLink
             </span>
           </Link>
           <Link href="/profile">
@@ -132,20 +125,20 @@ export default function Home() {
                 }}
               >
                 <Image
-                  src="/images/logo_00.png"
+                  src="/images/logo_tube.png"
                   alt="logo"
-                  width={64}
-                  height={64}
+                  width={100}
+                  height={100}
                   className="relative z-10"
                 />
               </motion.div>
 
-              <div className="space-y-8 max-w-[320px] md:max-w-[600px]">
+              <div className="space-y-8 max-w-[320px] md:max-w-[600px] !mt-0">
                 <motion.h1
                   className="text-3xl md:text-4xl font-bold tracking-tight leading-tight text-neutral-dark"
                   variants={itemVariants}
                 >
-                  콘텐츠를{" "}
+                  YouTube 영상을 <br />
                   <span className="text-primary-color">스마트하게</span>
                   <br />
                   정리하세요
@@ -154,8 +147,8 @@ export default function Home() {
                   className="text-base text-neutral-medium md:text-lg max-w-[500px] mx-auto"
                   variants={itemVariants}
                 >
-                  링크 한 줄로, 당신만의 블로그
-                  <br /> 콘텐츠가 완성됩니다.
+                  영상 링크 한 줄로, 당신만의 요약과 타임라인
+                  <br /> 북마크가 완성됩니다.
                 </motion.p>
 
                 <motion.div
@@ -197,7 +190,7 @@ export default function Home() {
                   <div className="flex items-center p-1.5 bg-white rounded-2xl border border-border-line shadow-sm">
                     <Input
                       className="flex-1 h-14 border-0 shadow-none text-base focus:ring-0 pl-5 pr-4 rounded-xl bg-transparent text-neutral-dark"
-                      placeholder="링크를 붙여넣으세요."
+                      placeholder="YouTube 영상 링크를 붙여넣으세요."
                       type="url"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
@@ -205,7 +198,7 @@ export default function Home() {
                     />
                     <Button
                       type="submit"
-                      className="h-12 px-4 bg-primary-color hover:bg-primary-color/90 rounded-xl text-base text-white font-medium"
+                      className="h-12 px-4 bg-primary-color hover:bg-primary-hover text-white font-medium rounded-xl text-base"
                     >
                       <ArrowRight className="h-4 w-4" />
                     </Button>

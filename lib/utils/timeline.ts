@@ -19,24 +19,12 @@ export async function saveTimelineBookmark(
     return { error: "사용자 로그인이 필요합니다." };
   }
 
-  // 사용자 정보 가져오기
-  const { data: userData, error: userError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("auth_id", sessionData.session.user.id)
-    .single();
-
-  if (userError || !userData) {
-    console.error("사용자 정보를 가져오는데 실패했습니다:", userError);
-    return { error: "사용자 정보를 가져오는데 실패했습니다." };
-  }
-
   // 타임라인 북마크 저장
   const { data, error } = await supabase
     .from("timeline_bookmarks")
     .upsert(
       {
-        user_id: userData.id,
+        user_id: sessionData.session.user.id,
         digest_id: digestId,
         timeline_id: timelineId,
         seconds,
@@ -72,25 +60,13 @@ export async function deleteTimelineBookmark(
     return { error: "사용자 로그인이 필요합니다." };
   }
 
-  // 사용자 정보 가져오기
-  const { data: userData, error: userError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("auth_id", sessionData.session.user.id)
-    .single();
-
-  if (userError || !userData) {
-    console.error("사용자 정보를 가져오는데 실패했습니다:", userError);
-    return { error: "사용자 정보를 가져오는데 실패했습니다." };
-  }
-
   // 타임라인 북마크 삭제
   const { error } = await supabase
     .from("timeline_bookmarks")
     .delete()
     .eq("timeline_id", timelineId)
     .eq("digest_id", digestId)
-    .eq("user_id", userData.id);
+    .eq("user_id", sessionData.session.user.id);
 
   if (error) {
     console.error("타임라인 북마크 삭제 오류:", error);
@@ -109,18 +85,6 @@ export async function getUserTimelineBookmarks() {
   if (!sessionData.session) {
     console.log("사용자 로그인이 필요합니다.");
     return { error: "사용자 로그인이 필요합니다." };
-  }
-
-  // 사용자 정보 가져오기
-  const { data: userData, error: userError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("auth_id", sessionData.session.user.id)
-    .single();
-
-  if (userError || !userData) {
-    console.error("사용자 정보를 가져오는데 실패했습니다:", userError);
-    return { error: "사용자 정보를 가져오는데 실패했습니다." };
   }
 
   // 타임라인 북마크 조회 (digest 정보 포함)
@@ -146,7 +110,7 @@ export async function getUserTimelineBookmarks() {
       )
     `
     )
-    .eq("user_id", userData.id)
+    .eq("user_id", sessionData.session.user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -168,23 +132,11 @@ export async function getDigestTimelineBookmarks(digestId: number) {
     return { error: "사용자 로그인이 필요합니다." };
   }
 
-  // 사용자 정보 가져오기
-  const { data: userData, error: userError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("auth_id", sessionData.session.user.id)
-    .single();
-
-  if (userError || !userData) {
-    console.error("사용자 정보를 가져오는데 실패했습니다:", userError);
-    return { error: "사용자 정보를 가져오는데 실패했습니다." };
-  }
-
   // 특정 다이제스트의 타임라인 북마크 조회
   const { data, error } = await supabase
     .from("timeline_bookmarks")
     .select()
-    .eq("user_id", userData.id)
+    .eq("user_id", sessionData.session.user.id)
     .eq("digest_id", digestId)
     .order("seconds", { ascending: true });
 

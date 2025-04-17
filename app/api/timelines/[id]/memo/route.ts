@@ -22,27 +22,12 @@ export async function PUT(
       );
     }
 
-    // 사용자 정보 가져오기
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("auth_id", sessionData.session.user.id)
-      .single();
-
-    if (userError || !userData) {
-      console.error("사용자 정보 로드 오류:", userError);
-      return NextResponse.json(
-        { error: "사용자 정보를 가져오는데 실패했습니다" },
-        { status: 500 }
-      );
-    }
-
     // 북마크 조회 및 소유권 확인
     const { data: bookmarkData, error: bookmarkError } = await supabase
       .from("timeline_bookmarks")
       .select("*")
       .eq("id", bookmarkId)
-      .eq("user_id", userData.id)
+      .eq("user_id", sessionData.session.user.id)
       .single();
 
     if (bookmarkError || !bookmarkData) {

@@ -14,20 +14,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 사용자 정보 가져오기
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("auth_id", sessionData.session.user.id)
-      .single();
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: "사용자 정보를 가져오는데 실패했습니다" },
-        { status: 500 }
-      );
-    }
-
     // 쿼리 파라미터 가져오기
     const url = new URL(req.url);
     const digestId = url.searchParams.get("digest_id");
@@ -54,7 +40,7 @@ export async function GET(req: NextRequest) {
         )
       `
       )
-      .eq("user_id", userData.id);
+      .eq("user_id", sessionData.session.user.id);
 
     // 다이제스트 ID로 필터링
     if (digestId) {

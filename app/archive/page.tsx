@@ -21,12 +21,12 @@ export default function ArchivePage() {
     },
     {
       id: 2,
-      title: "건강한 식습관을 위한 10가지 팁",
-      source: "Instagram",
+      title: "최신 프론트엔드 기술 트렌드",
+      source: "YouTube",
       date: "2025.04.08",
       summary:
-        "영양사가 추천하는 건강한 식습관을 위한 10가지 실천 가능한 팁을 소개합니다. 균형 잡힌 식단과 규칙적인 식사 시간의 중요성이 강조됩니다.",
-      tags: ["건강", "식습관", "영양", "웰빙"],
+        "2024년 프론트엔드 개발의 주요 기술 트렌드를 소개합니다. React 18의 새로운 기능과 Next.js, Svelte 등 최신 프레임워크의 발전 방향을 분석합니다.",
+      tags: ["웹개발", "프론트엔드", "React", "트렌드"],
       image: "/placeholder.svg?height=200&width=400",
     },
     {
@@ -71,9 +71,6 @@ export default function ArchivePage() {
             </Button>
             <Button variant="outline" size="sm" className="text-xs whitespace-nowrap rounded-full">
               YouTube
-            </Button>
-            <Button variant="outline" size="sm" className="text-xs whitespace-nowrap rounded-full">
-              Instagram
             </Button>
             <Button variant="outline" size="sm" className="text-xs whitespace-nowrap rounded-full">
               블로그

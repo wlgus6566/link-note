@@ -27,22 +27,22 @@ export default function LibraryPage() {
     },
     {
       id: 2,
-      title: "건강한 식습관을 위한 10가지 팁",
-      source: "Instagram",
+      title: "최신 프론트엔드 기술 트렌드",
+      source: "YouTube",
       date: "4월 8일",
       summary:
-        "영양사가 추천하는 건강한 식습관을 위한 10가지 실천 가능한 팁을 소개합니다. 균형 잡힌 식단과 규칙적인 식사 시간의 중요성이 강조됩니다.",
-      tags: ["건강", "식습관", "영양", "웰빙"],
+        "2024년 프론트엔드 개발의 주요 기술 트렌드를 소개합니다. React 18의 새로운 기능과 Next.js, Svelte 등 최신 프레임워크의 발전 방향을 분석합니다.",
+      tags: ["웹개발", "프론트엔드", "React", "트렌드"],
       image: "/placeholder.svg?height=200&width=400",
     },
     {
       id: 3,
-      title: "효율적인 재택근무를 위한 환경 구성하기",
-      source: "Medium",
+      title: "효율적인 코딩 습관과 개발 환경 구성하기",
+      source: "YouTube",
       date: "4월 5일",
       summary:
-        "재택근무의 생산성을 높이기 위한 환경 구성과 습관에 대해 다룹니다. 적절한 조명, 인체공학적 가구, 업무 루틴 설정의 중요성을 설명합니다.",
-      tags: ["재택근무", "생산성", "업무환경"],
+        "개발 생산성을 높이기 위한 코딩 습관과 최적의 개발 환경 구성에 대해 다룹니다. 유용한 IDE 설정, 단축키, 확장 프로그램 추천을 포함합니다.",
+      tags: ["개발환경", "생산성", "코딩습관"],
       image: "/placeholder.svg?height=200&width=400",
     },
     {

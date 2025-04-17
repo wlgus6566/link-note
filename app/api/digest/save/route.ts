@@ -12,7 +12,7 @@ const requestSchema = z.object({
   tags: z.array(z.string()),
   content: z.string(),
   sourceUrl: z.string().url(),
-  sourceType: z.enum(["YouTube", "Instagram", "Medium", "Other"]),
+  sourceType: z.enum(["YouTube", "Medium", "Other"]),
   // YouTube 동영상 정보 스키마 추가
   videoInfo: z
     .object({

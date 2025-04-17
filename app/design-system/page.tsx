@@ -2,7 +2,6 @@
 import {
   BookOpen,
   Youtube,
-  Instagram,
   Twitter,
   Bookmark,
   BookmarkCheck,
@@ -197,10 +196,6 @@ export default function DesignSystem() {
             <div className="flex flex-col items-center">
               <Youtube size={24} className="text-[#FF0000] mb-2" />
               <span className="text-xs text-neutral-medium">YouTube</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <Instagram size={24} className="text-[#E1306C] mb-2" />
-              <span className="text-xs text-neutral-medium">Instagram</span>
             </div>
             <div className="flex flex-col items-center">
               <Twitter size={24} className="text-[#1DA1F2] mb-2" />

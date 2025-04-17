@@ -85,9 +85,13 @@ export default function SignupPage() {
       }
 
       // 유저 정보를 DB에 저장
-      const { error: profileError } = await supabase
-        .from("users")
-        .insert([{ auth_id: data.user?.id, name, email: data.user?.email }]);
+      const { error: profileError } = await supabase.from("users").insert([
+        {
+          auth_id: data.user?.id,
+          name,
+          email: data.user?.email,
+        },
+      ]);
 
       if (profileError) {
         console.error("프로필 저장 오류:", profileError);

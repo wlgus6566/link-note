@@ -6,6 +6,7 @@ import {
   varchar,
   integer,
   jsonb,
+  decimal,
 } from "drizzle-orm/pg-core";
 
 // 다이제스트 테이블 정의
@@ -28,7 +29,8 @@ export const digests = pgTable("digests", {
 
 // 사용자 테이블 정의 (미래에 인증 시스템 추가 시 사용)
 export const users = pgTable("users", {
-  id: text("id").primaryKey(), // Supabase Auth ID
+  id: serial("id").primaryKey(), // 기본 ID (자동 증가 번호)
+  auth_id: text("auth_id").notNull().unique(), // Supabase Auth ID
   email: text("email").notNull().unique(),
   name: text("name"),
   avatar: text("avatar"),
@@ -41,11 +43,28 @@ export const bookmarks = pgTable("bookmarks", {
   id: serial("id").primaryKey(),
   userId: text("user_id")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.auth_id, { onDelete: "cascade" }),
   digestId: integer("digest_id")
     .notNull()
     .references(() => digests.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// 타임라인 북마크 테이블 정의 (사용자가 비디오 내 특정 시간에 추가한 북마크)
+export const timelineBookmarks = pgTable("timeline_bookmarks", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.auth_id, { onDelete: "cascade" }),
+  digestId: integer("digest_id")
+    .notNull()
+    .references(() => digests.id, { onDelete: "cascade" }),
+  timelineId: varchar("timeline_id", { length: 50 }).notNull(),
+  seconds: decimal("seconds").notNull(),
+  text: text("text").notNull(),
+  memo: text("memo"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // 타입 정의
@@ -57,3 +76,6 @@ export type NewUser = typeof users.$inferInsert;
 
 export type Bookmark = typeof bookmarks.$inferSelect;
 export type NewBookmark = typeof bookmarks.$inferInsert;
+
+export type TimelineBookmark = typeof timelineBookmarks.$inferSelect;
+export type NewTimelineBookmark = typeof timelineBookmarks.$inferInsert;

@@ -13,5 +13,23 @@ export const createClient = () => {
     throw new Error("Supabase URL과 익명 키가 설정되지 않았습니다.");
   }
 
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      flowType: "pkce", // PKCE 흐름 사용 (보안 강화)
+      detectSessionInUrl: true, // URL에서 세션 감지
+      cookieOptions: {
+        // SameSite 옵션 설정
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        domain:
+          typeof window !== "undefined" ? window.location.hostname : undefined,
+        path: "/", // 모든 경로에서 쿠키 접근 가능
+      },
+    },
+    global: {
+      fetch: fetch, // 기본 fetch 사용
+    },
+  });
 };

@@ -47,7 +47,12 @@ export function SubtitleBlock({
         >
           [{start}]
         </Button>
-        <p className="text-sm flex-1">{text}</p>
+        <button
+          onClick={handleClick}
+          className="text-sm flex-1 text-left hover:text-primary-color"
+        >
+          {text}
+        </button>
         <Button
           variant="ghost"
           size="sm"

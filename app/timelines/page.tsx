@@ -22,6 +22,7 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { SimpleToast } from "@/components/ui/toast";
 import { MemoPopup } from "@/components/ui/memo-popup";
+import { YouTubePopup } from "@/components/ui/youtube-popup";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -41,6 +42,11 @@ export default function TimelinesPage() {
     useState<TimelineBookmark | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [youtubePopup, setYoutubePopup] = useState({
+    isOpen: false,
+    videoId: "",
+    startTime: 0,
+  });
 
   // 사용자 인증 상태 확인
   useEffect(() => {
@@ -144,7 +150,12 @@ export default function TimelinesPage() {
     if (!currentBookmark) return;
 
     try {
-      const { data, error } = await fetch(
+      // API 호출 시 fetch 상태 로깅
+      console.log(
+        `메모 저장 API 호출: 북마크 ID ${currentBookmark.id}, 메모 길이 ${memo.length}자`
+      );
+
+      const response = await fetch(
         `/api/timelines/${currentBookmark.id}/memo`,
         {
           method: "PUT",
@@ -152,14 +163,26 @@ export default function TimelinesPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ memo }),
+          credentials: "include",
         }
-      ).then((res) => res.json());
+      );
 
-      if (error) {
-        throw new Error(error);
+      // 응답 상태 확인
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("메모 저장 API 오류 응답:", response.status, errorText);
+        throw new Error(`API 오류: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.error) {
+        console.error("메모 저장 결과 오류:", result.error);
+        throw new Error(result.error);
       }
 
       // 메모 업데이트 성공
+      console.log("메모 저장 성공:", result);
       setToastMessage("메모가 저장되었습니다");
       setShowToast(true);
 
@@ -184,12 +207,19 @@ export default function TimelinesPage() {
     const videoId = getYouTubeVideoId(bookmark.digests.source_url);
     if (!videoId) return;
 
-    window.open(
-      `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(
-        bookmark.seconds
-      )}`,
-      "_blank"
-    );
+    // 팝업으로 재생하기
+    setYoutubePopup({
+      isOpen: true,
+      videoId,
+      startTime: bookmark.seconds,
+    });
+  };
+
+  const closeYoutubePopup = () => {
+    setYoutubePopup({
+      ...youtubePopup,
+      isOpen: false,
+    });
   };
 
   const redirectToLogin = () => {
@@ -236,7 +266,7 @@ export default function TimelinesPage() {
         <header className="sticky top-0 z-10 bg-white border-b border-border-line">
           <div className="container px-5 py-4">
             <h1 className="text-xl font-bold mb-4 text-neutral-dark">
-              타임라인
+              타임라인 저장소
             </h1>
           </div>
         </header>
@@ -339,7 +369,7 @@ export default function TimelinesPage() {
                 transition={{ delay: index * 0.05 }}
               >
                 <div className="flex gap-4">
-                  <div className="relative w-24 h-16 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+                  <div className="relative w-32 h-24 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
                     {bookmark.digests?.source_type === "YouTube" ? (
                       <Image
                         src={`https://i.ytimg.com/vi/${getYouTubeVideoId(
@@ -371,17 +401,18 @@ export default function TimelinesPage() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <Link
-                      href={`/digest/${bookmark.digest_id}`}
+                    <button
+                      onClick={() => handlePlayClick(bookmark)}
                       className="text-sm font-medium text-neutral-dark hover:text-primary-color line-clamp-1 mb-1 transition-colors"
                     >
                       {bookmark.digests?.title || "제목 없음"}
-                    </Link>
+                    </button>
 
                     <div className="flex items-center text-xs text-neutral-medium mb-1.5">
                       <Badge
                         variant="outline"
-                        className="mr-2 bg-gray-50 border-gray-200"
+                        onClick={() => handlePlayClick(bookmark)}
+                        className="mr-2 bg-gray-50 border-gray-200 cursor-pointer"
                       >
                         {formatTime(bookmark.seconds)}
                       </Badge>
@@ -398,25 +429,37 @@ export default function TimelinesPage() {
                       </span>
                     </div>
 
-                    <p className="text-sm text-neutral-dark line-clamp-1 mb-1.5">
+                    {/* <p className="text-sm text-neutral-dark line-clamp-1 mb-1.5">
                       {bookmark.text}
-                    </p>
+                    </p> */}
 
                     {bookmark.memo && (
-                      <div className="bg-primary-light text-neutral-dark text-xs p-2 rounded-md mb-2 line-clamp-1">
-                        {bookmark.memo}
+                      <div className="flex items-center justify-between bg-primary-light text-neutral-dark text-xs p-2 rounded-md line-clamp-1">
+                        <span className="line-clamp-1 flex-1">
+                          {bookmark.memo}
+                        </span>
+                        <button
+                          className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
+                          onClick={() => handleMemoClick(bookmark)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </button>
                       </div>
                     )}
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
-                        onClick={() => handleMemoClick(bookmark)}
-                      >
-                        <Edit className="h-3 w-3" />
-                        {bookmark.memo ? "메모 수정" : "메모 추가"}
-                      </button>
-                    </div>
+                    {!bookmark.memo && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
+                          onClick={() => handleMemoClick(bookmark)}
+                        >
+                          <Edit className="h-3 w-3" />
+                          메모 추가
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-xs text-info text-right font-bold mt-1">
+                      {bookmark.digests?.video_info?.channelTitle}
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -439,6 +482,13 @@ export default function TimelinesPage() {
         onSave={handleMemoSave}
         initialMemo={currentBookmark?.memo || ""}
         title="타임라인 메모"
+      />
+
+      <YouTubePopup
+        isOpen={youtubePopup.isOpen}
+        videoId={youtubePopup.videoId}
+        startTime={youtubePopup.startTime}
+        onClose={closeYoutubePopup}
       />
     </div>
   );

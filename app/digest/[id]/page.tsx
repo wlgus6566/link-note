@@ -31,6 +31,7 @@ import {
   deleteTimelineBookmark,
 } from "@/lib/utils/timeline";
 import { createClient } from "@/lib/supabase/client";
+import { YouTubePopup } from "@/components/ui/youtube-popup";
 
 interface BookmarkItem {
   id: string;
@@ -38,6 +39,12 @@ interface BookmarkItem {
   text: string;
   memo?: string;
   timestamp: number;
+}
+
+interface YouTubePopupState {
+  isOpen: boolean;
+  videoId: string;
+  startTime: number;
 }
 
 export default function DigestPage({
@@ -65,6 +72,11 @@ export default function DigestPage({
   );
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [syncNeeded, setSyncNeeded] = useState(false);
+  const [youtubePopup, setYoutubePopup] = useState<YouTubePopupState>({
+    isOpen: false,
+    videoId: "",
+    startTime: 0,
+  });
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -362,21 +374,12 @@ export default function DigestPage({
     const videoId = getYouTubeVideoId(digest.sourceUrl);
     if (!videoId) return;
 
-    const iframe = document.querySelector("iframe");
-    if (!iframe) return;
-
-    try {
-      const currentSrc = iframe.src;
-      const baseUrl = currentSrc.split("?")[0];
-
-      const newSrc = `${baseUrl}?start=${Math.floor(seconds)}&autoplay=1`;
-
-      iframe.src = newSrc;
-
-      console.log(`${seconds}초 위치로 이동`);
-    } catch (error) {
-      console.error("비디오 탐색 오류:", error);
-    }
+    // 팝업으로 재생하기
+    setYoutubePopup({
+      isOpen: true,
+      videoId,
+      startTime: seconds,
+    });
   };
 
   if (error) {
@@ -883,6 +886,18 @@ export default function DigestPage({
           }
           title="타임라인 메모 추가하기"
         />
+
+        {/* YouTube 팝업 컴포넌트 추가 */}
+        {youtubePopup.isOpen && (
+          <YouTubePopup
+            isOpen={youtubePopup.isOpen}
+            videoId={youtubePopup.videoId}
+            startTime={youtubePopup.startTime}
+            onClose={() =>
+              setYoutubePopup((prev) => ({ ...prev, isOpen: false }))
+            }
+          />
+        )}
       </div>
     </TooltipProvider>
   );

@@ -100,8 +100,8 @@ export default function ForgotPasswordPage() {
         >
           <div className="flex justify-center mb-6">
             <Image
-              src="/images/logo_00.png"
-              alt="LinkNote Logo"
+              src="/images/logo_tube.png"
+              alt="TubeNote Logo"
               width={48}
               height={48}
             />

@@ -212,8 +212,8 @@ export default function SignupPage() {
             className="mb-8"
           >
             <Image
-              src="/images/logo_00.png"
-              alt="LinkNote Logo"
+              src="/images/logo_tube.png"
+              alt="TubeNote Logo"
               width={80}
               height={80}
               className="mx-auto"
@@ -245,7 +245,7 @@ export default function SignupPage() {
             <div className="relative h-64 w-full rounded-xl overflow-hidden shadow-md">
               <Image
                 src="/placeholder.svg?height=400&width=600"
-                alt="LinkNote App Preview"
+                alt="TubeNote App Preview"
                 fill
                 className="object-cover"
               />
@@ -297,13 +297,13 @@ export default function SignupPage() {
               <div className="md:hidden flex justify-center mb-8">
                 <div className="flex items-center gap-2">
                   <Image
-                    src="/images/logo_00.png"
-                    alt="LinkNote Logo"
+                    src="/images/logo_tube.png"
+                    alt="TubeNote Logo"
                     width={40}
                     height={40}
                   />
                   <span className="text-xl font-bold text-neutral-dark">
-                    LinkNote
+                    TubeNote
                   </span>
                 </div>
               </div>

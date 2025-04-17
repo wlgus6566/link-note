@@ -175,8 +175,8 @@ export default function LoginPage() {
             className="mb-8"
           >
             <Image
-              src="/images/logo_00.png"
-              alt="LinkNote Logo"
+              src="/images/logo_tube.png"
+              alt="TubeNote Logo"
               width={80}
               height={80}
               className="mx-auto"
@@ -190,8 +190,8 @@ export default function LoginPage() {
             className="text-center max-w-md"
           >
             <h1 className="text-3xl font-bold text-neutral-dark mb-4">
-              콘텐츠를 <span className="text-primary-color">스마트하게</span>{" "}
-              정리하세요
+              YouTube 영상을{" "}
+              <span className="text-primary-color">스마트하게</span> 정리하세요
             </h1>
             <p className="text-neutral-medium mb-8">
               링크 한 줄로, 당신만의 블로그 콘텐츠가 완성됩니다. 중요한 정보를
@@ -250,13 +250,13 @@ export default function LoginPage() {
               <div className="md:hidden flex justify-center mb-8">
                 <div className="flex items-center gap-2">
                   <Image
-                    src="/images/logo_00.png"
-                    alt="LinkNote Logo"
+                    src="/images/logo_tube.png"
+                    alt="TubeNote Logo"
                     width={40}
                     height={40}
                   />
                   <span className="text-xl font-bold text-neutral-dark">
-                    LinkNote
+                    TubeNote
                   </span>
                 </div>
               </div>

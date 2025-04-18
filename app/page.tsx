@@ -6,7 +6,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Search, FileText, Tag, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  Search,
+  FileText,
+  Tag,
+  Sparkles,
+  Clock,
+  PlayCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BottomNav from "@/components/bottom-nav";
@@ -155,23 +163,23 @@ export default function Home() {
                       <FileText className="h-5 w-5 text-primary-color" />
                     </div>
                     <span className="text-xs text-neutral-medium">
-                      핵심 요약
+                      AI 자동 요약
                     </span>
                   </div>
                   <div className="flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full bg-primary-light flex items-center justify-center mb-2 border border-primary-color/30">
-                      <Tag className="h-5 w-5 text-primary-color" />
+                      <Clock className="h-5 w-5 text-primary-color" />
                     </div>
                     <span className="text-xs text-neutral-medium">
-                      자동 태그
+                      타임라인 북마크
                     </span>
                   </div>
                   <div className="flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full bg-primary-light flex items-center justify-center mb-2 border border-primary-color/30">
-                      <Search className="h-5 w-5 text-primary-color" />
+                      <PlayCircle className="h-5 w-5 text-primary-color" />
                     </div>
                     <span className="text-xs text-neutral-medium">
-                      쉬운 검색
+                      구간 복습
                     </span>
                   </div>
                 </motion.div>

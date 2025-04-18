@@ -1,23 +1,17 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Search,
-  Clock,
-  Play,
-  Edit,
-  Trash,
-  Calendar,
-  LogIn,
-} from "lucide-react";
+import { Search, Clock, Play, Edit, Calendar, LogIn } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import BottomNav from "@/components/bottom-nav";
 import { getUserTimelineBookmarks, formatTime } from "@/lib/utils/timeline";
-import { TimelineBookmark } from "@/types/timeline";
+import type { TimelineBookmark } from "@/types/timeline";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { SimpleToast } from "@/components/ui/toast";
@@ -349,7 +343,8 @@ export default function TimelinesPage() {
                         <Image
                           src={
                             bookmark.digests?.image ||
-                            "/placeholder.svg?height=90&width=160"
+                            "/placeholder.svg?height=90&width=160" ||
+                            "/placeholder.svg"
                           }
                           alt={bookmark.digests?.title || "북마크 이미지"}
                           fill
@@ -399,29 +394,31 @@ export default function TimelinesPage() {
                         {bookmark.text}
                       </p> */}
 
+                      {/* 메모가 있는 경우의 UI 개선 */}
                       {bookmark.memo && (
-                        <div className="flex items-center justify-between bg-primary-light text-neutral-dark text-xs p-2 rounded-md line-clamp-1">
-                          <button
-                            className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
-                            onClick={() => handleMemoClick(bookmark)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </button>
-                          <span className="line-clamp-1 flex-1 ml-1">
-                            {bookmark.memo}
+                        <button
+                          onClick={() => handleMemoClick(bookmark)}
+                          aria-label="메모 편집"
+                          className="flex items-start mt-2 w-full bg-gray-50 border border-gray-200 rounded-md p-1 relative group"
+                        >
+                          <span className="mr-1 p-1 rounded-full bg-white border border-border-line hover:border-primary-color hover:text-primary-color">
+                            <Edit className="h-2 w-2" />
                           </span>
-                        </div>
+                          <p className="flex-1 text-left text-xs text-neutral-dark line-clamp-1">
+                            {bookmark.memo}
+                          </p>
+                        </button>
                       )}
+
+                      {/* 메모가 없는 경우의 UI 개선 */}
                       {!bookmark.memo && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
-                            onClick={() => handleMemoClick(bookmark)}
-                          >
-                            <Edit className="h-3 w-3" />
-                            메모 추가
-                          </button>
-                        </div>
+                        <button
+                          className="mt-2 text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
+                          onClick={() => handleMemoClick(bookmark)}
+                        >
+                          <Edit className="h-3 w-3" />
+                          메모 추가하기
+                        </button>
                       )}
                       <p className="text-xs text-neutral-medium mb-1">
                         {bookmark.digests?.video_info?.channelTitle || ""} ·

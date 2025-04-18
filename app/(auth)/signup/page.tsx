@@ -216,7 +216,7 @@ export default function SignupPage() {
             className="mb-8"
           >
             <Image
-              src="/images/logo_tube.png"
+              src="/images/logo_2.png"
               alt="TubeNote Logo"
               width={80}
               height={80}
@@ -301,7 +301,7 @@ export default function SignupPage() {
               <div className="md:hidden flex justify-center mb-8">
                 <div className="flex items-center gap-2">
                   <Image
-                    src="/images/logo_tube.png"
+                    src="/images/logo_2.png"
                     alt="TubeNote Logo"
                     width={40}
                     height={40}

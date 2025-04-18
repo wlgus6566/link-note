@@ -85,12 +85,7 @@ export default function Home() {
       <header className="header">
         <div className="container flex items-center justify-between h-16 px-5">
           <Link href="/" className="flex items-center gap-1.5">
-            <Image
-              src="/images/logo_tube.png"
-              alt="logo"
-              width={20}
-              height={20}
-            />
+            <Image src="/images/logo_2.png" alt="logo" width={20} height={20} />
             <span className="text-lg font-bold text-neutral-dark">
               TubeLink
             </span>
@@ -125,15 +120,15 @@ export default function Home() {
                 }}
               >
                 <Image
-                  src="/images/logo_tube.png"
+                  src="/images/logo_2.png"
                   alt="logo"
                   width={100}
-                  height={100}
+                  height={80}
                   className="relative z-10"
                 />
               </motion.div>
 
-              <div className="space-y-8 max-w-[320px] md:max-w-[600px] !mt-0">
+              <div className="!mt-5 space-y-8 max-w-[320px] md:max-w-[600px]">
                 <motion.h1
                   className="text-3xl md:text-4xl font-bold tracking-tight leading-tight text-neutral-dark"
                   variants={itemVariants}
@@ -144,11 +139,11 @@ export default function Home() {
                   정리하세요
                 </motion.h1>
                 <motion.p
-                  className="text-base text-neutral-medium md:text-lg max-w-[500px] mx-auto"
+                  className="!mt-5 text-base text-neutral-medium md:text-lg max-w-[500px] mx-auto"
                   variants={itemVariants}
                 >
-                  영상 링크 한 줄로, 당신만의 요약과 타임라인
-                  <br /> 북마크가 완성됩니다.
+                  영상 속 핵심, 요약 <br />
+                  타임라인으로 다시 꺼내보세요.
                 </motion.p>
 
                 <motion.div

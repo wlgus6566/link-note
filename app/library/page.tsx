@@ -1,24 +1,23 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
   Search,
   Filter,
-  Grid,
-  List,
   Bookmark,
   MoreVertical,
   Share2,
   Trash2,
   X,
   Folder,
-  Plus,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BottomNav from "@/components/bottom-nav";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
@@ -26,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 
-interface Folder {
+interface FolderType {
   id: string;
   name: string;
   description: string | null;
@@ -60,7 +59,7 @@ interface BookmarkItem {
 }
 
 export default function LibraryPage() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [showTagFilter, setShowTagFilter] = useState(false);
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [filteredBookmarks, setFilteredBookmarks] = useState<BookmarkItem[]>(
     []
@@ -76,9 +75,25 @@ export default function LibraryPage() {
     null
   );
   const [showFolderModal, setShowFolderModal] = useState(false);
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const [folders, setFolders] = useState<FolderType[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [loadingFolders, setLoadingFolders] = useState(false);
+  const [showFolderDropdown, setShowFolderDropdown] = useState(false);
+
+  // 바깥 영역 클릭 시 폴더 드롭다운 닫기 이벤트 추가
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showFolderDropdown && !target.closest(".folder-dropdown")) {
+        setShowFolderDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showFolderDropdown]);
 
   // 폴더 목록 불러오기 함수
   const fetchFolders = async () => {
@@ -284,9 +299,9 @@ export default function LibraryPage() {
     const minuteMatch = isoDuration.match(/(\d+)M/);
     const secondMatch = isoDuration.match(/(\d+)S/);
 
-    const hours = hourMatch ? parseInt(hourMatch[1]) : 0;
-    const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
-    const seconds = secondMatch ? parseInt(secondMatch[1]) : 0;
+    const hours = hourMatch ? Number.parseInt(hourMatch[1]) : 0;
+    const minutes = minuteMatch ? Number.parseInt(minuteMatch[1]) : 0;
+    const seconds = secondMatch ? Number.parseInt(secondMatch[1]) : 0;
 
     // 시간이 있는 경우: hh:mm:ss
     if (hours > 0) {
@@ -305,7 +320,7 @@ export default function LibraryPage() {
   const formatViewCount = (count: string): string => {
     if (!count) return "0";
 
-    const num = parseInt(count, 10);
+    const num = Number.parseInt(count, 10);
     if (isNaN(num)) return "0";
 
     if (num >= 10000) {
@@ -382,22 +397,25 @@ export default function LibraryPage() {
         <div className="container px-5 py-4">
           <div className="flex items-center mb-4">
             <Bookmark className="h-5 w-5 text-primary-color mr-2" />
-            <h1 className="text-xl font-bold text-neutral-dark">요약 저장소</h1>
+            <h1 className="text-xl font-bold text-neutral-dark">
+              저장된 콘텐츠
+            </h1>
           </div>
 
-          <div className="relative mb-4">
+          <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-medium" />
             <Input
               className="search-input"
-              placeholder="저장된 콘텐츠 검색"
+              placeholder="제목, 태그 검색"
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="category-filter">
+          {/* 태그 필터 부분 수정 - 필터 아이콘 옆에 일부 태그 표시하고 확장 가능하도록 */}
+          {/* <div className="flex items-center justify-between">
+            <div className="flex-1 flex items-center flex-wrap gap-2 overflow-hidden">
               <Button
                 variant="outline"
                 size="sm"
@@ -408,99 +426,156 @@ export default function LibraryPage() {
               >
                 전체
               </Button>
-              {popularTags.map((tag) => (
+              {activeTag !== "전체" ? (
                 <Button
-                  key={tag}
                   variant="outline"
                   size="sm"
-                  className={`category-btn ${
-                    activeTag === tag ? "active" : "inactive"
-                  }`}
-                  onClick={() => setActiveTag(tag)}
+                  className="category-btn active"
+                  onClick={() => setActiveTag("전체")}
                 >
-                  {tag}
+                  {activeTag} <X className="h-3 w-3 ml-1" />
                 </Button>
-              ))}
+              ) : (
+                // 인기 태그 중 일부만 표시 (최대 3개)
+                popularTags.slice(0, 3).map((tag) => (
+                  <Button
+                    key={tag}
+                    variant="outline"
+                    size="sm"
+                    className={`category-btn ${
+                      activeTag === tag ? "active" : "inactive"
+                    }`}
+                    onClick={() => setActiveTag(tag)}
+                  >
+                    {tag}
+                  </Button>
+                ))
+              )}
             </div>
 
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-full bg-white border-border-line flex-shrink-0 hover:border-primary-color hover:text-primary-color"
+              className="h-8 w-8 rounded-full bg-white border-border-line flex-shrink-0 hover:border-primary-color hover:text-primary-color ml-2"
+              onClick={() => setShowTagFilter(!showTagFilter)}
             >
               <Filter className="h-4 w-4" />
             </Button>
-          </div>
+          </div> */}
+
+          {/* 확장 가능한 태그 필터 */}
+          <AnimatePresence>
+            {showTagFilter && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden mt-2 mb-4"
+              >
+                <div className="bg-white p-3 rounded-xl border border-border-line shadow-sm">
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.map((tag) => (
+                      <Button
+                        key={tag}
+                        variant="outline"
+                        size="sm"
+                        className={`category-btn ${
+                          activeTag === tag ? "active" : "inactive"
+                        }`}
+                        onClick={() => {
+                          setActiveTag(tag);
+                          setShowTagFilter(false);
+                        }}
+                      >
+                        {tag}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
       <main className="flex-1">
         <div className="container px-5 py-4">
+          {/* 폴더 선택 UI 개선 - 커스텀 드롭다운으로 변경 */}
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-neutral-medium">
               {filteredBookmarks.length}개 항목
             </div>
 
-            <Tabs
-              defaultValue={viewMode}
-              className="w-auto"
-              onValueChange={(value) => setViewMode(value as "grid" | "list")}
-            >
-              <TabsList className="h-8 p-1 bg-secondary-color">
-                <TabsTrigger
-                  value="list"
-                  className="h-6 w-6 p-0 data-[state=active]:bg-primary-light data-[state=active]:text-primary-color"
-                >
-                  <List className="h-4 w-4" />
-                </TabsTrigger>
-                <TabsTrigger
-                  value="grid"
-                  className="h-6 w-6 p-0 data-[state=active]:bg-primary-light data-[state=active]:text-primary-color"
-                >
-                  <Grid className="h-4 w-4" />
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {/* 폴더 드롭다운 버튼에 클래스 추가 */}
+            <div className="relative folder-dropdown">
+              <button
+                className="flex items-center gap-2 bg-white border border-border-line rounded-full px-4 py-1.5 text-sm text-neutral-dark focus:outline-none focus:border-primary-color hover:border-primary-color transition-colors"
+                onClick={() => setShowFolderDropdown(!showFolderDropdown)}
+              >
+                <Folder className="h-4 w-4 text-neutral-medium" />
+                <span>
+                  {activeFolder
+                    ? folders.find((f) => f.id === activeFolder)?.name
+                    : "모든 폴더"}
+                </span>
+                <ChevronDown className="h-4 w-4 text-neutral-medium" />
+              </button>
+
+              {showFolderDropdown && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-border-line z-10 overflow-hidden">
+                  <div className="max-h-60 overflow-y-auto py-1">
+                    <button
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color ${
+                        !activeFolder
+                          ? "bg-primary-light text-primary-color"
+                          : "text-neutral-dark"
+                      }`}
+                      onClick={() => {
+                        setActiveFolder(null);
+                        setShowFolderDropdown(false);
+                      }}
+                    >
+                      모든 폴더
+                    </button>
+                    {folders.map((folder) => (
+                      <button
+                        key={folder.id}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color ${
+                          activeFolder === folder.id
+                            ? "bg-primary-light text-primary-color"
+                            : "text-neutral-dark"
+                        }`}
+                        onClick={() => {
+                          setActiveFolder(folder.id);
+                          setShowFolderDropdown(false);
+                        }}
+                      >
+                        {folder.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {loading ? (
-            <div
-              className={
-                viewMode === "grid"
-                  ? "grid grid-cols-2 gap-4"
-                  : "space-y-4 grid"
-              }
-            >
+            <div className="space-y-4 grid">
               {Array(4)
                 .fill(0)
                 .map((_, index) => (
                   <div
                     key={index}
-                    className={`bg-white rounded-xl overflow-hidden border border-border-line shadow-sm ${
-                      viewMode === "grid" ? "h-full flex flex-col" : "flex"
-                    }`}
+                    className="bg-white rounded-xl overflow-hidden border border-border-line shadow-sm flex"
                   >
-                    <Skeleton
-                      className={
-                        viewMode === "grid"
-                          ? "h-32 w-full"
-                          : "h-32 w-1/3 flex-shrink-0"
-                      }
-                    />
-                    <div
-                      className={`p-3 ${
-                        viewMode === "grid" ? "flex-1 flex flex-col" : "flex-1"
-                      }`}
-                    >
+                    <Skeleton className="h-32 w-1/3 flex-shrink-0" />
+                    <div className="p-3 flex-1">
                       <Skeleton className="h-4 w-20 mb-1" />
                       <Skeleton className="h-5 w-full mb-1" />
                       <Skeleton className="h-5 w-1/2 mb-1" />
-                      {viewMode === "list" && (
-                        <>
-                          <Skeleton className="h-4 w-full mb-1" />
-                          <Skeleton className="h-4 w-4/5 mb-2" />
-                        </>
-                      )}
+                      <Skeleton className="h-4 w-full mb-1" />
+                      <Skeleton className="h-4 w-4/5 mb-2" />
                       <div className="flex gap-1 mt-auto">
                         <Skeleton className="h-5 w-12 rounded-full" />
                         <Skeleton className="h-5 w-12 rounded-full" />
@@ -534,11 +609,7 @@ export default function LibraryPage() {
             </div>
           ) : (
             <motion.div
-              className={
-                viewMode === "grid"
-                  ? "grid grid-cols-2 gap-4"
-                  : "space-y-4 grid"
-              }
+              className="space-y-4 grid"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
@@ -550,136 +621,71 @@ export default function LibraryPage() {
                   whileHover={{ y: -5 }}
                   className="group"
                 >
-                  {viewMode === "grid" ? (
-                    <div className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm group-hover:border-primary-color h-full flex flex-col">
-                      <Link
-                        href={`/digest/${bookmark.digest_id}`}
-                        className="flex-1 flex flex-col"
-                      >
-                        <div className="relative h-32 w-full">
-                          <Image
-                            src={bookmark.digests.image || "/placeholder.svg"}
-                            alt={bookmark.digests.title}
-                            fill
-                            className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                          />
-
-                          {/* 영상 길이 표시 */}
-                          {bookmark.digests.source_type === "YouTube" &&
-                            bookmark.digests.video_info?.duration && (
-                              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-[10px] rounded">
-                                {formatDuration(
-                                  bookmark.digests.video_info.duration
-                                )}
-                              </div>
-                            )}
-                        </div>
-
-                        <div className="p-3 flex-1 flex flex-col">
-                          <div className="text-xs text-neutral-medium mb-1">
-                            {formatDate(bookmark.created_at)}
-                          </div>
-                          <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
-                            {bookmark.digests.title}
-                          </h3>
-
-                          <div className="flex flex-wrap gap-1 mt-auto">
-                            {bookmark.digests.tags &&
-                              bookmark.digests.tags
-                                .slice(0, 2)
-                                .map((tag: string) => (
-                                  <span key={tag} className="tag">
-                                    {tag}
-                                  </span>
-                                ))}
-                            {bookmark.digests.tags &&
-                              bookmark.digests.tags.length > 2 && (
-                                <span className="text-xs bg-secondary-color text-neutral-medium px-1.5 py-0.5 rounded-full">
-                                  +{bookmark.digests.tags.length - 2}
-                                </span>
+                  <div className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm group-hover:border-primary-color flex relative">
+                    <Link
+                      href={`/digest/${bookmark.digest_id}`}
+                      className="flex flex-1"
+                    >
+                      <div className="w-2/5 h-26 relative">
+                        <Image
+                          src={bookmark.digests.image || "/placeholder.svg"}
+                          alt={bookmark.digests.title}
+                          fill
+                          className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                        />
+                        {/* 영상 길이 표시 */}
+                        {bookmark.digests.source_type === "YouTube" &&
+                          bookmark.digests.video_info?.duration && (
+                            <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-[10px] rounded">
+                              {formatDuration(
+                                bookmark.digests.video_info.duration
                               )}
-                          </div>
-                        </div>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full absolute top-3 right-3 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
-                        onClick={(e) => handleOpenMenu(e, bookmark)}
-                      >
-                        <MoreVertical className="h-4 w-4 text-neutral-dark" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm group-hover:border-primary-color flex relative">
-                      <Link
-                        href={`/digest/${bookmark.digest_id}`}
-                        className="flex flex-1"
-                      >
-                        <div className="w-2/5 h-26 relative">
-                          <Image
-                            src={bookmark.digests.image || "/placeholder.svg"}
-                            alt={bookmark.digests.title}
-                            fill
-                            className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                          />
-                          {/* 영상 길이 표시 */}
-                          {bookmark.digests.source_type === "YouTube" &&
-                            bookmark.digests.video_info?.duration && (
-                              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-[10px] rounded">
-                                {formatDuration(
-                                  bookmark.digests.video_info.duration
-                                )}
-                              </div>
-                            )}
-                        </div>
-
-                        <div className="p-3 pb-2 w-3/5">
-                          <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
-                            {bookmark.digests.title}
-                          </h3>
-
-                          {/* 유튜버 이름과 조회수 표시 */}
-                          {bookmark.digests.source_type === "YouTube" &&
-                          bookmark.digests.video_info ? (
-                            <p className="text-xs text-neutral-medium mb-1">
-                              {bookmark.digests.video_info.channelTitle || ""} ·
-                              조회수{" "}
-                              {formatViewCount(
-                                bookmark.digests.video_info.viewCount || "0"
-                              )}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-neutral-medium mb-1">
-                              {formatDate(bookmark.created_at)}
-                            </p>
+                            </div>
                           )}
+                      </div>
 
-                          {/* <p className="text-xs text-neutral-medium line-clamp-2 mb-2">
-                            {bookmark.digests.summary}
-                          </p> */}
-                          <div className="flex flex-wrap gap-1 mt-auto">
-                            {bookmark.digests.tags &&
-                              bookmark.digests.tags
-                                .slice(0, 2)
-                                .map((tag: string) => (
-                                  <span key={tag} className="tag text-xs">
-                                    {tag}
-                                  </span>
-                                ))}
-                          </div>
+                      <div className="p-3 pb-2 w-3/5">
+                        <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
+                          {bookmark.digests.title}
+                        </h3>
+
+                        {/* 유튜버 이름과 조회수 표시 */}
+                        {bookmark.digests.source_type === "YouTube" &&
+                        bookmark.digests.video_info ? (
+                          <p className="text-xs text-neutral-medium mb-1">
+                            {bookmark.digests.video_info.channelTitle || ""} ·
+                            조회수{" "}
+                            {formatViewCount(
+                              bookmark.digests.video_info.viewCount || "0"
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-neutral-medium mb-1">
+                            {formatDate(bookmark.created_at)}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap gap-1 mt-auto">
+                          {bookmark.digests.tags &&
+                            bookmark.digests.tags
+                              .slice(0, 2)
+                              .map((tag: string) => (
+                                <span key={tag} className="tag text-xs">
+                                  {tag}
+                                </span>
+                              ))}
                         </div>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full absolute top-3 right-3 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
-                        onClick={(e) => handleOpenMenu(e, bookmark)}
-                      >
-                        <MoreVertical className="h-4 w-4 text-neutral-dark" />
-                      </Button>
-                    </div>
-                  )}
+                      </div>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full absolute top-3 right-3 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
+                      onClick={(e) => handleOpenMenu(e, bookmark)}
+                    >
+                      <MoreVertical className="h-4 w-4 text-neutral-dark" />
+                    </Button>
+                  </div>
                 </motion.div>
               ))}
             </motion.div>

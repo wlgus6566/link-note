@@ -100,7 +100,7 @@ export default function ForgotPasswordPage() {
         >
           <div className="flex justify-center mb-6">
             <Image
-              src="/images/logo_tube.png"
+              src="/images/logo_2.png"
               alt="TubeNote Logo"
               width={48}
               height={48}

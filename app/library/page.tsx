@@ -704,9 +704,26 @@ export default function LibraryPage() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, info) => {
+              // 드래그 거리가 100px 이상이면 팝업 닫기
+              if (info.offset.y > 100) {
+                setShowBottomPopup(false);
+              }
+            }}
           >
             <div className="flex flex-col bg-white border-t border-border-line rounded-t-2xl overflow-hidden">
-              <div className="p-4 border-b border-border-line">
+              <div
+                className="p-4 border-b border-border-line cursor-grab active:cursor-grabbing"
+                onTouchStart={(e) =>
+                  e.currentTarget.classList.add("active:cursor-grabbing")
+                }
+                onTouchEnd={(e) =>
+                  e.currentTarget.classList.remove("active:cursor-grabbing")
+                }
+              >
                 <div className="w-12 h-1 bg-border-line rounded-full mx-auto mb-4" />
                 <h3 className="font-medium text-lg line-clamp-1">
                   {selectedBookmark.digests.title}

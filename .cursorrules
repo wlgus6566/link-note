@@ -1,0 +1,91 @@
+// Next.js 15 타입 오류 방지 규칙
+// 작성일: 2023.11.09
+
+/*
+ * 빌드 실패 주요 원인 분석:
+ * 1. Supabase 쿼리에서 타입 불일치 (user_id, digest_id 등)
+ * 2. Next.js 15에서 headers(), cookies() 함수가 비동기로 변경됨
+ * 3. 외부 라이브러리 타입 선언 부재 (youtube-captions-scraper 등)
+ * 4. 객체 속성 접근 시 타입 검증 부족
+ */
+
+// === Supabase 쿼리 규칙 ===
+
+// 1. 문자열-숫자 타입 불일치 처리
+// ✅ 좋은 예: 명시적 타입 단언으로 처리
+const { data } = await supabase
+  .from("bookmarks")
+  .eq("user_id", userId as any)
+  .eq("digest_id", digestId as any);
+
+// ❌ 나쁜 예: 타입 불일치 방치
+const { data } = await supabase
+  .from("bookmarks") 
+  .eq("user_id", userId)  // userId는 string, 컬럼은 number일 경우 오류 발생
+  .eq("digest_id", digestId);
+
+// 2. 객체 속성 접근 시 안전한 타입 처리
+// ✅ 좋은 예: 속성 존재 확인 후 접근
+if (videoData.videoInfo && typeof videoData.videoInfo === "object") {
+  if ("channelId" in videoData.videoInfo) {
+    videoInfo.channelId = String(videoData.videoInfo.channelId || "");
+  }
+}
+
+// ❌ 나쁜 예: 존재 여부 확인 없이 속성 접근
+videoInfo.channelId = videoData.videoInfo.channelId;  // videoInfo가 undefined일 수 있음
+
+// === Next.js 15 비동기 함수 처리 규칙 ===
+
+// 3. cookies()와 headers() 함수의 비동기 처리
+// ✅ 좋은 예: await 사용
+const cookieStore = await cookies();
+const headersList = await headers();
+
+// ❌ 나쁜 예: 동기 함수처럼 사용
+const cookieStore = cookies();  // Promise를 반환하지만 await 없이 사용
+
+// 4. createClient() 함수의 비동기 처리
+// ✅ 좋은 예: await 사용
+const supabase = await createClient();
+
+// ❌ 나쁜 예: await 없이 사용
+const supabase = createClient();  // Promise<SupabaseClient>를 반환하지만 await 없이 사용
+
+// === API 응답 데이터 처리 규칙 ===
+
+// 5. API 응답 데이터 타입 변환
+// ✅ 좋은 예: 응답 데이터를 명시적으로 변환
+const bookmarkData = bookmarks.map(item => ({
+  ...item,
+  user_id: 0,  // 필요한 필드가 없을 경우 기본값 제공
+}));
+
+// ❌ 나쁜 예: 타입 검증 없이 응답 데이터 사용
+setBookmarks(response.data);  // response.data에 필요한 필드가 없을 수 있음
+
+// === 외부 라이브러리 타입 처리 규칙 ===
+
+// 6. 타입 선언이 없는 외부 라이브러리 처리
+// ✅ 좋은 예: 직접 타입 선언 파일 생성
+// types/youtube-captions-scraper.d.ts
+// declare module "youtube-captions-scraper" {
+//   export interface CaptionItem { ... }
+//   export function getSubtitles(...): Promise<CaptionItem[]>;
+// }
+
+// ❌ 나쁜 예: 타입 선언 없이 라이브러리 사용
+// import { getSubtitles } from "youtube-captions-scraper";  // 타입 오류 발생
+
+// === 조건부 렌더링 규칙 ===
+
+// 7. 불리언 타입이 아닌 값과의 비교
+// ✅ 좋은 예: 명시적 타입 비교
+if (isAuthenticated === true) {
+  // 인증된 경우 처리
+}
+
+// ❌ 나쁜 예: 잘못된 타입 비교
+if (isAuthenticated !== false) {  // isAuthenticated가 true | null 타입인 경우 오류 발생
+  // 인증된 경우 처리
+} 

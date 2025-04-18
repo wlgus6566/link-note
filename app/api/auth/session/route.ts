@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
     console.log("API 요청 헤더:", req.headers);
     console.log("쿠키:", req.headers.get("cookie"));
 
-    // Supabase 클라이언트 생성
-    const supabase = createClient();
+    // Supabase 클라이언트 생성 - await 추가
+    const supabase = await createClient();
 
     // 유저 세션 확인
     const { data: sessionData, error: sessionError } =
@@ -23,12 +23,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // cookies() 함수도 await 추가
+    const cookieStore = await cookies();
+
     if (!sessionData.session) {
       return NextResponse.json(
         {
           message: "로그인 세션이 없습니다",
           authenticated: false,
-          cookieStore: Array.from(cookies().getAll()),
+          cookieStore: Array.from(cookieStore.getAll()),
           requestCookies: req.headers.get("cookie"),
         },
         { status: 200 }
@@ -45,7 +48,7 @@ export async function GET(req: NextRequest) {
         role: sessionData.session.user.role,
       },
       expires_at: sessionData.session.expires_at,
-      cookieStore: Array.from(cookies().getAll()),
+      cookieStore: Array.from(cookieStore.getAll()),
       requestCookies: req.headers.get("cookie"),
     });
   } catch (error) {

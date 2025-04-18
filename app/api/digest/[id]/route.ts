@@ -1,18 +1,19 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { digests } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // params 확인 로깅
-    console.log("받은 params:", params);
+    const resolvedParams = await params;
+    console.log("받은 params:", resolvedParams);
 
     // params 객체에서 id 비동기적으로 추출
-    const id = params?.id;
+    const id = resolvedParams?.id;
     if (!id) {
       return NextResponse.json(
         {

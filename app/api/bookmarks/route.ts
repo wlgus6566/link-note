@@ -56,14 +56,16 @@ export async function POST(req: Request) {
     const { data: existingBookmark } = await supabase
       .from("bookmarks")
       .select()
-      .eq("user_id", userId)
-      .eq("digest_id", digest_id)
+      .eq("user_id", userId as any)
+      .eq("digest_id", digest_id as any)
       .maybeSingle();
 
     let bookmarkId;
 
     if (existingBookmark) {
-      bookmarkId = existingBookmark.id;
+      // 타입 단언을 사용
+      const bookmark = existingBookmark as Record<string, any>;
+      bookmarkId = bookmark.id;
       console.log("이미 저장된 북마크 사용:", bookmarkId);
     } else {
       // 북마크 저장
@@ -73,7 +75,7 @@ export async function POST(req: Request) {
           user_id: userId,
           digest_id: digest_id,
           created_at: new Date().toISOString(),
-        })
+        } as any)
         .select()
         .single();
 
@@ -85,8 +87,18 @@ export async function POST(req: Request) {
         );
       }
 
-      bookmarkId = bookmark.id;
-      console.log("새 북마크 생성 완료:", bookmarkId);
+      if (bookmark) {
+        // 타입 단언을 사용
+        const newBookmark = bookmark as Record<string, any>;
+        bookmarkId = newBookmark.id;
+        console.log("새 북마크 생성 완료:", bookmarkId);
+      } else {
+        console.error("북마크 생성 응답에 ID가 없습니다");
+        return NextResponse.json(
+          { success: false, error: "북마크 생성 실패: ID가 없습니다" },
+          { status: 500 }
+        );
+      }
     }
 
     // folder_id가 제공된 경우, 폴더-북마크 관계 생성
@@ -96,8 +108,8 @@ export async function POST(req: Request) {
         const { data: existingRelation, error: checkError } = await supabase
           .from("folder_bookmarks")
           .select()
-          .eq("folder_id", folder_id)
-          .eq("bookmark_id", bookmarkId)
+          .eq("folder_id", folder_id as any)
+          .eq("bookmark_id", bookmarkId as any)
           .maybeSingle();
 
         if (checkError) {
@@ -132,10 +144,10 @@ export async function POST(req: Request) {
             const { data: folderBookmark, error: folderError } = await supabase
               .from("folder_bookmarks")
               .insert({
-                folder_id,
-                bookmark_id: bookmarkId,
+                folder_id: folder_id as any,
+                bookmark_id: bookmarkId as any,
                 created_at: new Date().toISOString(),
-              })
+              } as any)
               .select()
               .single();
 
@@ -167,7 +179,9 @@ export async function POST(req: Request) {
               success: true,
               message: "북마크가 폴더에 저장되었습니다.",
               bookmarkId,
-              folderBookmarkId: folderBookmark?.id,
+              folderBookmarkId: folderBookmark
+                ? (folderBookmark as Record<string, any>).id
+                : null,
             });
           } catch (relationError) {
             console.error("폴더-북마크 관계 생성 중 예외 발생:", relationError);
@@ -250,8 +264,8 @@ export async function DELETE(req: Request) {
     const { error } = await supabase
       .from("bookmarks")
       .delete()
-      .eq("user_id", userId)
-      .eq("digest_id", Number(digestId));
+      .eq("user_id", userId as any)
+      .eq("digest_id", Number(digestId) as any);
 
     if (error) {
       console.error("북마크 삭제 오류:", error);
@@ -299,8 +313,8 @@ export async function GET(req: Request) {
       const { data: bookmark } = await supabase
         .from("bookmarks")
         .select()
-        .eq("user_id", userId)
-        .eq("digest_id", Number(digestId))
+        .eq("user_id", userId as any)
+        .eq("digest_id", Number(digestId) as any)
         .maybeSingle();
 
       return NextResponse.json({
@@ -334,7 +348,7 @@ export async function GET(req: Request) {
             )
           `
           )
-          .eq("user_id", userId)
+          .eq("user_id", userId as any)
           .order("created_at", { ascending: false });
 
         if (error) {

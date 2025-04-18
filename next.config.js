@@ -12,7 +12,9 @@ const nextConfig = {
 
   // 세션 관리 관련 설정
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ["localhost:3000"],
+    },
   },
 };
 

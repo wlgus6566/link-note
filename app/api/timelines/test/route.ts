@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
       req.headers.get("cookie")?.substring(0, 50) + "..."
     );
 
-    // Supabase 클라이언트 생성
-    const supabase = createClient();
+    // Supabase 클라이언트 생성 - await 추가
+    const supabase = await createClient();
 
     // 유저 세션 확인
     const { data, error } = await supabase.auth.getSession();

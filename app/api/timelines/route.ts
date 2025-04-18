@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 유저 세션 확인
     const { data: sessionData } = await supabase.auth.getSession();
@@ -40,11 +40,11 @@ export async function GET(req: NextRequest) {
         )
       `
       )
-      .eq("user_id", sessionData.session.user.id);
+      .eq("user_id", sessionData.session.user.id as any);
 
     // 다이제스트 ID로 필터링
     if (digestId) {
-      query = query.eq("digest_id", digestId);
+      query = query.eq("digest_id", digestId as any);
     }
 
     // 정렬

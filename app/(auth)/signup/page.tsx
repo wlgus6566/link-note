@@ -84,18 +84,9 @@ export default function SignupPage() {
         throw error;
       }
 
-      // 유저 정보를 DB에 저장
-      const { error: profileError } = await supabase.from("users").insert([
-        {
-          auth_id: data.user?.id,
-          name,
-          email: data.user?.email,
-        },
-      ]);
-
-      if (profileError) {
-        console.error("프로필 저장 오류:", profileError);
-      }
+      // 회원가입 성공 후 추가 로직
+      // 유저 정보는 Supabase Auth의 메타데이터에 이미 저장되었으므로
+      // 별도의 users 테이블 삽입 작업은 나중에 트리거나 훅을 통해 처리하도록 수정
 
       // 이메일 확인이 필요한 경우
       if (data.user?.identities?.length === 0) {

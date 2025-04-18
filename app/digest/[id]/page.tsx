@@ -1020,12 +1020,18 @@ function getYouTubeVideoId(url: string): string {
   return "";
 }
 
-export function formatViewCount(count: string | number): string {
+// 조회수 포맷 함수를 내부 함수로 변경
+function formatViewCount(count: string | number): string {
   if (!count) return "0";
 
   const num = typeof count === "string" ? Number.parseInt(count, 10) : count;
-
   if (isNaN(num)) return "0";
 
-  return num.toLocaleString("ko-KR");
+  if (num >= 10000) {
+    return `${Math.floor(num / 10000)}만회`;
+  } else if (num >= 1000) {
+    return `${Math.floor(num / 1000)}천회`;
+  }
+
+  return `${num}회`;
 }

@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    // Supabase 클라이언트 생성
-    const supabase = createClient();
+    // Supabase 클라이언트 생성 - await 추가
+    const supabase = await createClient();
 
     // 로그아웃
     const { error } = await supabase.auth.signOut();

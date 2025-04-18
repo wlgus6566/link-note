@@ -53,16 +53,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 비디오 정보 추출 부분
+    // 기본 비디오 정보 생성
     const videoInfo = {
       title: videoData.videoInfo?.title || "",
       description: videoData.videoInfo?.description || "",
-      channelId: videoData.videoInfo?.channelId || "",
       channelTitle: videoData.videoInfo?.channelTitle || "",
       publishedAt: videoData.videoInfo?.publishedAt || "",
-      viewCount: videoData.videoInfo?.viewCount?.toString() || "0",
-      duration: videoData.videoInfo?.duration || "PT5M", // ISO 8601 형식의 동영상 길이
+      viewCount: "0",
+      duration: videoData.videoInfo?.duration || "PT5M",
+      channelId: "",
     };
+
+    // videoData.videoInfo가 존재하는 경우
+    if (videoData.videoInfo && typeof videoData.videoInfo === "object") {
+      // channelId 설정
+      if ("channelId" in videoData.videoInfo) {
+        videoInfo.channelId = String(videoData.videoInfo.channelId || "");
+      }
+
+      // viewCount 설정
+      if ("viewCount" in videoData.videoInfo) {
+        const count = videoData.videoInfo.viewCount;
+        videoInfo.viewCount = count ? String(count) : "0";
+      }
+    }
 
     console.log("추출된 비디오 정보:", JSON.stringify(videoInfo));
 

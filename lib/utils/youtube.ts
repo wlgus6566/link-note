@@ -190,7 +190,7 @@ export async function getYoutubeVideoData(url: string) {
     // 비디오 정보와 자막을 병렬로 가져오지만, 각각에 대한 오류 처리 개선
     let videoInfo;
     let transcript = "자막을 찾을 수 없습니다.";
-    let rawCaptions = [];
+    let rawCaptions: Array<any> = [];
 
     try {
       videoInfo = await getVideoInfo(videoId);

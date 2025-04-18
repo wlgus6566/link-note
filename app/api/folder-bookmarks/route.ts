@@ -12,7 +12,14 @@ const folderBookmarkRequestSchema = z.object({
 // 폴더-북마크 연결 요청 스키마
 const FolderBookmarkSchema = z.object({
   folderId: z.string().uuid("유효한 폴더 ID가 필요합니다"),
-  digestId: z.string(),
+  digestId: z.union([z.string(), z.number()]).transform((val) => {
+    // 숫자 문자열인 경우 숫자로 변환
+    if (typeof val === "string") {
+      const parsed = parseInt(val);
+      return !isNaN(parsed) ? parsed : val;
+    }
+    return val;
+  }),
 });
 
 // POST: 북마크를 폴더에 추가
@@ -51,8 +58,8 @@ export async function POST(request: Request) {
     const { data: folderData, error: folderError } = await supabase
       .from("folders")
       .select("id")
-      .eq("id", folderId)
-      .eq("user_id", userId)
+      .eq("id", folderId as any)
+      .eq("user_id", userId as any)
       .single();
 
     if (folderError || !folderData) {
@@ -68,20 +75,20 @@ export async function POST(request: Request) {
       const { data: digestData, error: digestError } = await supabase
         .from("digests")
         .select("id")
-        .eq("id", digestId)
+        .eq("id", digestId as any)
         .single();
 
       // UUID가 아닌 숫자 ID로 다시 시도
       if (digestError) {
         console.log("숫자 ID로 다시 시도:", digestId);
-        const digestIdNumber = parseInt(digestId);
+        const digestIdNumber = parseInt(digestId as string);
 
         if (!isNaN(digestIdNumber)) {
           const { data: numberDigestData, error: numberDigestError } =
             await supabase
               .from("digests")
               .select("id")
-              .eq("id", digestIdNumber)
+              .eq("id", digestIdNumber as any)
               .single();
 
           if (numberDigestError || !numberDigestData) {
@@ -119,10 +126,16 @@ export async function POST(request: Request) {
     let bookmarkId;
     let digestIdForQuery: string | number = digestId;
 
+    // digestId가 이미 숫자인 경우 변환하지 않음
+    if (typeof digestId === "number") {
+      digestIdForQuery = digestId;
+    }
     // digestId가 숫자 문자열인 경우 숫자로 변환
-    const digestIdNumber = parseInt(digestId);
-    if (!isNaN(digestIdNumber)) {
-      digestIdForQuery = digestIdNumber;
+    else if (typeof digestId === "string") {
+      const digestIdNumber = parseInt(digestId);
+      if (!isNaN(digestIdNumber)) {
+        digestIdForQuery = digestIdNumber;
+      }
     }
 
     console.log(
@@ -135,8 +148,8 @@ export async function POST(request: Request) {
       const { data: existingBookmark, error: bookmarkError } = await supabase
         .from("bookmarks")
         .select("id")
-        .eq("user_id", userId)
-        .eq("digest_id", digestIdForQuery)
+        .eq("user_id", userId as any)
+        .eq("digest_id", digestIdForQuery as any)
         .maybeSingle();
 
       if (bookmarkError) {
@@ -157,9 +170,9 @@ export async function POST(request: Request) {
         const { data: newBookmark, error: createBookmarkError } = await supabase
           .from("bookmarks")
           .insert({
-            user_id: userId,
-            digest_id: digestIdForQuery,
-          })
+            user_id: userId as any,
+            digest_id: digestIdForQuery as any,
+          } as any)
           .select("id")
           .single();
 
@@ -171,10 +184,12 @@ export async function POST(request: Request) {
           );
         }
 
-        bookmarkId = newBookmark.id;
+        // 타입 단언을 사용하여 id 속성 접근
+        bookmarkId = (newBookmark as any).id;
         console.log("새 북마크 생성 성공:", bookmarkId);
       } else {
-        bookmarkId = existingBookmark.id;
+        // 타입 단언을 사용하여 id 속성 접근
+        bookmarkId = (existingBookmark as any).id;
         console.log("기존 북마크 사용:", bookmarkId);
       }
     } catch (error) {
@@ -189,8 +204,8 @@ export async function POST(request: Request) {
     const { data: existingFolderBookmark } = await supabase
       .from("folder_bookmarks")
       .select("id")
-      .eq("folder_id", folderId)
-      .eq("bookmark_id", bookmarkId)
+      .eq("folder_id", folderId as any)
+      .eq("bookmark_id", bookmarkId as any)
       .maybeSingle();
 
     if (existingFolderBookmark) {
@@ -204,9 +219,9 @@ export async function POST(request: Request) {
     const { data: folderBookmark, error: folderBookmarkError } = await supabase
       .from("folder_bookmarks")
       .insert({
-        folder_id: folderId,
-        bookmark_id: bookmarkId,
-      })
+        folder_id: folderId as any,
+        bookmark_id: bookmarkId as any,
+      } as any)
       .select("*")
       .single();
 
@@ -221,9 +236,9 @@ export async function POST(request: Request) {
     // 북마크의 folder_id 필드 업데이트
     const { error: updateError } = await supabase
       .from("bookmarks")
-      .update({ folder_id: folderId })
-      .eq("id", bookmarkId)
-      .eq("user_id", userId);
+      .update({ folder_id: folderId as any } as any)
+      .eq("id", bookmarkId as any)
+      .eq("user_id", userId as any);
 
     if (updateError) {
       console.error("북마크 폴더 업데이트 오류:", updateError);
@@ -280,8 +295,8 @@ export async function DELETE(request: Request) {
     const { data: folderData, error: folderError } = await supabase
       .from("folders")
       .select("id")
-      .eq("id", folderId)
-      .eq("user_id", userId)
+      .eq("id", folderId as any)
+      .eq("user_id", userId as any)
       .single();
 
     if (folderError || !folderData) {
@@ -296,8 +311,8 @@ export async function DELETE(request: Request) {
     const { error: deleteError } = await supabase
       .from("folder_bookmarks")
       .delete()
-      .eq("folder_id", folderId)
-      .eq("bookmark_id", bookmarkId);
+      .eq("folder_id", folderId as any)
+      .eq("bookmark_id", bookmarkId as any);
 
     if (deleteError) {
       console.error("폴더-북마크 연결 삭제 오류:", deleteError);
@@ -310,9 +325,9 @@ export async function DELETE(request: Request) {
     // 북마크의 folder_id 필드를 null로 설정
     const { error: updateError } = await supabase
       .from("bookmarks")
-      .update({ folder_id: null })
-      .eq("id", bookmarkId)
-      .eq("user_id", userId);
+      .update({ folder_id: null } as any)
+      .eq("id", bookmarkId as any)
+      .eq("user_id", userId as any);
 
     if (updateError) {
       console.error("북마크 폴더 제거 오류:", updateError);
@@ -364,8 +379,8 @@ export async function GET(req: Request) {
     const { data: folder, error: folderError } = await supabase
       .from("folders")
       .select("*")
-      .eq("id", folderId)
-      .eq("user_id", userId)
+      .eq("id", folderId as any)
+      .eq("user_id", userId as any)
       .single();
 
     if (folderError || !folder) {
@@ -391,7 +406,7 @@ export async function GET(req: Request) {
         )
       `
       )
-      .eq("folder_id", folderId);
+      .eq("folder_id", folderId as any);
 
     if (error) {
       console.error("폴더-북마크 목록 조회 오류:", error);

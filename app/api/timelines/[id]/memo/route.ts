@@ -3,11 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // params 해결
+    const resolvedParams = await params;
+
     // ID 유효성 검사
-    const bookmarkId = params?.id;
+    const bookmarkId = resolvedParams?.id;
     if (!bookmarkId || isNaN(Number(bookmarkId))) {
       return NextResponse.json(
         { error: "유효하지 않은 북마크 ID입니다" },
@@ -68,7 +71,7 @@ export async function PUT(
     const { data: bookmark, error: fetchError } = await supabase
       .from("timeline_bookmarks")
       .select("id, user_id")
-      .eq("id", bookmarkId)
+      .eq("id", bookmarkId as any)
       .single();
 
     if (fetchError) {
@@ -79,9 +82,10 @@ export async function PUT(
       );
     }
 
-    // 소유권 확인
-    if (bookmark.user_id !== userId) {
-      console.log("북마크 소유권 오류:", bookmark.user_id, "≠", userId);
+    // 북마크 데이터 타입 변환 및 소유권 확인
+    const bookmarkData = bookmark as any;
+    if (bookmarkData.user_id !== userId) {
+      console.log("북마크 소유권 오류:", bookmarkData.user_id, "≠", userId);
       return NextResponse.json(
         { error: "해당 북마크에 대한 접근 권한이 없습니다" },
         { status: 403 }
@@ -94,8 +98,8 @@ export async function PUT(
       .update({
         memo,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", bookmarkId)
+      } as any)
+      .eq("id", bookmarkId as any)
       .select()
       .single();
 
@@ -107,11 +111,13 @@ export async function PUT(
       );
     }
 
-    console.log("메모 업데이트 성공:", updateResult.id);
+    // 타입 단언으로 업데이트 결과 접근
+    const updatedData = updateResult as any;
+    console.log("메모 업데이트 성공:", updatedData.id);
     return NextResponse.json({
       success: true,
       message: "메모가 성공적으로 업데이트되었습니다",
-      data: updateResult,
+      data: updatedData,
     });
   } catch (error: any) {
     console.error("메모 API 오류:", error);

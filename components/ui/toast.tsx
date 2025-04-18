@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, ReactNode } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// 필요한 타입 정의 추가
+export type ToastProps = {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+export type ToastActionElement = React.ReactNode;
 
 interface SimpleToastProps {
   isVisible: boolean;

@@ -54,14 +54,14 @@ export async function GET(request: NextRequest) {
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("*")
-      .eq("auth_id", userId)
+      .eq("auth_id", userId as any)
       .single();
 
     if (userError) {
       // 사용자 정보가 없으면 생성
       const { error: createUserError } = await supabase.from("users").insert([
         {
-          auth_id: userId,
+          auth_id: userId as any,
           email: session.user.email || "",
           name:
             session.user.user_metadata?.name ||
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
             "사용자",
           avatar: session.user.user_metadata?.avatar_url,
         },
-      ]);
+      ] as any);
 
       if (createUserError) {
         console.error("사용자 프로필 생성 오류:", createUserError);
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const { data: folderData, error: folderError } = await supabase
       .from("folders")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", userId as any)
       .order("created_at", { ascending: false });
 
     if (folderError) {
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("*")
-        .eq("auth_id", userId)
+        .eq("auth_id", userId as any)
         .single();
 
       if (userError) {
@@ -180,9 +180,9 @@ export async function POST(request: NextRequest) {
           .insert([
             {
               name,
-              user_id: userId,
+              user_id: userId as any,
             },
-          ])
+          ] as any)
           .select("*")
           .single();
 
@@ -254,8 +254,8 @@ export async function PUT(request: NextRequest) {
       const { data: folderData, error: folderCheckError } = await supabase
         .from("folders")
         .select("*")
-        .eq("id", id)
-        .eq("user_id", userId)
+        .eq("id", id as any)
+        .eq("user_id", userId as any)
         .single();
 
       if (folderCheckError || !folderData) {
@@ -276,9 +276,9 @@ export async function PUT(request: NextRequest) {
         // 폴더 수정
         const { data: updatedFolder, error: updateError } = await supabase
           .from("folders")
-          .update(updateData)
-          .eq("id", id)
-          .eq("user_id", userId)
+          .update(updateData as any)
+          .eq("id", id as any)
+          .eq("user_id", userId as any)
           .select()
           .single();
 
@@ -356,8 +356,8 @@ export async function DELETE(request: NextRequest) {
     const { data: folderData, error: folderCheckError } = await supabase
       .from("folders")
       .select("*")
-      .eq("id", folderId)
-      .eq("user_id", userId)
+      .eq("id", folderId as any)
+      .eq("user_id", userId as any)
       .single();
 
     if (folderCheckError || !folderData) {
@@ -375,7 +375,7 @@ export async function DELETE(request: NextRequest) {
     const { count: bookmarkCount, error: countError } = await supabase
       .from("folder_bookmarks")
       .select("*", { count: "exact", head: true })
-      .eq("folder_id", folderId);
+      .eq("folder_id", folderId as any);
 
     if (countError) {
       console.error("DELETE - 북마크 카운트 오류:", countError);
@@ -393,7 +393,7 @@ export async function DELETE(request: NextRequest) {
       const { error: bookmarkDeleteError } = await supabase
         .from("folder_bookmarks")
         .delete()
-        .eq("folder_id", folderId);
+        .eq("folder_id", folderId as any);
 
       if (bookmarkDeleteError) {
         console.error("DELETE - 북마크 삭제 오류:", bookmarkDeleteError);
@@ -409,8 +409,8 @@ export async function DELETE(request: NextRequest) {
     const { error: deleteError } = await supabase
       .from("folders")
       .delete()
-      .eq("id", folderId)
-      .eq("user_id", userId);
+      .eq("id", folderId as any)
+      .eq("user_id", userId as any);
 
     if (deleteError) {
       console.error("DELETE - 폴더 삭제 상세 오류:", deleteError);

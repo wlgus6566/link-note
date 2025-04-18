@@ -82,8 +82,14 @@ export default function TimelinesPage() {
         const response = await getUserTimelineBookmarks();
 
         if (response.success && response.data) {
-          setBookmarks(response.data);
-          setFilteredBookmarks(response.data);
+          // API 응답을 TimelineBookmark 타입에 맞게 변환
+          const bookmarkData = response.data.map((item: any) => ({
+            ...item,
+            user_id: 0, // user_id가 응답에 없으므로 기본값 설정
+          }));
+
+          setBookmarks(bookmarkData);
+          setFilteredBookmarks(bookmarkData);
         } else {
           console.error("북마크 로드 오류:", response.error);
           setToastMessage("북마크를 불러오는데 실패했습니다.");
@@ -259,43 +265,6 @@ export default function TimelinesPage() {
       ));
   };
 
-  // 인증되지 않은 상태 렌더링
-  if (isAuthenticated === false) {
-    return (
-      <div className="flex flex-col min-h-screen pb-20">
-        <header className="sticky top-0 z-10 bg-white border-b border-border-line">
-          <div className="container px-5 py-4">
-            <h1 className="text-xl font-bold mb-4 text-neutral-dark">
-              타임라인 저장소
-            </h1>
-          </div>
-        </header>
-
-        <main className="flex-1 flex items-center justify-center p-5">
-          <div className="max-w-md w-full bg-white p-8 rounded-xl border border-border-line shadow-sm text-center">
-            <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-4">
-              <LogIn className="h-8 w-8 text-primary-color" />
-            </div>
-            <h2 className="text-xl font-bold mb-2 text-neutral-dark">
-              로그인이 필요합니다
-            </h2>
-            <p className="text-neutral-medium mb-6">
-              타임라인을 보고 관리하려면 로그인이 필요합니다.
-            </p>
-            <Button
-              className="bg-primary-color hover:bg-primary-color/90 text-white"
-              onClick={redirectToLogin}
-            >
-              로그인하기
-            </Button>
-          </div>
-        </main>
-
-        <BottomNav />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col min-h-screen pb-20">
       <header className="sticky top-0 z-10 bg-white border-b border-border-line">
@@ -333,141 +302,156 @@ export default function TimelinesPage() {
       </header>
 
       <main className="flex-1">
-        {loading && isAuthenticated !== false ? (
+        {loading ? (
+          // 로딩 중
           renderSkeletons()
-        ) : filteredBookmarks.length === 0 ? (
+        ) : isAuthenticated === true && filteredBookmarks.length === 0 ? (
+          // 인증됨 but 북마크 없음
           <div className="flex flex-col items-center justify-center h-64 p-8 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <Clock className="h-8 w-8 text-neutral-medium" />
+              <Calendar className="w-8 h-8 text-neutral-medium" />
             </div>
-            <h3 className="text-lg font-medium mb-2 text-neutral-dark">
-              {searchQuery ? "검색 결과가 없어요" : "저장된 타임라인이 없어요"}
+            <h3 className="text-lg font-medium mb-2">
+              타임라인 북마크가 없습니다
             </h3>
-            <p className="text-neutral-medium text-sm mb-4">
-              {searchQuery
-                ? "다른 검색어로 다시 시도해보세요"
-                : "영상 시청 중 타임라인을 북마크하면 여기에 표시됩니다"}
+            <p className="text-neutral-medium mb-6 text-sm">
+              영상을 시청하는 중 원하는 시점을 저장하면 여기에 보관됩니다.
             </p>
-            {searchQuery && (
-              <Button
-                variant="outline"
-                className="text-sm"
-                onClick={() => setSearchQuery("")}
-              >
-                검색 초기화
-              </Button>
-            )}
+            <Button asChild variant="outline" className="px-4 rounded-full">
+              <Link href="/">콘텐츠 둘러보기</Link>
+            </Button>
           </div>
-        ) : (
-          <div className="divide-y divide-border-line">
-            {filteredBookmarks.map((bookmark, index) => (
-              <motion.div
-                key={bookmark.id}
-                className="p-4 bg-white"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <div className="flex gap-4">
-                  <div className="relative w-32 h-24 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
-                    {bookmark.digests?.source_type === "YouTube" ? (
-                      <Image
-                        src={`https://i.ytimg.com/vi/${getYouTubeVideoId(
-                          bookmark.digests.source_url || ""
-                        )}/mqdefault.jpg`}
-                        alt={bookmark.digests.title}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <Image
-                        src={
-                          bookmark.digests?.image ||
-                          "/placeholder.svg?height=90&width=160"
-                        }
-                        alt={bookmark.digests?.title || "북마크 이미지"}
-                        fill
-                        className="object-cover"
-                      />
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <button
-                        className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center hover:bg-primary-color transition-colors"
-                        onClick={() => handlePlayClick(bookmark)}
-                      >
-                        <Play className="h-4 w-4 text-white" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <button
-                      onClick={() => handlePlayClick(bookmark)}
-                      className="text-sm font-medium text-neutral-dark hover:text-primary-color line-clamp-1 mb-1 transition-colors"
-                    >
-                      {bookmark.digests?.title || "제목 없음"}
-                    </button>
-
-                    <div className="flex items-center text-xs text-neutral-medium mb-1.5">
-                      <Badge
-                        variant="outline"
-                        onClick={() => handlePlayClick(bookmark)}
-                        className="mr-2 bg-gray-50 border-gray-200 cursor-pointer"
-                      >
-                        {formatTime(bookmark.seconds)}
-                      </Badge>
-                      <Calendar className="h-3 w-3 mr-1" />
-                      <span>
-                        {new Date(bookmark.created_at).toLocaleDateString(
-                          "ko-KR",
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
+        ) : isAuthenticated === true ? (
+          // 인증됨 and 북마크 있음
+          <div>
+            {/* 북마크 목록 */}
+            <ul className="divide-y divide-border-line">
+              {filteredBookmarks.map((bookmark) => (
+                <motion.li
+                  key={bookmark.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="p-4"
+                >
+                  <div className="flex gap-4">
+                    <div className="relative w-32 h-24 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+                      {bookmark.digests?.source_type === "YouTube" ? (
+                        <Image
+                          src={`https://i.ytimg.com/vi/${getYouTubeVideoId(
+                            bookmark.digests.source_url || ""
+                          )}/mqdefault.jpg`}
+                          alt={bookmark.digests.title}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <Image
+                          src={
+                            bookmark.digests?.image ||
+                            "/placeholder.svg?height=90&width=160"
                           }
-                        )}
-                      </span>
+                          alt={bookmark.digests?.title || "북마크 이미지"}
+                          fill
+                          className="object-cover"
+                        />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <button
+                          className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center hover:bg-primary-color transition-colors"
+                          onClick={() => handlePlayClick(bookmark)}
+                        >
+                          <Play className="h-4 w-4 text-white" />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* <p className="text-sm text-neutral-dark line-clamp-1 mb-1.5">
-                      {bookmark.text}
-                    </p> */}
+                    <div className="flex-1 min-w-0">
+                      <button
+                        onClick={() => handlePlayClick(bookmark)}
+                        className="text-sm font-medium text-neutral-dark hover:text-primary-color line-clamp-1 mb-1 transition-colors"
+                      >
+                        {bookmark.digests?.title || "제목 없음"}
+                      </button>
 
-                    {bookmark.memo && (
-                      <div className="flex items-center justify-between bg-primary-light text-neutral-dark text-xs p-2 rounded-md line-clamp-1">
-                        <button
-                          className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
-                          onClick={() => handleMemoClick(bookmark)}
+                      <div className="flex items-center text-xs text-neutral-medium mb-1.5">
+                        <Badge
+                          variant="outline"
+                          onClick={() => handlePlayClick(bookmark)}
+                          className="mr-2 bg-gray-50 border-gray-200 cursor-pointer"
                         >
-                          <Edit className="h-3 w-3" />
-                        </button>
-                        <span className="line-clamp-1 flex-1 ml-1">
-                          {bookmark.memo}
+                          {formatTime(bookmark.seconds)}
+                        </Badge>
+                        <Calendar className="h-3 w-3 mr-1" />
+                        <span>
+                          {new Date(bookmark.created_at).toLocaleDateString(
+                            "ko-KR",
+                            {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            }
+                          )}
                         </span>
                       </div>
-                    )}
-                    {!bookmark.memo && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
-                          onClick={() => handleMemoClick(bookmark)}
-                        >
-                          <Edit className="h-3 w-3" />
-                          메모 추가
-                        </button>
-                      </div>
-                    )}
-                    <p className="text-xs text-neutral-medium mb-1">
-                      {bookmark.digests?.video_info?.channelTitle || ""} ·
-                      조회수{" "}
-                      {formatViewCount(
-                        bookmark.digests?.video_info?.viewCount || "0"
+
+                      {/* <p className="text-sm text-neutral-dark line-clamp-1 mb-1.5">
+                        {bookmark.text}
+                      </p> */}
+
+                      {bookmark.memo && (
+                        <div className="flex items-center justify-between bg-primary-light text-neutral-dark text-xs p-2 rounded-md line-clamp-1">
+                          <button
+                            className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
+                            onClick={() => handleMemoClick(bookmark)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </button>
+                          <span className="line-clamp-1 flex-1 ml-1">
+                            {bookmark.memo}
+                          </span>
+                        </div>
                       )}
-                    </p>
+                      {!bookmark.memo && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
+                            onClick={() => handleMemoClick(bookmark)}
+                          >
+                            <Edit className="h-3 w-3" />
+                            메모 추가
+                          </button>
+                        </div>
+                      )}
+                      <p className="text-xs text-neutral-medium mb-1">
+                        {bookmark.digests?.video_info?.channelTitle || ""} ·
+                        조회수{" "}
+                        {formatViewCount(
+                          bookmark.digests?.video_info?.viewCount || "0"
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          // 인증되지 않음
+          <div className="flex flex-col items-center justify-center h-64 p-8 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <LogIn className="w-8 h-8 text-neutral-medium" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">로그인이 필요합니다</h3>
+            <p className="text-neutral-medium mb-6 text-sm">
+              타임라인 북마크를 이용하시려면 로그인해주세요.
+            </p>
+            <Button
+              onClick={redirectToLogin}
+              className="px-4 rounded-full bg-primary-color hover:bg-primary-color/90"
+            >
+              로그인하기
+            </Button>
           </div>
         )}
       </main>

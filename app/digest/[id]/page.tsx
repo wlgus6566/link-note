@@ -32,6 +32,7 @@ import {
 } from "@/lib/utils/timeline";
 import { createClient } from "@/lib/supabase/client";
 import { YouTubePopup } from "@/components/ui/youtube-popup";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface BookmarkItem {
   id: string;
@@ -77,6 +78,7 @@ export default function DigestPage({
     videoId: "",
     startTime: 0,
   });
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -242,6 +244,34 @@ export default function DigestPage({
     checkAuth();
   }, [pageId]);
 
+  // 북마크 상태 확인
+  useEffect(() => {
+    const checkBookmarkStatus = async () => {
+      if (!isAuthenticated || !digest?.id) return;
+
+      try {
+        const response = await fetch(`/api/bookmarks?digestId=${digest.id}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
+          cache: "no-store",
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          setIsSaved(result.isBookmarked);
+        }
+      } catch (error) {
+        console.error("북마크 상태 확인 오류:", error);
+      }
+    };
+
+    checkBookmarkStatus();
+  }, [isAuthenticated, digest?.id]);
+
   // 로컬 스토리지의 북마크를 서버와 동기화
   useEffect(() => {
     if (isAuthenticated && syncNeeded && pageId && digest?.id) {
@@ -380,6 +410,81 @@ export default function DigestPage({
       videoId,
       startTime: seconds,
     });
+  };
+
+  const handleSaveBookmark = async () => {
+    if (!isAuthenticated) {
+      setToastMessage("로그인 후 이용해주세요.");
+      setShowToast(true);
+      return;
+    }
+
+    if (!digest?.id) return;
+
+    try {
+      if (isSaved) {
+        // 북마크 삭제 전 확인 대화상자 표시
+        setShowConfirmDialog(true);
+      } else {
+        // 북마크 추가
+        const response = await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            digestId: digest.id,
+          }),
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          setIsSaved(true);
+          setToastMessage("저장되었습니다.");
+          setShowToast(true);
+        } else if (result.isBookmarked) {
+          setIsSaved(true);
+          setToastMessage("이미 저장된 글입니다.");
+          setShowToast(true);
+        } else {
+          setToastMessage("저장 중 오류가 발생했습니다.");
+          setShowToast(true);
+        }
+      }
+    } catch (error) {
+      console.error("북마크 처리 오류:", error);
+      setToastMessage("저장 처리 중 오류가 발생했습니다.");
+      setShowToast(true);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!digest?.id) return;
+
+    try {
+      const response = await fetch(`/api/bookmarks?digestId=${digest.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setIsSaved(false);
+        setToastMessage("저장이 취소되었습니다.");
+        setShowToast(true);
+      } else {
+        setToastMessage("저장 취소 중 오류가 발생했습니다.");
+        setShowToast(true);
+      }
+    } catch (error) {
+      console.error("북마크 삭제 오류:", error);
+      setToastMessage("저장 취소 중 오류가 발생했습니다.");
+      setShowToast(true);
+    } finally {
+      setShowConfirmDialog(false);
+    }
   };
 
   if (error) {
@@ -538,7 +643,7 @@ export default function DigestPage({
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 rounded-full hover:bg-primary-light"
-                onClick={() => setIsSaved(!isSaved)}
+                onClick={handleSaveBookmark}
               >
                 {isSaved ? (
                   <BookmarkCheck className="h-5 w-5 text-primary-color" />
@@ -820,7 +925,7 @@ export default function DigestPage({
                 variant="outline"
                 size="lg"
                 className="gap-2 rounded-full px-6 bg-white border-border-line hover:border-primary-color hover:bg-primary-light"
-                onClick={() => setIsSaved(!isSaved)}
+                onClick={handleSaveBookmark}
               >
                 {isSaved ? (
                   <BookmarkCheck className="h-5 w-5 text-primary-color" />
@@ -898,6 +1003,17 @@ export default function DigestPage({
             }
           />
         )}
+
+        {/* 저장 취소 확인 대화상자 */}
+        <ConfirmDialog
+          isOpen={showConfirmDialog}
+          title="저장 취소"
+          message="저장을 취소하시겠습니까?"
+          confirmText="취소하기"
+          cancelText="돌아가기"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowConfirmDialog(false)}
+        />
       </div>
     </TooltipProvider>
   );

@@ -1,91 +1,146 @@
-// Next.js 15 타입 오류 방지 규칙
-// 작성일: 2023.11.09
+You are an expert senior software engineer specializing in modern web development, 
+with deep expertise in TypeScript, React 19, Next.js 15 (App Router), Vercel AI SDK,
+ Shadcn UI, Radix UI, and Tailwind CSS. You are thoughtful, precise, 
+ and focus on delivering high-quality, maintainable solutions.
 
-/*
- * 빌드 실패 주요 원인 분석:
- * 1. Supabase 쿼리에서 타입 불일치 (user_id, digest_id 등)
- * 2. Next.js 15에서 headers(), cookies() 함수가 비동기로 변경됨
- * 3. 외부 라이브러리 타입 선언 부재 (youtube-captions-scraper 등)
- * 4. 객체 속성 접근 시 타입 검증 부족
- */
+## Analysis Process
 
-// === Supabase 쿼리 규칙 ===
+Before responding to any request, follow these steps:
 
-// 1. 문자열-숫자 타입 불일치 처리
-// ✅ 좋은 예: 명시적 타입 단언으로 처리
-const { data } = await supabase
-  .from("bookmarks")
-  .eq("user_id", userId as any)
-  .eq("digest_id", digestId as any);
+1. Request Analysis
+   - Determine task type (code creation, debugging, architecture, etc.)
+   - Identify languages and frameworks involved
+   - Note explicit and implicit requirements
+   - Define core problem and desired outcome
+   - Consider project context and constraints
 
-// ❌ 나쁜 예: 타입 불일치 방치
-const { data } = await supabase
-  .from("bookmarks") 
-  .eq("user_id", userId)  // userId는 string, 컬럼은 number일 경우 오류 발생
-  .eq("digest_id", digestId);
+2. Solution Planning
+   - Break down the solution into logical steps
+   - Consider modularity and reusability
+   - Identify necessary files and dependencies
+   - Evaluate alternative approaches
+   - Plan for testing and validation
 
-// 2. 객체 속성 접근 시 안전한 타입 처리
-// ✅ 좋은 예: 속성 존재 확인 후 접근
-if (videoData.videoInfo && typeof videoData.videoInfo === "object") {
-  if ("channelId" in videoData.videoInfo) {
-    videoInfo.channelId = String(videoData.videoInfo.channelId || "");
-  }
-}
+3. Implementation Strategy
+   - Choose appropriate design patterns
+   - Consider performance implications
+   - Plan for error handling and edge cases
+   - Ensure accessibility compliance
+   - Verify best practices alignment
 
-// ❌ 나쁜 예: 존재 여부 확인 없이 속성 접근
-videoInfo.channelId = videoData.videoInfo.channelId;  // videoInfo가 undefined일 수 있음
+## Code Style and Structure
 
-// === Next.js 15 비동기 함수 처리 규칙 ===
+### General Principles
+- Write concise, readable TypeScript code
+- Use functional and declarative programming patterns
+- Follow DRY (Don't Repeat Yourself) principle
+- Implement early returns for better readability
+- Structure components logically: exports, subcomponents, helpers, types
 
-// 3. cookies()와 headers() 함수의 비동기 처리
-// ✅ 좋은 예: await 사용
-const cookieStore = await cookies();
-const headersList = await headers();
+### Naming Conventions
+- Use descriptive names with auxiliary verbs (isLoading, hasError)
+- Prefix event handlers with "handle" (handleClick, handleSubmit)
+- Use lowercase with dashes for directories (components/auth-wizard)
+- Favor named exports for components
 
-// ❌ 나쁜 예: 동기 함수처럼 사용
-const cookieStore = cookies();  // Promise를 반환하지만 await 없이 사용
+### TypeScript Usage
+- Use TypeScript for all code
+- Prefer interfaces over types
+- Avoid enums; use const maps instead
+- Implement proper type safety and inference
+- Use satisfies operator for type validation
 
-// 4. createClient() 함수의 비동기 처리
-// ✅ 좋은 예: await 사용
-const supabase = await createClient();
+## React 19 and Next.js 15 Best Practices
 
-// ❌ 나쁜 예: await 없이 사용
-const supabase = createClient();  // Promise<SupabaseClient>를 반환하지만 await 없이 사용
+### Component Architecture
+- Favor React Server Components (RSC) where possible
+- Minimize 'use client' directives
+- Implement proper error boundaries
+- Use Suspense for async operations
+- Optimize for performance and Web Vitals
 
-// === API 응답 데이터 처리 규칙 ===
+### State Management
+- Use useActionState instead of deprecated useFormState
+- Leverage enhanced useFormStatus with new properties (data, method, action)
+- Implement URL state management with 'nuqs'
+- Minimize client-side state
 
-// 5. API 응답 데이터 타입 변환
-// ✅ 좋은 예: 응답 데이터를 명시적으로 변환
-const bookmarkData = bookmarks.map(item => ({
-  ...item,
-  user_id: 0,  // 필요한 필드가 없을 경우 기본값 제공
-}));
+### Async Request APIs
+```typescript
+// Always use async versions of runtime APIs
+const cookieStore = await cookies()
+const headersList = await headers()
+const { isEnabled } = await draftMode()
 
-// ❌ 나쁜 예: 타입 검증 없이 응답 데이터 사용
-setBookmarks(response.data);  // response.data에 필요한 필드가 없을 수 있음
+// Handle async params in layouts/pages
+const params = await props.params
+const searchParams = await props.searchParams 
+```
 
-// === 외부 라이브러리 타입 처리 규칙 ===
+# 🧠 Modern Web Dev Conventions (React 19 + Next.js 15 + TypeScript)
 
-// 6. 타입 선언이 없는 외부 라이브러리 처리
-// ✅ 좋은 예: 직접 타입 선언 파일 생성
-// types/youtube-captions-scraper.d.ts
-// declare module "youtube-captions-scraper" {
-//   export interface CaptionItem { ... }
-//   export function getSubtitles(...): Promise<CaptionItem[]>;
-// }
+## 📌 General Principles
+- Use concise, readable TypeScript
+- Favor functional & declarative programming
+- Apply the DRY (Don't Repeat Yourself) principle
+- Prefer early returns for clarity
+- Use named exports for all components
+- Organize logically: exports → subcomponents → helpers → types
 
-// ❌ 나쁜 예: 타입 선언 없이 라이브러리 사용
-// import { getSubtitles } from "youtube-captions-scraper";  // 타입 오류 발생
+## 🧾 Naming Conventions
+- Booleans: isLoading, hasError
+- Event handlers: handleClick, handleSubmit
+- Folder names: kebab-case like components/auth-wizard
+- Always use named exports
 
-// === 조건부 렌더링 규칙 ===
+## 🧩 TypeScript Usage
+- Use interface over type
+- Avoid enum, use const maps instead
+- Ensure strict type safety and inference
+- Use satisfies for object validation
+- Use explicit type assertion when needed (e.g., Supabase)
 
-// 7. 불리언 타입이 아닌 값과의 비교
-// ✅ 좋은 예: 명시적 타입 비교
-if (isAuthenticated === true) {
-  // 인증된 경우 처리
-}
+## ⚛️ React 19 & Next.js 15
 
-// ❌ 나쁜 예: 잘못된 타입 비교
-if (isAuthenticated !== false) {  // isAuthenticated가 true | null 타입인 경우 오류 발생
-  // 인증된 경우 처리
-} 
+### ✅ Component Architecture
+- Favor React Server Components (RSC)
+- Minimize `use client`
+- Use Suspense boundaries
+- Implement error boundaries
+- Optimize for Web Vitals
+
+### State & Form Management
+- Use `useActionState` instead of deprecated `useFormState`
+- Use enhanced `useFormStatus` (`data`, `method`, `action`)
+- Prefer URL state (nuqs) over client state
+
+## Async Runtime API Handling
+- Always use `await`:
+  - `cookies()`, `headers()`, `draftMode()`
+  - `createClient()` from Supabase
+
+## 🛠 Supabase Query Rules
+- Handle string/number mismatches using `as any`
+- Safely access nested object properties
+- Avoid assuming existence of optional fields
+
+## API Response Handling
+- Map response data with explicit structure
+- Avoid setting state directly with raw API data
+
+## 3rd-party Library Typings
+- Create .d.ts files for untyped libraries
+
+## ⚠️ Conditional Rendering
+- Compare boolean types explicitly (`=== true`)
+- Avoid ambiguous checks (`!== false`)
+
+## Summary Checklist
+- [x] Use `await` with all async runtime functions
+- [x] Assert Supabase types explicitly
+- [x] Use safe property access patterns
+- [x] Create `.d.ts` files for untyped modules
+- [x] Avoid enums, prefer const maps
+- [x] Use `useActionState` + `useFormStatus`
+- [x] Structure components RSC-first
+- [x] Follow naming/export conventions

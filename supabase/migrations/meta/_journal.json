@@ -36,6 +36,13 @@
       "when": 1744874922682,
       "tag": "0004_pink_expediter",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1744955152682,
+      "tag": "0005_easy_supernaut",
+      "breakpoints": true
     }
   ]
 }

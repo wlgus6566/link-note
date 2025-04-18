@@ -7,7 +7,7 @@ export async function PUT(
 ) {
   try {
     // ID 유효성 검사
-    const bookmarkId = params.id;
+    const bookmarkId = params?.id;
     if (!bookmarkId || isNaN(Number(bookmarkId))) {
       return NextResponse.json(
         { error: "유효하지 않은 북마크 ID입니다" },
@@ -39,7 +39,7 @@ export async function PUT(
     );
 
     // Supabase 클라이언트 생성
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 사용자 세션 가져오기
     const { data: sessionData, error: sessionError } =

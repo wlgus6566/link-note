@@ -13,6 +13,8 @@ import {
   Share2,
   Trash2,
   X,
+  Folder,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
+import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
+
+interface Folder {
+  id: string;
+  name: string;
+  description: string | null;
+  user_id: string;
+  created_at: string;
+}
 
 interface Digest {
   id: number;
@@ -64,6 +75,30 @@ export default function LibraryPage() {
   const [selectedBookmark, setSelectedBookmark] = useState<BookmarkItem | null>(
     null
   );
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [loadingFolders, setLoadingFolders] = useState(false);
+
+  // 폴더 목록 불러오기 함수
+  const fetchFolders = async () => {
+    setLoadingFolders(true);
+    try {
+      const response = await fetch("/api/folders");
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("폴더 목록 불러오기 오류:", data.error);
+        return;
+      }
+
+      setFolders(data.folders || []);
+    } catch (error) {
+      console.error("폴더 목록 불러오기 오류:", error);
+    } finally {
+      setLoadingFolders(false);
+    }
+  };
 
   // 북마크 불러오기 함수
   const fetchBookmarks = async () => {
@@ -126,9 +161,10 @@ export default function LibraryPage() {
     }
   };
 
-  // 컴포넌트 마운트 시 북마크 불러오기
+  // 컴포넌트 마운트 시 북마크와 폴더 불러오기
   useEffect(() => {
     fetchBookmarks();
+    fetchFolders();
   }, []);
 
   // 페이지 포커스 시 북마크 다시 불러오기
@@ -655,61 +691,81 @@ export default function LibraryPage() {
 
       {/* 바텀 팝업 */}
       <AnimatePresence>
-        {showBottomPopup && (
-          <>
-            <motion.div
-              className="fixed inset-0 bg-black/40 z-50"
-              variants={backdropVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              onClick={() => setShowBottomPopup(false)}
-            />
+        {showBottomPopup && selectedBookmark && (
+          <motion.div
+            className="fixed bottom-0 left-0 w-full z-50"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          >
+            <div className="flex flex-col bg-white border-t border-border-line rounded-t-2xl overflow-hidden">
+              <div className="p-4 border-b border-border-line">
+                <div className="w-12 h-1 bg-border-line rounded-full mx-auto mb-4" />
+                <h3 className="font-medium text-lg line-clamp-1">
+                  {selectedBookmark.digests.title}
+                </h3>
+              </div>
 
-            <motion.div
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 shadow-xl"
-              variants={bottomPopupVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-            >
-              <div className="w-16 h-1 rounded-full bg-neutral-300 mx-auto my-3" />
-
-              <div className="p-4 space-y-6">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-semibold text-neutral-dark">
-                    옵션
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full h-8 w-8"
-                    onClick={() => setShowBottomPopup(false)}
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
-
-                <div
-                  className="flex items-center gap-4"
-                  onClick={handleDeleteBookmark}
+              <div className="p-2">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start py-3 px-4 rounded-lg h-auto"
+                  onClick={() => {
+                    setShowFolderModal(true);
+                  }}
                 >
-                  <Trash2 size={24} className="text-neutral-dark" />
-                  <span className="text-neutral-dark">삭제</span>
-                </div>
+                  <Folder className="mr-3 h-5 w-5 text-neutral-medium" />
+                  <span>다른 재생목록에 저장</span>
+                </Button>
 
-                <div
-                  className="flex items-center gap-4"
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start py-3 px-4 rounded-lg h-auto"
                   onClick={handleShareBookmark}
                 >
-                  <Share2 size={24} className="text-neutral-dark" />
-                  <span className="text-neutral-dark">공유</span>
-                </div>
+                  <Share2 className="mr-3 h-5 w-5 text-neutral-medium" />
+                  <span>공유하기</span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start py-3 px-4 rounded-lg h-auto text-red-500 hover:text-red-600"
+                  onClick={handleDeleteBookmark}
+                >
+                  <Trash2 className="mr-3 h-5 w-5" />
+                  <span>저장 취소</span>
+                </Button>
               </div>
-            </motion.div>
-          </>
+
+              <Button
+                variant="ghost"
+                className="py-4 border-t border-border-line rounded-none"
+                onClick={() => setShowBottomPopup(false)}
+              >
+                취소
+              </Button>
+            </div>
+
+            <div
+              className="fixed inset-0 bg-black/40 -z-10"
+              onClick={() => setShowBottomPopup(false)}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 폴더 선택 모달 */}
+      <FolderSelectionModal
+        isOpen={showFolderModal}
+        onClose={() => setShowFolderModal(false)}
+        digestId={selectedBookmark?.digest_id.toString() || ""}
+        title={selectedBookmark?.digests.title || ""}
+        onSuccess={() => {
+          setShowFolderModal(false);
+          setShowBottomPopup(false);
+        }}
+      />
     </div>
   );
 }

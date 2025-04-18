@@ -5,14 +5,26 @@ import { z } from "zod";
 
 // 요청 스키마 정의
 const bookmarkRequestSchema = z.object({
-  digestId: z.number(),
+  digest_id: z
+    .union([z.number(), z.string()])
+    .transform((val) => (typeof val === "string" ? parseInt(val) : val)),
+  folder_id: z
+    .union([z.number(), z.string()])
+    .optional()
+    .transform((val) =>
+      val === undefined
+        ? undefined
+        : typeof val === "string"
+        ? parseInt(val)
+        : val
+    ),
 });
 
 export async function POST(req: Request) {
   console.log("북마크 저장 API 요청 수신");
 
   try {
-    const supabase = createClient(cookies());
+    const supabase = await createClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -37,7 +49,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { digestId } = validatedData.data;
+    const { digest_id, folder_id } = validatedData.data;
     const userId = session.user.id;
 
     // 이미 저장된 북마크가 있는지 확인
@@ -45,43 +57,77 @@ export async function POST(req: Request) {
       .from("bookmarks")
       .select()
       .eq("user_id", userId)
-      .eq("digest_id", digestId)
+      .eq("digest_id", digest_id)
       .maybeSingle();
 
-    // 이미 존재하면 중복 저장 방지
+    let bookmarkId;
+
     if (existingBookmark) {
-      return NextResponse.json({
-        success: false,
-        message: "이미 저장된 북마크입니다.",
-        isBookmarked: true,
-      });
+      bookmarkId = existingBookmark.id;
+      console.log("이미 저장된 북마크 사용:", bookmarkId);
+    } else {
+      // 북마크 저장
+      const { data: bookmark, error } = await supabase
+        .from("bookmarks")
+        .insert({
+          user_id: userId,
+          digest_id: digest_id,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("북마크 저장 오류:", error);
+        return NextResponse.json(
+          { success: false, error: "북마크 저장 중 오류 발생" },
+          { status: 500 }
+        );
+      }
+
+      bookmarkId = bookmark.id;
+      console.log("새 북마크 생성 완료:", bookmarkId);
     }
 
-    // 북마크 저장
-    const { data: bookmark, error } = await supabase
-      .from("bookmarks")
-      .insert({
-        user_id: userId,
-        digest_id: digestId,
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    // folder_id가 제공된 경우, 폴더-북마크 관계 생성
+    if (folder_id) {
+      // 이미 해당 폴더에 북마크가 있는지 확인
+      const { data: existingRelation } = await supabase
+        .from("folder_bookmarks")
+        .select()
+        .eq("folder_id", folder_id)
+        .eq("bookmark_id", bookmarkId)
+        .maybeSingle();
 
-    if (error) {
-      console.error("북마크 저장 오류:", error);
-      return NextResponse.json(
-        { success: false, error: "북마크 저장 중 오류 발생" },
-        { status: 500 }
-      );
+      if (existingRelation) {
+        console.log("이미 폴더에 북마크가 저장되어 있습니다.");
+      } else {
+        // 폴더-북마크 관계 생성
+        const { error: folderError } = await supabase
+          .from("folder_bookmarks")
+          .insert({
+            folder_id: folder_id,
+            bookmark_id: bookmarkId,
+            created_at: new Date().toISOString(),
+          });
+
+        if (folderError) {
+          console.error("폴더-북마크 관계 저장 오류:", folderError);
+          // 북마크는 이미 저장되었지만 폴더 관계 저장에 실패한 경우
+          return NextResponse.json(
+            { success: false, error: "폴더에 북마크 저장 중 오류 발생" },
+            { status: 500 }
+          );
+        }
+
+        console.log(`북마크를 폴더(${folder_id})에 저장 완료`);
+      }
     }
-
-    console.log("북마크 저장 성공:", bookmark);
 
     return NextResponse.json({
       success: true,
       message: "북마크가 저장되었습니다.",
-      bookmark,
+      bookmarkId,
     });
   } catch (error) {
     console.error("북마크 저장 오류:", error);
@@ -96,7 +142,7 @@ export async function DELETE(req: Request) {
   console.log("북마크 삭제 API 요청 수신");
 
   try {
-    const supabase = createClient(cookies());
+    const supabase = await createClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -152,7 +198,7 @@ export async function GET(req: Request) {
   console.log("북마크 조회 API 요청 수신");
 
   try {
-    const supabase = createClient(cookies());
+    const supabase = await createClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();

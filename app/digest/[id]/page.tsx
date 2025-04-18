@@ -33,6 +33,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { YouTubePopup } from "@/components/ui/youtube-popup";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
+import { toast } from "sonner";
 
 interface BookmarkItem {
   id: string;
@@ -59,6 +61,7 @@ export default function DigestPage({
   const [error, setError] = useState<string | null>(null);
   const [pageId, setPageId] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
   const [showTimeline, setShowTimeline] = useState(true);
 
@@ -79,6 +82,8 @@ export default function DigestPage({
     startTime: 0,
   });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showFolderSelectionModal, setShowFolderSelectionModal] =
+    useState(false);
 
   useEffect(() => {
     const resolveParams = async () => {
@@ -412,50 +417,14 @@ export default function DigestPage({
     });
   };
 
-  const handleSaveBookmark = async () => {
+  const handleSaveBookmark = () => {
     if (!isAuthenticated) {
-      setToastMessage("로그인 후 이용해주세요.");
-      setShowToast(true);
+      toast.error("북마크를 저장하려면 로그인이 필요합니다");
+      router.push("/login");
       return;
     }
 
-    if (!digest?.id) return;
-
-    try {
-      if (isSaved) {
-        // 북마크 삭제 전 확인 대화상자 표시
-        setShowConfirmDialog(true);
-      } else {
-        // 북마크 추가
-        const response = await fetch("/api/bookmarks", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            digestId: digest.id,
-          }),
-        });
-
-        const result = await response.json();
-        if (result.success) {
-          setIsSaved(true);
-          setToastMessage("저장되었습니다.");
-          setShowToast(true);
-        } else if (result.isBookmarked) {
-          setIsSaved(true);
-          setToastMessage("이미 저장된 글입니다.");
-          setShowToast(true);
-        } else {
-          setToastMessage("저장 중 오류가 발생했습니다.");
-          setShowToast(true);
-        }
-      }
-    } catch (error) {
-      console.error("북마크 처리 오류:", error);
-      setToastMessage("저장 처리 중 오류가 발생했습니다.");
-      setShowToast(true);
-    }
+    setShowFolderSelectionModal(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -1014,6 +983,20 @@ export default function DigestPage({
           onConfirm={handleConfirmDelete}
           onCancel={() => setShowConfirmDialog(false)}
         />
+
+        {/* 폴더 선택 모달 */}
+        {digest && (
+          <FolderSelectionModal
+            isOpen={showFolderSelectionModal}
+            onClose={() => setShowFolderSelectionModal(false)}
+            digestId={digest.id.toString()}
+            title={digest.title}
+            onSuccess={() => {
+              setIsSaved(true);
+              checkBookmarkStatus();
+            }}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

@@ -79,3 +79,33 @@ export const timelineBookmarks = pgTable("timeline_bookmarks", {
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });
+
+// 폴더 테이블 정의 (사용자의 북마크 폴더)
+export const folders = pgTable("folders", {
+  id: serial("id").primaryKey(),
+  user_id: text("user_id")
+    .notNull()
+    .references(() => users.auth_id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 폴더-북마크 관계 테이블 정의
+export const folderBookmarks = pgTable("folder_bookmarks", {
+  id: serial("id").primaryKey(),
+  folder_id: integer("folder_id")
+    .notNull()
+    .references(() => folders.id, { onDelete: "cascade" }),
+  bookmark_id: integer("bookmark_id")
+    .notNull()
+    .references(() => bookmarks.id, { onDelete: "cascade" }),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Folder = typeof folders.$inferSelect;
+export type NewFolder = typeof folders.$inferInsert;
+
+export type FolderBookmark = typeof folderBookmarks.$inferSelect;
+export type NewFolderBookmark = typeof folderBookmarks.$inferInsert;

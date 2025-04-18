@@ -9,130 +9,188 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      users: {
+      bookmarks: {
         Row: {
           id: number;
-          auth_id: string;
-          name: string | null;
-          email: string | null;
-          avatar_url: string | null;
-          created_at: string | null;
-          updated_at: string | null;
+          user_id: string;
+          digest_id: number;
+          created_at: string;
         };
         Insert: {
           id?: number;
-          auth_id: string;
-          name?: string | null;
-          email?: string | null;
-          avatar_url?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
+          user_id: string;
+          digest_id: number;
+          created_at?: string;
         };
         Update: {
           id?: number;
-          auth_id?: string;
-          name?: string | null;
-          email?: string | null;
-          avatar_url?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
+          user_id?: string;
+          digest_id?: number;
+          created_at?: string;
         };
-        Relationships: [];
       };
       digests: {
         Row: {
           id: number;
           title: string;
-          summary: string | null;
-          content: string | null;
-          image: string | null;
+          summary: string;
+          content: string;
           source_url: string | null;
           source_type: string | null;
+          image: string | null;
+          tags: string[] | null;
+          author: Json | null;
+          date: string | null;
+          read_time: string | null;
+          video_info: Json | null;
           created_at: string | null;
           updated_at: string | null;
-          author_name: string | null;
-          author_avatar: string | null;
-          user_id: string | null;
         };
         Insert: {
           id?: number;
           title: string;
-          summary?: string | null;
-          content?: string | null;
-          image?: string | null;
+          summary: string;
+          content: string;
           source_url?: string | null;
           source_type?: string | null;
+          image?: string | null;
+          tags?: string[] | null;
+          author?: Json | null;
+          date?: string | null;
+          read_time?: string | null;
+          video_info?: Json | null;
           created_at?: string | null;
           updated_at?: string | null;
-          author_name?: string | null;
-          author_avatar?: string | null;
-          user_id?: string | null;
         };
         Update: {
           id?: number;
           title?: string;
-          summary?: string | null;
-          content?: string | null;
-          image?: string | null;
+          summary?: string;
+          content?: string;
           source_url?: string | null;
           source_type?: string | null;
+          image?: string | null;
+          tags?: string[] | null;
+          author?: Json | null;
+          date?: string | null;
+          read_time?: string | null;
+          video_info?: Json | null;
           created_at?: string | null;
           updated_at?: string | null;
-          author_name?: string | null;
-          author_avatar?: string | null;
-          user_id?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "digests_user_id_fkey";
-            columns: ["user_id"];
-            referencedRelation: "users";
-            referencedColumns: ["auth_id"];
-          }
-        ];
+      };
+      folder_bookmarks: {
+        Row: {
+          id: number;
+          folder_id: number;
+          bookmark_id: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          folder_id: number;
+          bookmark_id: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          folder_id?: number;
+          bookmark_id?: number;
+          created_at?: string;
+        };
+      };
+      folders: {
+        Row: {
+          id: number;
+          user_id: string;
+          name: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          name?: string;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
       };
       timeline_bookmarks: {
         Row: {
           id: number;
           user_id: string;
           digest_id: number;
-          timestamp: number | null;
+          timeline_id: string;
+          seconds: number;
+          text: string;
           memo: string | null;
-          created_at: string | null;
-          updated_at: string | null;
+          created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: number;
           user_id: string;
           digest_id: number;
-          timestamp?: number | null;
+          timeline_id: string;
+          seconds: number;
+          text: string;
           memo?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: number;
           user_id?: string;
           digest_id?: number;
-          timestamp?: number | null;
+          timeline_id?: string;
+          seconds?: number;
+          text?: string;
           memo?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      users: {
+        Row: {
+          id: number;
+          auth_id: string;
+          email: string;
+          name: string | null;
+          avatar: string | null;
+          is_admin: boolean | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: number;
+          auth_id: string;
+          email: string;
+          name?: string | null;
+          avatar?: string | null;
+          is_admin?: boolean | null;
           created_at?: string | null;
           updated_at?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "timeline_bookmarks_digest_id_fkey";
-            columns: ["digest_id"];
-            referencedRelation: "digests";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "timeline_bookmarks_user_id_fkey";
-            columns: ["user_id"];
-            referencedRelation: "users";
-            referencedColumns: ["auth_id"];
-          }
-        ];
+        Update: {
+          id?: number;
+          auth_id?: string;
+          email?: string;
+          name?: string | null;
+          avatar?: string | null;
+          is_admin?: boolean | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
       };
     };
     Views: {

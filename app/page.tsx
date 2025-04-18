@@ -177,10 +177,7 @@ export default function Home() {
                 </motion.div>
               </div>
 
-              <motion.div
-                className="w-full max-w-lg pt-4"
-                variants={itemVariants}
-              >
+              <motion.div className="w-full max-w-lg" variants={itemVariants}>
                 <form onSubmit={handleSubmit} className="relative">
                   <div className="flex items-center p-1.5 bg-white rounded-2xl border border-border-line shadow-sm">
                     <Input

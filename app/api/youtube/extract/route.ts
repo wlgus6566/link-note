@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getYoutubeVideoData } from "@/lib/utils/youtube";
+import {
+  getYoutubeVideoData,
+  generateTimelineFromTranscript,
+} from "@/lib/utils/youtube";
 
 // 요청 스키마 정의
 const requestSchema = z.object({
@@ -30,6 +33,26 @@ export async function POST(request: NextRequest) {
       })
     );
 
+    // 타임라인이 없거나 충분하지 않은 경우 Gemini로 생성
+    let timelineData = videoData.timeline || [];
+
+    if (!timelineData || timelineData.length < 3) {
+      console.log("타임라인이 없거나 불충분하여 Gemini로 생성 시도...");
+
+      if (videoData.transcript && videoData.transcript.length > 100) {
+        const generatedTimeline = await generateTimelineFromTranscript(
+          videoData.transcript
+        );
+
+        if (generatedTimeline && generatedTimeline.length > 0) {
+          console.log(
+            `Gemini로 타임라인 ${generatedTimeline.length}개 생성 완료`
+          );
+          timelineData = generatedTimeline;
+        }
+      }
+    }
+
     // 비디오 정보 추출 부분
     const videoInfo = {
       title: videoData.videoInfo?.title || "",
@@ -37,7 +60,7 @@ export async function POST(request: NextRequest) {
       channelId: videoData.videoInfo?.channelId || "",
       channelTitle: videoData.videoInfo?.channelTitle || "",
       publishedAt: videoData.videoInfo?.publishedAt || "",
-      viewCount: videoData.videoInfo?.viewCount || "0",
+      viewCount: videoData.videoInfo?.viewCount?.toString() || "0",
       duration: videoData.videoInfo?.duration || "PT5M", // ISO 8601 형식의 동영상 길이
     };
 
@@ -49,7 +72,7 @@ export async function POST(request: NextRequest) {
       data: {
         videoInfo,
         transcript: videoData.transcript || "",
-        timeline: videoData.timeline || [],
+        timeline: timelineData,
       },
     });
   } catch (error) {

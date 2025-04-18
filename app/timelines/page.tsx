@@ -313,6 +313,12 @@ export default function TimelinesPage() {
                 onChange={handleSearch}
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-neutral-medium">
+              {filteredBookmarks.length}개의 타임라인
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -322,12 +328,6 @@ export default function TimelinesPage() {
               <Clock className="h-4 w-4" />
               {sortOrder === "newest" ? "최신순" : "오래된순"}
             </Button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-neutral-medium">
-              {filteredBookmarks.length}개의 타임라인
-            </div>
           </div>
         </div>
       </header>

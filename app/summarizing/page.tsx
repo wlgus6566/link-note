@@ -138,18 +138,32 @@ export default function SummarizingPage() {
       if (extractData.success) {
         console.log("YouTube 영상 데이터 추출 완료");
 
-        // 타임라인 데이터가 있는 경우 로컬 스토리지에 임시 저장
+        // 타임라인 데이터 처리
         if (
           extractData.data?.timeline &&
           extractData.data.timeline.length > 0
         ) {
+          console.log(
+            `타임라인 데이터 추출 완료: ${extractData.data.timeline.length}개 항목`
+          );
+
           // 타임라인 데이터를 로컬 스토리지에 저장할 때는 저장 시점의 URL을 키로 사용
           // 나중에 다이제스트 ID를 키로 변경
-          localStorage.setItem(
-            `timeline_temp_${encodeURIComponent(url)}`,
-            JSON.stringify(extractData.data.timeline)
-          );
-          console.log("타임라인 데이터 임시 저장 완료");
+          try {
+            localStorage.setItem(
+              `timeline_temp_${encodeURIComponent(url)}`,
+              JSON.stringify(extractData.data.timeline)
+            );
+            console.log("타임라인 데이터 임시 저장 완료");
+          } catch (storageError) {
+            console.error(
+              "타임라인 데이터 로컬 스토리지 저장 오류:",
+              storageError
+            );
+            // 오류가 발생해도 계속 진행
+          }
+        } else {
+          console.log("타임라인 데이터가 없거나 충분하지 않습니다.");
         }
 
         // API 응답 구조에서 videoInfo와 transcript 추출 - 타입 안전성 확보

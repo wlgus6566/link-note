@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Bookmark, BookmarkCheck } from "lucide-react";
+import { MapPinPlusInside, MapPinCheckInside } from "lucide-react";
 
 interface SubtitleBlockProps {
   start: string;
@@ -61,9 +61,9 @@ export function SubtitleBlock({
           title={isBookmarked ? "북마크 해제" : "북마크 저장"}
         >
           {isBookmarked ? (
-            <BookmarkCheck className="h-4 w-4 text-primary-color" />
+            <MapPinCheckInside className="h-4 w-4 text-primary-color" />
           ) : (
-            <Bookmark className="h-4 w-4" />
+            <MapPinPlusInside className="h-4 w-4" />
           )}
         </Button>
       </div>

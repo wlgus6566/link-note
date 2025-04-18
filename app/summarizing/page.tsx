@@ -237,6 +237,7 @@ export default function SummarizingPage() {
               viewCount: videoInfo.viewCount,
               description: videoInfo.description,
               title: videoInfo.title,
+              duration: videoInfo.duration,
             },
           }),
         });

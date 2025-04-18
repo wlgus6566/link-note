@@ -22,6 +22,7 @@ const requestSchema = z.object({
       viewCount: z.string().optional(),
       description: z.string().optional(),
       title: z.string().optional(),
+      duration: z.string().optional(),
     })
     .optional(),
 });

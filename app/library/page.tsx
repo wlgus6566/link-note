@@ -3,12 +3,22 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Filter, Grid, List, Bookmark } from "lucide-react";
+import {
+  Search,
+  Filter,
+  Grid,
+  List,
+  Bookmark,
+  MoreVertical,
+  Share2,
+  Trash2,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BottomNav from "@/components/bottom-nav";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
@@ -23,6 +33,11 @@ interface Digest {
   created_at: string;
   date: string;
   image: string;
+  video_info?: {
+    channelTitle?: string;
+    viewCount?: string;
+    duration?: string;
+  };
 }
 
 interface BookmarkItem {
@@ -34,7 +49,7 @@ interface BookmarkItem {
 }
 
 export default function LibraryPage() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [filteredBookmarks, setFilteredBookmarks] = useState<BookmarkItem[]>(
     []
@@ -45,6 +60,10 @@ export default function LibraryPage() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const [showBottomPopup, setShowBottomPopup] = useState(false);
+  const [selectedBookmark, setSelectedBookmark] = useState<BookmarkItem | null>(
+    null
+  );
 
   // 북마크 불러오기 함수
   const fetchBookmarks = async () => {
@@ -154,6 +173,114 @@ export default function LibraryPage() {
     setFilteredBookmarks(filtered);
   }, [searchQuery, activeTag, bookmarks]);
 
+  // 아이템 메뉴 열기
+  const handleOpenMenu = (e: React.MouseEvent, bookmark: BookmarkItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedBookmark(bookmark);
+    setShowBottomPopup(true);
+  };
+
+  // 북마크 삭제
+  const handleDeleteBookmark = async () => {
+    if (!selectedBookmark) return;
+
+    try {
+      const response = await fetch(
+        `/api/bookmarks?digestId=${selectedBookmark.digest_id}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        // 북마크 목록에서 삭제된 항목 제거
+        const updatedBookmarks = bookmarks.filter(
+          (bookmark) => bookmark.id !== selectedBookmark.id
+        );
+        setBookmarks(updatedBookmarks);
+        setFilteredBookmarks(
+          filteredBookmarks.filter(
+            (bookmark) => bookmark.id !== selectedBookmark.id
+          )
+        );
+        setShowBottomPopup(false);
+      }
+    } catch (error) {
+      console.error("북마크 삭제 오류:", error);
+    }
+  };
+
+  // 북마크 공유
+  const handleShareBookmark = async () => {
+    if (!selectedBookmark) return;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: selectedBookmark.digests.title,
+          text: selectedBookmark.digests.summary,
+          url: `/digest/${selectedBookmark.digest_id}`,
+        });
+      } else {
+        // 웹 공유 API가 지원되지 않는 경우 URL을 클립보드에 복사
+        await navigator.clipboard.writeText(
+          `${window.location.origin}/digest/${selectedBookmark.digest_id}`
+        );
+        alert("링크가 클립보드에 복사되었습니다.");
+      }
+      setShowBottomPopup(false);
+    } catch (error) {
+      console.error("공유 오류:", error);
+    }
+  };
+
+  // ISO 8601 형식의 duration을 mm:ss 또는 hh:mm:ss 형식으로 변환하는 함수
+  const formatDuration = (isoDuration: string): string => {
+    if (!isoDuration) return "00:00";
+
+    // PT1H30M20S와 같은 형식에서 시간, 분, 초 추출
+    const hourMatch = isoDuration.match(/(\d+)H/);
+    const minuteMatch = isoDuration.match(/(\d+)M/);
+    const secondMatch = isoDuration.match(/(\d+)S/);
+
+    const hours = hourMatch ? parseInt(hourMatch[1]) : 0;
+    const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+    const seconds = secondMatch ? parseInt(secondMatch[1]) : 0;
+
+    // 시간이 있는 경우: hh:mm:ss
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    }
+
+    // 시간이 없는 경우: mm:ss
+    return `${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  // 조회수 포맷 함수
+  const formatViewCount = (count: string): string => {
+    if (!count) return "0";
+
+    const num = parseInt(count, 10);
+    if (isNaN(num)) return "0";
+
+    if (num >= 10000) {
+      return `${Math.floor(num / 10000)}만회`;
+    } else if (num >= 1000) {
+      return `${Math.floor(num / 1000)}천회`;
+    }
+
+    return `${num}회`;
+  };
+
   // 날짜 포맷 함수
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -185,6 +312,32 @@ export default function LibraryPage() {
         stiffness: 100,
       },
     },
+  };
+
+  const bottomPopupVariants = {
+    hidden: { opacity: 0, y: 100 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        damping: 25,
+        stiffness: 300,
+      },
+    },
+    exit: {
+      opacity: 0,
+      y: 100,
+      transition: {
+        duration: 0.2,
+      },
+    },
+  };
+
+  const backdropVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 },
   };
 
   return (
@@ -259,16 +412,16 @@ export default function LibraryPage() {
             >
               <TabsList className="h-8 p-1 bg-secondary-color">
                 <TabsTrigger
-                  value="grid"
-                  className="h-6 w-6 p-0 data-[state=active]:bg-primary-light data-[state=active]:text-primary-color"
-                >
-                  <Grid className="h-4 w-4" />
-                </TabsTrigger>
-                <TabsTrigger
                   value="list"
                   className="h-6 w-6 p-0 data-[state=active]:bg-primary-light data-[state=active]:text-primary-color"
                 >
                   <List className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="grid"
+                  className="h-6 w-6 p-0 data-[state=active]:bg-primary-light data-[state=active]:text-primary-color"
+                >
+                  <Grid className="h-4 w-4" />
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -295,7 +448,7 @@ export default function LibraryPage() {
                       className={
                         viewMode === "grid"
                           ? "h-32 w-full"
-                          : "h-20 w-20 flex-shrink-0"
+                          : "h-32 w-1/3 flex-shrink-0"
                       }
                     />
                     <div
@@ -355,82 +508,143 @@ export default function LibraryPage() {
               animate="visible"
             >
               {filteredBookmarks.map((bookmark) => (
-                <Link
-                  href={`/digest/${bookmark.digest_id}`}
+                <motion.div
                   key={bookmark.id}
+                  variants={itemVariants}
+                  whileHover={{ y: -5 }}
                   className="group"
                 >
-                  <motion.div
-                    className={`bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm group-hover:border-primary-color ${
-                      viewMode === "grid" ? "h-full flex flex-col" : "flex"
-                    }`}
-                    variants={itemVariants}
-                    whileHover={{ y: -5 }}
-                  >
-                    <div
-                      className={`relative ${
-                        viewMode === "grid"
-                          ? "h-32 w-full"
-                          : "h-20 w-20 flex-shrink-0"
-                      }`}
-                    >
-                      <Image
-                        src={bookmark.digests.image || "/placeholder.svg"}
-                        alt={bookmark.digests.title}
-                        fill
-                        className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                      />
-                      <div className="absolute top-2 left-2">
-                        <div className="px-2 py-0.5 bg-white rounded-full text-[10px] text-neutral-dark">
-                          {bookmark.digests.source_type || "기타"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      className={`p-3 ${
-                        viewMode === "grid" ? "flex-1 flex flex-col" : "flex-1"
-                      }`}
-                    >
-                      <div className="text-xs text-neutral-medium mb-1">
-                        {formatDate(bookmark.created_at)}
-                      </div>
-                      <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
-                        {bookmark.digests.title}
-                      </h3>
-
-                      {viewMode === "list" && (
-                        <p className="text-xs text-neutral-medium line-clamp-2 mb-2">
-                          {bookmark.digests.summary}
-                        </p>
-                      )}
-
-                      <div
-                        className={`flex flex-wrap gap-1 ${
-                          viewMode === "grid" ? "mt-auto" : ""
-                        }`}
+                  {viewMode === "grid" ? (
+                    <div className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm group-hover:border-primary-color h-full flex flex-col">
+                      <Link
+                        href={`/digest/${bookmark.digest_id}`}
+                        className="flex-1 flex flex-col"
                       >
-                        {bookmark.digests.tags &&
-                          bookmark.digests.tags
-                            .slice(0, viewMode === "grid" ? 2 : 3)
-                            .map((tag: string) => (
-                              <span key={tag} className="tag">
-                                {tag}
-                              </span>
-                            ))}
-                        {bookmark.digests.tags &&
-                          bookmark.digests.tags.length >
-                            (viewMode === "grid" ? 2 : 3) && (
-                            <span className="text-xs bg-secondary-color text-neutral-medium px-1.5 py-0.5 rounded-full">
-                              +
-                              {bookmark.digests.tags.length -
-                                (viewMode === "grid" ? 2 : 3)}
-                            </span>
-                          )}
-                      </div>
+                        <div className="relative h-32 w-full">
+                          <Image
+                            src={bookmark.digests.image || "/placeholder.svg"}
+                            alt={bookmark.digests.title}
+                            fill
+                            className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                          />
+
+                          {/* 영상 길이 표시 */}
+                          {bookmark.digests.source_type === "YouTube" &&
+                            bookmark.digests.video_info?.duration && (
+                              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-[10px] rounded">
+                                {formatDuration(
+                                  bookmark.digests.video_info.duration
+                                )}
+                              </div>
+                            )}
+                        </div>
+
+                        <div className="p-3 flex-1 flex flex-col">
+                          <div className="text-xs text-neutral-medium mb-1">
+                            {formatDate(bookmark.created_at)}
+                          </div>
+                          <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
+                            {bookmark.digests.title}
+                          </h3>
+
+                          <div className="flex flex-wrap gap-1 mt-auto">
+                            {bookmark.digests.tags &&
+                              bookmark.digests.tags
+                                .slice(0, 2)
+                                .map((tag: string) => (
+                                  <span key={tag} className="tag">
+                                    {tag}
+                                  </span>
+                                ))}
+                            {bookmark.digests.tags &&
+                              bookmark.digests.tags.length > 2 && (
+                                <span className="text-xs bg-secondary-color text-neutral-medium px-1.5 py-0.5 rounded-full">
+                                  +{bookmark.digests.tags.length - 2}
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full absolute top-3 right-3 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
+                        onClick={(e) => handleOpenMenu(e, bookmark)}
+                      >
+                        <MoreVertical className="h-4 w-4 text-neutral-dark" />
+                      </Button>
                     </div>
-                  </motion.div>
-                </Link>
+                  ) : (
+                    <div className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm group-hover:border-primary-color flex relative">
+                      <Link
+                        href={`/digest/${bookmark.digest_id}`}
+                        className="flex flex-1"
+                      >
+                        <div className="w-2/5 h-26 relative">
+                          <Image
+                            src={bookmark.digests.image || "/placeholder.svg"}
+                            alt={bookmark.digests.title}
+                            fill
+                            className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
+                          />
+                          {/* 영상 길이 표시 */}
+                          {bookmark.digests.source_type === "YouTube" &&
+                            bookmark.digests.video_info?.duration && (
+                              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-[10px] rounded">
+                                {formatDuration(
+                                  bookmark.digests.video_info.duration
+                                )}
+                              </div>
+                            )}
+                        </div>
+
+                        <div className="p-3 pb-2 w-3/5">
+                          <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
+                            {bookmark.digests.title}
+                          </h3>
+
+                          {/* 유튜버 이름과 조회수 표시 */}
+                          {bookmark.digests.source_type === "YouTube" &&
+                          bookmark.digests.video_info ? (
+                            <p className="text-xs text-neutral-medium mb-1">
+                              {bookmark.digests.video_info.channelTitle || ""} ·
+                              조회수{" "}
+                              {formatViewCount(
+                                bookmark.digests.video_info.viewCount || "0"
+                              )}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-neutral-medium mb-1">
+                              {formatDate(bookmark.created_at)}
+                            </p>
+                          )}
+
+                          {/* <p className="text-xs text-neutral-medium line-clamp-2 mb-2">
+                            {bookmark.digests.summary}
+                          </p> */}
+                          <div className="flex flex-wrap gap-1 mt-auto">
+                            {bookmark.digests.tags &&
+                              bookmark.digests.tags
+                                .slice(0, 2)
+                                .map((tag: string) => (
+                                  <span key={tag} className="tag text-xs">
+                                    {tag}
+                                  </span>
+                                ))}
+                          </div>
+                        </div>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full absolute top-3 right-3 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
+                        onClick={(e) => handleOpenMenu(e, bookmark)}
+                      >
+                        <MoreVertical className="h-4 w-4 text-neutral-dark" />
+                      </Button>
+                    </div>
+                  )}
+                </motion.div>
               ))}
             </motion.div>
           )}
@@ -438,6 +652,64 @@ export default function LibraryPage() {
       </main>
 
       <BottomNav />
+
+      {/* 바텀 팝업 */}
+      <AnimatePresence>
+        {showBottomPopup && (
+          <>
+            <motion.div
+              className="fixed inset-0 bg-black/40 z-50"
+              variants={backdropVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              onClick={() => setShowBottomPopup(false)}
+            />
+
+            <motion.div
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 shadow-xl"
+              variants={bottomPopupVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              <div className="w-16 h-1 rounded-full bg-neutral-300 mx-auto my-3" />
+
+              <div className="p-4 space-y-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-semibold text-neutral-dark">
+                    옵션
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full h-8 w-8"
+                    onClick={() => setShowBottomPopup(false)}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                <div
+                  className="flex items-center gap-4"
+                  onClick={handleDeleteBookmark}
+                >
+                  <Trash2 size={24} className="text-neutral-dark" />
+                  <span className="text-neutral-dark">삭제</span>
+                </div>
+
+                <div
+                  className="flex items-center gap-4"
+                  onClick={handleShareBookmark}
+                >
+                  <Share2 size={24} className="text-neutral-dark" />
+                  <span className="text-neutral-dark">공유</span>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

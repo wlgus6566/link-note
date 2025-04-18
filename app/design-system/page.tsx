@@ -2,6 +2,7 @@
 import {
   BookOpen,
   Youtube,
+  Instagram,
   Twitter,
   Bookmark,
   BookmarkCheck,
@@ -12,6 +13,13 @@ import {
   Settings,
   CheckCircle,
   AlertTriangle,
+  Clock,
+  Trash2,
+  PlaySquare,
+  Download,
+  MoreVertical,
+  ChevronLeft,
+  Cast,
 } from "lucide-react";
 export default function DesignSystem() {
   return (
@@ -198,6 +206,10 @@ export default function DesignSystem() {
               <span className="text-xs text-neutral-medium">YouTube</span>
             </div>
             <div className="flex flex-col items-center">
+              <Instagram size={24} className="text-[#E1306C] mb-2" />
+              <span className="text-xs text-neutral-medium">Instagram</span>
+            </div>
+            <div className="flex flex-col items-center">
               <Twitter size={24} className="text-[#1DA1F2] mb-2" />
               <span className="text-xs text-neutral-medium">Twitter</span>
             </div>
@@ -319,6 +331,147 @@ export default function DesignSystem() {
                   <button className="p-2 hover:bg-primary-light rounded-full">
                     <Share2 size={20} className="text-primary" />
                   </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 라이브러리 UI */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold text-neutral-dark mb-6">
+          라이브러리 UI
+        </h2>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-[#E5E5E5]">
+          <div className="max-w-md mx-auto">
+            {/* 라이브러리 항목 */}
+            <div className="space-y-4">
+              {/* 항목 1 */}
+              <div className="flex gap-3">
+                <div className="relative w-32 h-20 flex-shrink-0">
+                  <img
+                    src="/placeholder.svg?height=80&width=128"
+                    alt="비디오 썸네일"
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                  <div className="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-xs px-1 rounded">
+                    17:52
+                  </div>
+                  <div className="absolute bottom-0 left-0 bg-black bg-opacity-50 text-white text-sm p-1 w-full">
+                    <span className="font-bold">게임 이론</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="flex items-start justify-between text-base font-medium text-neutral-dark line-clamp-2 mb-1">
+                    <span className="text-primary line-clamp-2">
+                      인생은 곧 게임 이론과 같다
+                    </span>
+                    <button className="mt-1">
+                      <MoreVertical size={16} className="text-neutral-medium" />
+                    </button>
+                  </h3>
+                  <p className="text-xs text-neutral-medium mb-1">
+                    디글 클래식 · 조회수 25만회
+                  </p>
+                </div>
+              </div>
+
+              {/* 항목 2 */}
+              <div className="flex gap-3">
+                <div className="relative w-32 h-20 flex-shrink-0">
+                  <img
+                    src="/placeholder.svg?height=80&width=128"
+                    alt="비디오 썸네일"
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                  <div className="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-xs px-1 rounded">
+                    22:44
+                  </div>
+                  <div className="absolute bottom-0 left-0 bg-black bg-opacity-50 text-white text-sm p-1 w-full">
+                    <span className="font-bold text-red-500">
+                      모르면 대체임
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="flex items-start justify-between text-base font-medium text-neutral-dark line-clamp-2 mb-1">
+                    <span className="text-primary line-clamp-2">
+                      Make 자동화 플랫폼! AI 에이전트 출시, 30분 완벽 마스터
+                    </span>
+                    <button className="mt-1">
+                      <MoreVertical size={16} className="text-neutral-medium" />
+                    </button>
+                  </h3>
+                  <p className="text-xs text-neutral-medium mb-1">
+                    퀀텀점프클럽(QJC) · 조회수 520회
+                  </p>
+                </div>
+              </div>
+
+              {/* 항목 3 */}
+              <div className="flex gap-3">
+                <div className="relative w-32 h-20 flex-shrink-0">
+                  <img
+                    src="/placeholder.svg?height=80&width=128"
+                    alt="비디오 썸네일"
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                  <div className="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-xs px-1 rounded">
+                    26:36
+                  </div>
+                  <div className="absolute bottom-0 left-0 bg-black bg-opacity-50 text-white text-sm p-1 w-full">
+                    <span className="font-bold text-red-500">AM 3:00</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="flex items-start justify-between text-base font-medium text-neutral-dark line-clamp-2 mb-1">
+                    <span className="text-primary line-clamp-2">
+                      새벽 3시 하이디라오 감성 모르면 나가라
+                    </span>
+                    <button className="mt-1">
+                      <MoreVertical size={16} className="text-neutral-medium" />
+                    </button>
+                  </h3>
+                  <p className="text-xs text-neutral-medium mb-1">
+                    삼대장 Samdaejang · 조회수 11만회
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 라이브러리 메뉴 */}
+            <div className="mt-8 bg-white rounded-xl shadow-md border border-[#E5E5E5] overflow-hidden">
+              <div className="p-4 space-y-6">
+                <div className="flex items-center gap-4">
+                  <Trash2 size={24} className="text-neutral-dark" />
+                  <span className="text-neutral-dark">삭제</span>
+                </div>
+                {/* <div className="flex items-center gap-4">
+                  <PlaySquare size={24} className="text-neutral-dark" />
+                  <span className="text-neutral-dark">
+                    현재 재생목록에서 다음 순서로 재생
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Clock size={24} className="text-neutral-dark" />
+                  <span className="text-neutral-dark">
+                    나중에 볼 동영상에 저장
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Bookmark size={24} className="text-neutral-dark" />
+                  <span className="text-neutral-dark">재생목록에 저장</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Download size={24} className="text-neutral-dark" />
+                  <span className="text-neutral-dark">
+                    동영상 오프라인 저장
+                  </span>
+                </div> */}
+                <div className="flex items-center gap-4">
+                  <Share2 size={24} className="text-neutral-dark" />
+                  <span className="text-neutral-dark">공유</span>
                 </div>
               </div>
             </div>

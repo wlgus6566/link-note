@@ -9,7 +9,7 @@ import { toast } from "sonner";
 interface NewFolderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (folderId: number, folderName: string) => void;
+  onSuccess: (folderId: string, folderName: string) => void;
 }
 
 export function NewFolderModal({
@@ -71,7 +71,7 @@ export function NewFolderModal({
       }
 
       toast.success("폴더가 생성되었습니다.");
-      onSuccess(data.folder.id, folderName);
+      onSuccess(data.folder.id.toString(), folderName);
       setFolderName("");
     } catch (err) {
       console.error("폴더 생성 오류:", err);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Clock, BookText } from "lucide-react";
+import { Home, Clock, Bookmark } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 
@@ -11,7 +11,7 @@ export default function BottomNav() {
   const navItems = [
     { icon: Home, label: "홈", href: "/" },
     { icon: Clock, label: "타임라인 저장소", href: "/timelines" },
-    { icon: BookText, label: "요약 저장소", href: "/library" },
+    { icon: Bookmark, label: "저장된 콘텐츠", href: "/library" },
   ];
 
   return (

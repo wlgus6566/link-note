@@ -435,15 +435,15 @@ export default function TimelinesPage() {
 
                     {bookmark.memo && (
                       <div className="flex items-center justify-between bg-primary-light text-neutral-dark text-xs p-2 rounded-md line-clamp-1">
-                        <span className="line-clamp-1 flex-1">
-                          {bookmark.memo}
-                        </span>
                         <button
                           className="text-xs text-neutral-medium flex items-center gap-1 hover:text-primary-color transition-colors"
                           onClick={() => handleMemoClick(bookmark)}
                         >
                           <Edit className="h-3 w-3" />
                         </button>
+                        <span className="line-clamp-1 flex-1 ml-1">
+                          {bookmark.memo}
+                        </span>
                       </div>
                     )}
                     {!bookmark.memo && (
@@ -457,8 +457,12 @@ export default function TimelinesPage() {
                         </button>
                       </div>
                     )}
-                    <p className="text-xs text-info text-right font-bold mt-1">
-                      {bookmark.digests?.video_info?.channelTitle}
+                    <p className="text-xs text-neutral-medium mb-1">
+                      {bookmark.digests?.video_info?.channelTitle || ""} ·
+                      조회수{" "}
+                      {formatViewCount(
+                        bookmark.digests?.video_info?.viewCount || "0"
+                      )}
                     </p>
                   </div>
                 </div>
@@ -493,3 +497,18 @@ export default function TimelinesPage() {
     </div>
   );
 }
+
+const formatViewCount = (count: string): string => {
+  if (!count) return "0";
+
+  const num = Number.parseInt(count, 10);
+  if (isNaN(num)) return "0";
+
+  if (num >= 10000) {
+    return `${Math.floor(num / 10000)}만회`;
+  } else if (num >= 1000) {
+    return `${Math.floor(num / 1000)}천회`;
+  }
+
+  return `${num}회`;
+};

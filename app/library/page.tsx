@@ -55,7 +55,13 @@ interface BookmarkItem {
   user_id: string;
   digest_id: number;
   created_at: string;
+  folder_id?: string;
   digests: Digest;
+  folders?: {
+    id: string;
+    name: string;
+    description: string | null;
+  };
 }
 
 export default function LibraryPage() {
@@ -77,7 +83,10 @@ export default function LibraryPage() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [folders, setFolders] = useState<FolderType[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [loadingFolders, setLoadingFolders] = useState(false);
+  const [folderBookmarks, setFolderBookmarks] = useState<
+    Record<string, number[]>
+  >({});
+  const [isLoadingFolderData, setIsLoadingFolderData] = useState(false);
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
 
   // 바깥 영역 클릭 시 폴더 드롭다운 닫기 이벤트 추가
@@ -95,27 +104,7 @@ export default function LibraryPage() {
     };
   }, [showFolderDropdown]);
 
-  // 폴더 목록 불러오기 함수
-  const fetchFolders = async () => {
-    setLoadingFolders(true);
-    try {
-      const response = await fetch("/api/folders");
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("폴더 목록 불러오기 오류:", data.error);
-        return;
-      }
-
-      setFolders(data.folders || []);
-    } catch (error) {
-      console.error("폴더 목록 불러오기 오류:", error);
-    } finally {
-      setLoadingFolders(false);
-    }
-  };
-
-  // 북마크 불러오기 함수
+  // 북마크 불러오기 함수 최적화 - 폴더 필터링 관련 코드 제거
   const fetchBookmarks = async () => {
     setLoading(true);
     try {
@@ -127,29 +116,38 @@ export default function LibraryPage() {
         setLoading(false);
         return;
       }
-      const { bookmarks, error } = await fetch("/api/bookmarks", {
+
+      // 북마크 데이터 가져오기 - 이제 한 번의 호출로 폴더 정보 포함
+      const bookmarksResponse = await fetch("/api/bookmarks", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
         cache: "no-store",
-      }).then((res) => res.json());
-      console.log("북마크 데이터:", bookmarks);
-      if (error) {
+      });
+
+      const bookmarksData = await bookmarksResponse.json();
+
+      if (bookmarksData.error) {
         setError("북마크를 불러오는데 실패했습니다.");
-        console.error("북마크 조회 오류:", error);
-      } else if (bookmarks) {
+        console.error("북마크 조회 오류:", bookmarksData.error);
+        return;
+      }
+
+      if (bookmarksData.bookmarks) {
         // 북마크 데이터 가공
-        console.log("북마크 데이터:", bookmarks);
-        const formattedBookmarks = bookmarks.map((bookmark: any) => ({
-          ...bookmark,
-          digests: {
-            ...bookmark.digests,
-            tags: Array.isArray(bookmark.digests.tags)
-              ? bookmark.digests.tags
-              : JSON.parse(bookmark.digests.tags || "[]"),
-          },
-        }));
+        console.log("북마크 데이터:", bookmarksData.bookmarks);
+        const formattedBookmarks = bookmarksData.bookmarks.map(
+          (bookmark: any) => ({
+            ...bookmark,
+            digests: {
+              ...bookmark.digests,
+              tags: Array.isArray(bookmark.digests.tags)
+                ? bookmark.digests.tags
+                : JSON.parse(bookmark.digests.tags || "[]"),
+            },
+          })
+        );
 
         setBookmarks(formattedBookmarks);
         setFilteredBookmarks(formattedBookmarks);
@@ -167,6 +165,9 @@ export default function LibraryPage() {
         );
 
         setAllTags(tags);
+
+        // 폴더 목록 불러오기
+        fetchFolders();
       }
     } catch (error) {
       console.error("북마크 불러오기 오류:", error);
@@ -176,28 +177,34 @@ export default function LibraryPage() {
     }
   };
 
-  // 컴포넌트 마운트 시 북마크와 폴더 불러오기
+  // 폴더 목록 불러오기 함수 다시 추가
+  const fetchFolders = async () => {
+    try {
+      const response = await fetch("/api/folders");
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("폴더 목록 불러오기 오류:", data.error);
+        return;
+      }
+
+      setFolders(data.folders || []);
+    } catch (error) {
+      console.error("폴더 목록 불러오기 오류:", error);
+    }
+  };
+
+  // 데이터 새로고침 함수 단순화
+  const refreshFolderData = async () => {
+    console.log("북마크 데이터 새로고침 시작");
+    await fetchBookmarks();
+    console.log("북마크 데이터 새로고침 완료");
+  };
+
+  // 폴더별 북마크 필터링 로직 수정
   useEffect(() => {
-    fetchBookmarks();
-    fetchFolders();
-  }, []);
+    if (bookmarks.length === 0) return;
 
-  // 페이지 포커스 시 북마크 다시 불러오기
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log("페이지 포커스 - 북마크 새로고침");
-      fetchBookmarks();
-    };
-
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, []);
-
-  // 검색 및 필터링
-  useEffect(() => {
     let filtered = [...bookmarks];
 
     // 검색어 필터링
@@ -221,8 +228,15 @@ export default function LibraryPage() {
       );
     }
 
+    // 폴더 필터링 - 이제 bookmark.folder_id로 필터링
+    if (activeFolder) {
+      filtered = filtered.filter(
+        (bookmark) => bookmark.folder_id === activeFolder
+      );
+    }
+
     setFilteredBookmarks(filtered);
-  }, [searchQuery, activeTag, bookmarks]);
+  }, [searchQuery, activeTag, bookmarks, activeFolder]);
 
   // 아이템 메뉴 열기
   const handleOpenMenu = (e: React.MouseEvent, bookmark: BookmarkItem) => {
@@ -390,6 +404,17 @@ export default function LibraryPage() {
     visible: { opacity: 1 },
     exit: { opacity: 0 },
   };
+
+  // 바텀 팝업의 '다른 재생목록에 저장' 버튼 클릭 함수 수정
+  const handleSaveToFolder = () => {
+    setShowFolderModal(true);
+  };
+
+  // 컴포넌트 마운트 시 데이터 불러오기
+  useEffect(() => {
+    // 북마크 데이터 로드 (폴더 데이터도 함께 로드됨)
+    fetchBookmarks();
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen pb-24">
@@ -734,9 +759,7 @@ export default function LibraryPage() {
                 <Button
                   variant="ghost"
                   className="w-full justify-start py-3 px-4 rounded-lg h-auto"
-                  onClick={() => {
-                    setShowFolderModal(true);
-                  }}
+                  onClick={handleSaveToFolder}
                 >
                   <Folder className="mr-3 h-5 w-5 text-neutral-medium" />
                   <span>다른 재생목록에 저장</span>
@@ -785,6 +808,8 @@ export default function LibraryPage() {
         digestId={selectedBookmark?.digest_id.toString() || ""}
         title={selectedBookmark?.digests.title || ""}
         onSuccess={() => {
+          // 성공적으로 폴더에 추가한 후 폴더 데이터 새로고침
+          refreshFolderData();
           setShowFolderModal(false);
           setShowBottomPopup(false);
         }}

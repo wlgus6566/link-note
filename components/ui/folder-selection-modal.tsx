@@ -99,21 +99,21 @@ export function FolderSelectionModal({
     try {
       setSavingToFolder(true);
 
-      // 북마크를 폴더에 저장
-      const response = await fetch("/api/bookmarks", {
+      // 북마크를 폴더에 저장 (folder-bookmarks API 사용)
+      const response = await fetch("/api/folder-bookmarks", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          digest_id: digestId,
-          folder_id: folderId,
+          folderId: String(folderId),
+          digestId: digestId,
         }),
         credentials: "include",
       });
 
       const data = await response.json();
-      console.log("북마크 저장 API 응답:", data);
+      console.log("북마크 폴더 저장 API 응답:", data);
 
       if (!response.ok) {
         const errorMsg =
@@ -136,10 +136,7 @@ export function FolderSelectionModal({
     }
   };
 
-  const handleNewFolderSuccess = (
-    folderId: number | string,
-    folderName: string
-  ) => {
+  const handleNewFolderSuccess = (folderId: string, folderName: string) => {
     setShowNewFolderModal(false);
     setFolders((prev) => [
       ...prev,

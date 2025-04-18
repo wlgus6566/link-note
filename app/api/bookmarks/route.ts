@@ -309,30 +309,54 @@ export async function GET(req: Request) {
         bookmark,
       });
     } else {
-      // 사용자의 모든 북마크 불러오기
-      const { data: bookmarks, error } = await supabase
-        .from("bookmarks")
-        .select(
+      // 사용자의 모든 북마크 불러오기 (folder 조인 제거됨)
+      try {
+        const { data: bookmarks, error } = await supabase
+          .from("bookmarks")
+          .select(
+            `
+            id,
+            user_id,
+            digest_id,
+            folder_id,
+            created_at,
+            digests (
+              id,
+              title,
+              summary,
+              tags,
+              source_type,
+              source_url,
+              created_at,
+              date,
+              image,
+              video_info
+            )
           `
-          *,
-          digests (*)
-        `
-        )
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+          )
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("북마크 목록 조회 오류:", error);
+        if (error) {
+          console.error("북마크 목록 조회 오류:", error);
+
+          return NextResponse.json(
+            { success: false, error: "북마크 목록 조회 중 오류 발생" },
+            { status: 500 }
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          bookmarks,
+        });
+      } catch (error) {
+        console.error("북마크 조회 전체 오류:", error);
         return NextResponse.json(
           { success: false, error: "북마크 목록 조회 중 오류 발생" },
           { status: 500 }
         );
       }
-
-      return NextResponse.json({
-        success: true,
-        bookmarks,
-      });
     }
   } catch (error) {
     console.error("북마크 조회 오류:", error);

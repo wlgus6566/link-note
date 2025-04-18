@@ -12,7 +12,7 @@ const folderBookmarkRequestSchema = z.object({
 // 폴더-북마크 연결 요청 스키마
 const FolderBookmarkSchema = z.object({
   folderId: z.string().uuid("유효한 폴더 ID가 필요합니다"),
-  digestId: z.string().uuid("유효한 다이제스트 ID가 필요합니다"),
+  digestId: z.string(),
 });
 
 // POST: 북마크를 폴더에 추가
@@ -64,60 +64,125 @@ export async function POST(request: Request) {
     }
 
     // 다이제스트 존재 확인
-    const { data: digestData, error: digestError } = await supabase
-      .from("digests")
-      .select("id")
-      .eq("id", digestId)
-      .single();
+    try {
+      const { data: digestData, error: digestError } = await supabase
+        .from("digests")
+        .select("id")
+        .eq("id", digestId)
+        .single();
 
-    if (digestError || !digestData) {
-      console.error("다이제스트 확인 오류:", digestError);
+      // UUID가 아닌 숫자 ID로 다시 시도
+      if (digestError) {
+        console.log("숫자 ID로 다시 시도:", digestId);
+        const digestIdNumber = parseInt(digestId);
+
+        if (!isNaN(digestIdNumber)) {
+          const { data: numberDigestData, error: numberDigestError } =
+            await supabase
+              .from("digests")
+              .select("id")
+              .eq("id", digestIdNumber)
+              .single();
+
+          if (numberDigestError || !numberDigestData) {
+            console.error("숫자 다이제스트 확인 오류:", numberDigestError);
+            return NextResponse.json(
+              { error: "해당 다이제스트가 존재하지 않습니다" },
+              { status: 404 }
+            );
+          }
+
+          // 여기에 도달하면 숫자 ID로 다이제스트를 찾은 것임
+        } else {
+          console.error("다이제스트 확인 오류:", digestError);
+          return NextResponse.json(
+            { error: "해당 다이제스트가 존재하지 않습니다" },
+            { status: 404 }
+          );
+        }
+      } else if (!digestData) {
+        console.error("다이제스트 데이터 없음");
+        return NextResponse.json(
+          { error: "해당 다이제스트가 존재하지 않습니다" },
+          { status: 404 }
+        );
+      }
+    } catch (error) {
+      console.error("다이제스트 검증 오류:", error);
       return NextResponse.json(
-        { error: "해당 다이제스트가 존재하지 않습니다" },
-        { status: 404 }
+        { error: "다이제스트 검증 중 오류가 발생했습니다" },
+        { status: 500 }
       );
     }
 
     // 북마크 존재 확인 또는 생성
     let bookmarkId;
+    let digestIdForQuery: string | number = digestId;
 
-    const { data: existingBookmark, error: bookmarkError } = await supabase
-      .from("bookmarks")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("digest_id", digestId)
-      .maybeSingle();
-
-    if (bookmarkError) {
-      console.error("북마크 조회 오류:", bookmarkError);
-      return NextResponse.json(
-        { error: "북마크 확인에 실패했습니다" },
-        { status: 500 }
-      );
+    // digestId가 숫자 문자열인 경우 숫자로 변환
+    const digestIdNumber = parseInt(digestId);
+    if (!isNaN(digestIdNumber)) {
+      digestIdForQuery = digestIdNumber;
     }
 
-    // 북마크가 없는 경우 생성
-    if (!existingBookmark) {
-      const { data: newBookmark, error: createBookmarkError } = await supabase
-        .from("bookmarks")
-        .insert({
-          user_id: userId,
-          digest_id: digestId,
-        })
-        .select("id")
-        .single();
+    console.log(
+      "북마크 조회에 사용할 digest_id:",
+      digestIdForQuery,
+      typeof digestIdForQuery
+    );
 
-      if (createBookmarkError || !newBookmark) {
-        console.error("북마크 생성 오류:", createBookmarkError);
+    try {
+      const { data: existingBookmark, error: bookmarkError } = await supabase
+        .from("bookmarks")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("digest_id", digestIdForQuery)
+        .maybeSingle();
+
+      if (bookmarkError) {
+        console.error("북마크 조회 오류:", bookmarkError);
         return NextResponse.json(
-          { error: "북마크 생성에 실패했습니다" },
+          { error: "북마크 확인에 실패했습니다" },
           { status: 500 }
         );
       }
 
-      bookmarkId = newBookmark.id;
-    } else {
-      bookmarkId = existingBookmark.id;
+      // 북마크가 없는 경우 생성
+      if (!existingBookmark) {
+        console.log("새 북마크 생성:", {
+          user_id: userId,
+          digest_id: digestIdForQuery,
+        });
+
+        const { data: newBookmark, error: createBookmarkError } = await supabase
+          .from("bookmarks")
+          .insert({
+            user_id: userId,
+            digest_id: digestIdForQuery,
+          })
+          .select("id")
+          .single();
+
+        if (createBookmarkError || !newBookmark) {
+          console.error("북마크 생성 오류:", createBookmarkError);
+          return NextResponse.json(
+            { error: "북마크 생성에 실패했습니다" },
+            { status: 500 }
+          );
+        }
+
+        bookmarkId = newBookmark.id;
+        console.log("새 북마크 생성 성공:", bookmarkId);
+      } else {
+        bookmarkId = existingBookmark.id;
+        console.log("기존 북마크 사용:", bookmarkId);
+      }
+    } catch (error) {
+      console.error("북마크 처리 오류:", error);
+      return NextResponse.json(
+        { error: "북마크 처리 중 오류가 발생했습니다" },
+        { status: 500 }
+      );
     }
 
     // 폴더-북마크 중복 확인
@@ -151,6 +216,18 @@ export async function POST(request: Request) {
         { error: "폴더에 북마크 추가 실패" },
         { status: 500 }
       );
+    }
+
+    // 북마크의 folder_id 필드 업데이트
+    const { error: updateError } = await supabase
+      .from("bookmarks")
+      .update({ folder_id: folderId })
+      .eq("id", bookmarkId)
+      .eq("user_id", userId);
+
+    if (updateError) {
+      console.error("북마크 폴더 업데이트 오류:", updateError);
+      // 이 오류는 치명적이지 않으므로 계속 진행
     }
 
     return NextResponse.json(
@@ -228,6 +305,18 @@ export async function DELETE(request: Request) {
         { error: "폴더에서 북마크 제거 실패" },
         { status: 500 }
       );
+    }
+
+    // 북마크의 folder_id 필드를 null로 설정
+    const { error: updateError } = await supabase
+      .from("bookmarks")
+      .update({ folder_id: null })
+      .eq("id", bookmarkId)
+      .eq("user_id", userId);
+
+    if (updateError) {
+      console.error("북마크 폴더 제거 오류:", updateError);
+      // 이 오류는 치명적이지 않으므로 계속 진행
     }
 
     return NextResponse.json({

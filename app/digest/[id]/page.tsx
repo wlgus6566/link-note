@@ -1020,7 +1020,7 @@ function getYouTubeVideoId(url: string): string {
   return "";
 }
 
-function formatViewCount(count: string | number): string {
+export function formatViewCount(count: string | number): string {
   if (!count) return "0";
 
   const num = typeof count === "string" ? Number.parseInt(count, 10) : count;

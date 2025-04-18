@@ -18,7 +18,7 @@ const FolderBookmarkSchema = z.object({
 // POST: 북마크를 폴더에 추가
 export async function POST(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 세션 확인
     const {
@@ -184,7 +184,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 세션 확인
     const {
@@ -248,7 +248,7 @@ export async function GET(req: Request) {
   console.log("폴더의 북마크 목록 조회 API 요청 수신");
 
   try {
-    const supabase = createClient(cookies());
+    const supabase = await createClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();

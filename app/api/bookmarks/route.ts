@@ -5,19 +5,11 @@ import { z } from "zod";
 
 // 요청 스키마 정의
 const bookmarkRequestSchema = z.object({
-  digest_id: z
-    .union([z.number(), z.string()])
-    .transform((val) => (typeof val === "string" ? parseInt(val) : val)),
+  digest_id: z.union([z.number(), z.string()]).transform((val) => val),
   folder_id: z
     .union([z.number(), z.string()])
     .optional()
-    .transform((val) =>
-      val === undefined
-        ? undefined
-        : typeof val === "string"
-        ? parseInt(val)
-        : val
-    ),
+    .transform((val) => val),
 });
 
 export async function POST(req: Request) {
@@ -51,6 +43,14 @@ export async function POST(req: Request) {
 
     const { digest_id, folder_id } = validatedData.data;
     const userId = session.user.id;
+
+    console.log("북마크 저장 요청:", {
+      digest_id,
+      folder_id,
+      userId,
+      digest_id_type: typeof digest_id,
+      folder_id_type: folder_id ? typeof folder_id : "undefined",
+    });
 
     // 이미 저장된 북마크가 있는지 확인
     const { data: existingBookmark } = await supabase
@@ -91,39 +91,119 @@ export async function POST(req: Request) {
 
     // folder_id가 제공된 경우, 폴더-북마크 관계 생성
     if (folder_id) {
-      // 이미 해당 폴더에 북마크가 있는지 확인
-      const { data: existingRelation } = await supabase
-        .from("folder_bookmarks")
-        .select()
-        .eq("folder_id", folder_id)
-        .eq("bookmark_id", bookmarkId)
-        .maybeSingle();
-
-      if (existingRelation) {
-        console.log("이미 폴더에 북마크가 저장되어 있습니다.");
-      } else {
-        // 폴더-북마크 관계 생성
-        const { error: folderError } = await supabase
+      try {
+        // 이미 해당 폴더에 북마크가 있는지 확인
+        const { data: existingRelation, error: checkError } = await supabase
           .from("folder_bookmarks")
-          .insert({
-            folder_id: folder_id,
-            bookmark_id: bookmarkId,
-            created_at: new Date().toISOString(),
-          });
+          .select()
+          .eq("folder_id", folder_id)
+          .eq("bookmark_id", bookmarkId)
+          .maybeSingle();
 
-        if (folderError) {
-          console.error("폴더-북마크 관계 저장 오류:", folderError);
-          // 북마크는 이미 저장되었지만 폴더 관계 저장에 실패한 경우
-          return NextResponse.json(
-            { success: false, error: "폴더에 북마크 저장 중 오류 발생" },
-            { status: 500 }
-          );
+        if (checkError) {
+          console.error("폴더-북마크 관계 확인 오류:", checkError);
+          console.log("오류 세부 정보:", checkError.message, checkError.code);
+
+          // 테이블이 없는 경우 대응, 폴더-북마크 관계를 만들지 않고 진행
+          if (checkError.code === "42P01") {
+            // relation does not exist
+            console.log(
+              "folder_bookmarks 테이블이 없습니다. 북마크 저장만 진행합니다."
+            );
+            return NextResponse.json({
+              success: true,
+              message:
+                "북마크가 저장되었습니다. (폴더 연결 기능은 현재 비활성화)",
+              bookmarkId,
+            });
+          }
         }
 
-        console.log(`북마크를 폴더(${folder_id})에 저장 완료`);
+        if (existingRelation) {
+          console.log("이미 폴더에 북마크가 저장되어 있습니다.");
+        } else {
+          try {
+            console.log("폴더-북마크 관계 생성 요청:", {
+              folder_id,
+              bookmarkId,
+            });
+
+            // 폴더-북마크 관계 생성
+            const { data: folderBookmark, error: folderError } = await supabase
+              .from("folder_bookmarks")
+              .insert({
+                folder_id,
+                bookmark_id: bookmarkId,
+                created_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (folderError) {
+              console.error("폴더-북마크 관계 저장 오류:", folderError);
+              console.error("오류 메시지:", folderError.message);
+              console.error("오류 코드:", folderError.code);
+              console.error("오류 상세:", folderError.details);
+
+              // 북마크는 이미 저장되었지만 폴더 관계 저장에 실패한 경우
+              return NextResponse.json(
+                {
+                  success: true,
+                  message: "북마크는 저장되었으나 폴더에 추가하지 못했습니다.",
+                  error: folderError.message,
+                  bookmarkId,
+                },
+                { status: 207 } // 207 Multi-Status - 부분적으로 성공
+              );
+            }
+
+            console.log(
+              `북마크를 폴더(${folder_id})에 저장 완료:`,
+              folderBookmark
+            );
+
+            // 성공적으로 폴더-북마크 관계 생성
+            return NextResponse.json({
+              success: true,
+              message: "북마크가 폴더에 저장되었습니다.",
+              bookmarkId,
+              folderBookmarkId: folderBookmark?.id,
+            });
+          } catch (relationError) {
+            console.error("폴더-북마크 관계 생성 중 예외 발생:", relationError);
+            return NextResponse.json(
+              {
+                success: true,
+                message: "북마크는 저장되었으나 폴더에 추가하지 못했습니다.",
+                error:
+                  relationError instanceof Error
+                    ? relationError.message
+                    : "알 수 없는 오류",
+                bookmarkId,
+              },
+              { status: 207 }
+            );
+          }
+        }
+      } catch (folderError) {
+        console.error("폴더 처리 중 예외 발생:", folderError);
+        // 북마크 저장은 성공했지만 폴더 관계 저장 중 오류 발생
+        return NextResponse.json(
+          {
+            success: true,
+            message: "북마크는 저장되었으나 폴더에 추가하지 못했습니다.",
+            error:
+              folderError instanceof Error
+                ? folderError.message
+                : "알 수 없는 오류",
+            bookmarkId,
+          },
+          { status: 207 }
+        );
       }
     }
 
+    // 폴더 ID가 제공되지 않았거나, 관계가 이미 존재하는 경우
     return NextResponse.json({
       success: true,
       message: "북마크가 저장되었습니다.",

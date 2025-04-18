@@ -993,7 +993,7 @@ export default function DigestPage({
             title={digest.title}
             onSuccess={() => {
               setIsSaved(true);
-              checkBookmarkStatus();
+              //checkBookmarkStatus();
             }}
           />
         )}

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { NewFolderModal } from "./new-folder-modal";
 
 export interface Folder {
-  id: number;
+  id: number | string;
   name: string;
   user_id: string;
   created_at: string;
@@ -16,20 +16,23 @@ export interface Folder {
 interface FolderSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectFolder: (folderId: number, folderName: string) => void;
-  bookmarkTitle: string;
+  digestId: string;
+  title: string;
+  onSuccess: () => void;
 }
 
 export function FolderSelectionModal({
   isOpen,
   onClose,
-  onSelectFolder,
-  bookmarkTitle,
+  digestId,
+  title,
+  onSuccess,
 }: FolderSelectionModalProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+  const [savingToFolder, setSavingToFolder] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -87,11 +90,56 @@ export function FolderSelectionModal({
     }
   };
 
-  const handleFolderSelect = (folderId: number, folderName: string) => {
-    onSelectFolder(folderId, folderName);
+  const handleFolderSelect = async (
+    folderId: number | string,
+    folderName: string
+  ) => {
+    console.log("폴더 선택 이벤트 발생:", folderId, folderName);
+
+    try {
+      setSavingToFolder(true);
+
+      // 북마크를 폴더에 저장
+      const response = await fetch("/api/bookmarks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          digest_id: digestId,
+          folder_id: folderId,
+        }),
+        credentials: "include",
+      });
+
+      const data = await response.json();
+      console.log("북마크 저장 API 응답:", data);
+
+      if (!response.ok) {
+        const errorMsg =
+          data.error || "폴더에 북마크를 저장하는데 실패했습니다.";
+        console.error("API 오류:", response.status, errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("북마크를 폴더에 저장 완료:", data);
+      toast.success(`"${folderName}" 폴더에 저장했습니다.`);
+
+      // 성공 콜백 호출
+      onSuccess();
+      onClose();
+    } catch (err) {
+      console.error("폴더에 북마크 저장 오류:", err);
+      toast.error("폴더에 저장하는데 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setSavingToFolder(false);
+    }
   };
 
-  const handleNewFolderSuccess = (folderId: number, folderName: string) => {
+  const handleNewFolderSuccess = (
+    folderId: number | string,
+    folderName: string
+  ) => {
     setShowNewFolderModal(false);
     setFolders((prev) => [
       ...prev,
@@ -145,7 +193,7 @@ export function FolderSelectionModal({
 
                 <div className="mb-4">
                   <p className="text-sm text-neutral-dark mb-2 line-clamp-1">
-                    "{bookmarkTitle}" 북마크를 저장할 폴더를 선택해주세요.
+                    "{title}" 북마크를 저장할 폴더를 선택해주세요.
                   </p>
                 </div>
 
@@ -153,6 +201,7 @@ export function FolderSelectionModal({
                   variant="outline"
                   className="w-full mb-4 flex items-center justify-center space-x-1 py-5 border-dashed border-2"
                   onClick={() => setShowNewFolderModal(true)}
+                  disabled={savingToFolder}
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   <span>새 폴더 만들기</span>
@@ -193,6 +242,7 @@ export function FolderSelectionModal({
                           onClick={() =>
                             handleFolderSelect(folder.id, folder.name)
                           }
+                          disabled={savingToFolder}
                         >
                           <p className="font-medium text-neutral-dark">
                             {folder.name}
@@ -208,6 +258,7 @@ export function FolderSelectionModal({
                     variant="outline"
                     onClick={onClose}
                     className="rounded-md"
+                    disabled={savingToFolder}
                   >
                     취소
                   </Button>

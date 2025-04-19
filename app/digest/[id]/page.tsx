@@ -32,11 +32,13 @@ import {
 } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { log } from "console";
 import { TimelineBookmarkButton } from "@/components/ui/timeline-bookmark-button";
 import { TimelineGuideSheet } from "@/components/ui/timeline-guide-sheet";
 import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Header } from "@/components/Header";
+import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 // YouTube API 타입 선언
 declare global {
   interface Window {
@@ -682,6 +684,8 @@ export default function DigestPage({
   };
 
   const handleSaveBookmark = () => {
+    console.log("북마크 저장 시도");
+    console.log(isAuthenticated);
     if (isAuthenticated !== true) {
       toast.error("북마크를 저장하려면 로그인이 필요합니다");
       router.push("/login");
@@ -1160,6 +1164,21 @@ export default function DigestPage({
               bookmarks={bookmarkedItems}
               onBookmarkClick={handleSeekTo}
               formatTime={formatTime}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* 폴더 선택 모달    */}
+        <AnimatePresence>
+          {showFolderSelectionModal && (
+            <FolderSelectionModal
+              isOpen={showFolderSelectionModal}
+              onClose={() => setShowFolderSelectionModal(false)}
+              digestId={digest.id}
+              title={digest.title}
+              onSuccess={() => {
+                setShowFolderSelectionModal(false);
+              }}
             />
           )}
         </AnimatePresence>

@@ -29,6 +29,7 @@ export default function TimelinesPage() {
     TimelineBookmark[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [showToast, setShowToast] = useState(false);
@@ -65,7 +66,8 @@ export default function TimelinesPage() {
 
     const fetchBookmarks = async () => {
       try {
-        setLoading(true);
+        setFetching(true);
+
         const response = await getUserTimelineBookmarks();
 
         if (response.success && response.data) {
@@ -87,7 +89,7 @@ export default function TimelinesPage() {
         setToastMessage("북마크를 불러오는데 실패했습니다.");
         setShowToast(true);
       } finally {
-        setLoading(false);
+        setFetching(false);
       }
     };
 
@@ -254,7 +256,7 @@ export default function TimelinesPage() {
 
   return (
     <div className="flex flex-col min-h-screen pb-20">
-      <Header title={"저장된 타임라인"} backUrl="back" showBackButton={true} />
+      <Header title={"타임라인 저장소"} showBackButton={false} />
       <div className="container px-5 py-4">
         <div className="flex items-center gap-2 mb-4">
           <div className="relative flex-1">
@@ -286,7 +288,7 @@ export default function TimelinesPage() {
       </div>
 
       <main className="flex-1">
-        {loading ? (
+        {fetching || loading ? (
           // 로딩 중
           renderSkeletons()
         ) : isAuthenticated === true && filteredBookmarks.length === 0 ? (

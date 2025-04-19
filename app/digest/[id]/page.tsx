@@ -703,7 +703,7 @@ export default function DigestPage({
                 </div>
               </div>
             </motion.div>
-
+            {/* 영상 영역 */}
             <motion.div
               className="mb-8 rounded-xl overflow-hidden"
               initial={{ opacity: 0, y: 20 }}

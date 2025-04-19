@@ -14,6 +14,8 @@ import {
   LinkIcon,
   ChevronDown,
   ChevronUp,
+  Send,
+  Loader2,
   X,
   Youtube,
   ExternalLink,
@@ -33,7 +35,24 @@ import { MemoPopup } from "@/components/ui/memo-popup";
 import { YouTubePopup } from "@/components/ui/youtube-popup";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Progress } from "@/components/ui/progress";
+import { TimelineAccordion } from "@/components/timeline/TimelineAccordion";
+import { TimelineGroup } from "@/lib/utils/youtube";
+import { getVideoId } from "@/lib/utils/client-youtube";
+interface YouTubeVideoInfo {
+  title?: string;
+  channelTitle?: string;
+  publishedAt?: string;
+  viewCount?: string;
+  channelId?: string;
+}
+
+interface BookmarkItem {
+  id: string;
+  seconds: number;
+  text: string;
+  timestamp: number;
+  memo?: string;
+}
 
 export default function TimelinesPage() {
   const router = useRouter();
@@ -59,6 +78,140 @@ export default function TimelinesPage() {
   // 타임라인 추출 관련 상태
   const [youtubeLink, setYoutubeLink] = useState("");
   const linkInputRef = useRef<HTMLInputElement>(null);
+
+  const [videoId, setVideoId] = useState<string | null>(null);
+  const [loading2, setLoading2] = useState(false);
+  const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [videoInfo, setVideoInfo] = useState<YouTubeVideoInfo | null>(null);
+  const [bookmarkedItems, setBookmarkedItems] = useState<
+    Record<string, BookmarkItem>
+  >({});
+
+  // 북마크 아이템 처리
+  const handleBookmark = (id: string, seconds: number, text: string) => {
+    if (!videoId) return;
+
+    const bookmarkKey = `bookmarks_timeline_extracted_${videoId}`;
+    let newBookmarkedItems = { ...bookmarkedItems };
+
+    if (newBookmarkedItems[id]) {
+      delete newBookmarkedItems[id];
+    } else {
+      newBookmarkedItems[id] = {
+        id,
+        seconds,
+        text,
+        timestamp: Date.now(),
+      };
+    }
+
+    setBookmarkedItems(newBookmarkedItems);
+    localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
+  };
+
+  // YouTube URL에서 타임라인 추출
+  const extractTimeline = async () => {
+    if (!youtubeLink) {
+      setError("YouTube 링크를 입력해주세요");
+      return;
+    }
+
+    const extractedVideoId = getVideoId(youtubeLink);
+    if (!extractedVideoId) {
+      setError("올바른 YouTube 링크가 아닙니다");
+      return;
+    }
+
+    setLoading2(true);
+    setError(null);
+    setVideoId(extractedVideoId);
+
+    try {
+      // API 호출
+      const response = await fetch(
+        `/api/extract-timeline?videoId=${extractedVideoId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "타임라인 추출에 실패했습니다");
+      }
+
+      // 타임라인 데이터 저장
+      setTimelineData(data.timeline || []);
+      setVideoInfo(data.videoInfo || null);
+
+      // 로컬 스토리지에 저장
+      const timelineKey = `timeline_extracted_${extractedVideoId}`;
+      localStorage.setItem(timelineKey, JSON.stringify(data.timeline || []));
+
+      // 북마크 데이터 로드
+      const bookmarkKey = `bookmarks_timeline_extracted_${extractedVideoId}`;
+      const storedBookmarks = localStorage.getItem(bookmarkKey);
+      if (storedBookmarks) {
+        setBookmarkedItems(JSON.parse(storedBookmarks));
+      } else {
+        setBookmarkedItems({});
+      }
+    } catch (error) {
+      console.error("타임라인 추출 오류:", error);
+      setError(
+        error instanceof Error ? error.message : "타임라인 추출에 실패했습니다"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 비디오 재생 시간으로 이동
+  const handleSeekTo = (seconds: number) => {
+    if (!videoId) return;
+
+    // iframe 찾기
+    const iframe = document.querySelector("iframe");
+    if (iframe) {
+      // YouTube Player API를 통해 특정 시간으로 이동
+      iframe.contentWindow?.postMessage(
+        JSON.stringify({
+          event: "command",
+          func: "seekTo",
+          args: [seconds, true],
+        }),
+        "*"
+      );
+    }
+  };
+
+  // 조회수 포맷 함수
+  const formatViewCount = (count: string | undefined): string => {
+    if (!count) return "0";
+
+    const num = Number.parseInt(count, 10);
+    if (isNaN(num)) return "0";
+
+    if (num >= 10000) {
+      return `${Math.floor(num / 10000)}만회`;
+    } else if (num >= 1000) {
+      return `${Math.floor(num / 1000)}천회`;
+    }
+
+    return `${num}회`;
+  };
+
+  // 엔터 키 이벤트 처리
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      extractTimeline();
+    }
+  };
 
   // 사용자 인증 상태 확인
   useEffect(() => {
@@ -303,14 +456,160 @@ export default function TimelinesPage() {
                     </button>
                   )}
                 </div>
-                <Button className="bg-primary-color hover:bg-primary-hover text-white">
-                  추출하기
+                <Button
+                  onClick={extractTimeline}
+                  disabled={loading || !youtubeLink}
+                  className="bg-primary-color hover:bg-primary-color/90"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  <span className="ml-2">추출하기</span>
                 </Button>
+                {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
               </div>
-              <p className="text-xs text-neutral-medium">
-                YouTube 영상 링크를 붙여넣으면 자동으로 타임라인을 추출하고
-                저장할 수 있습니다.
-              </p>
+              {/* 비디오 및 타임라인 영역 */}
+              {videoId && (
+                <>
+                  {/* 영상 영역 */}
+                  <motion.div
+                    className="mb-8 rounded-xl overflow-hidden"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <div className="flex flex-col bg-white rounded-xl overflow-hidden border border-border-line shadow-sm">
+                      <div className="relative w-full h-48 md:h-80">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
+                          title={videoInfo?.title || "YouTube 비디오"}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="absolute top-0 left-0 w-full h-full border-0"
+                        />
+                      </div>
+
+                      {videoInfo && (
+                        <div className="p-4 space-y-3">
+                          <h2 className="text-xl font-bold text-neutral-dark">
+                            {videoInfo.title || "제목 없음"}
+                          </h2>
+
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-9 h-9 rounded-full overflow-hidden bg-secondary-color border border-border-line">
+                                {videoInfo.channelId ? (
+                                  <Image
+                                    src={`https://yt3.googleusercontent.com/ytc/${videoInfo.channelId}=s88-c-k-c0x00ffffff-no-rj`}
+                                    alt={
+                                      videoInfo.channelTitle || "채널 이미지"
+                                    }
+                                    width={36}
+                                    height={36}
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gray-200" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-medium text-sm text-neutral-dark">
+                                  {videoInfo.channelTitle || "채널명 없음"}
+                                </div>
+                                <div className="text-xs text-neutral-medium">
+                                  {videoInfo.publishedAt
+                                    ? new Date(
+                                        videoInfo.publishedAt
+                                      ).toLocaleDateString("ko-KR", {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                      })
+                                    : "날짜 정보 없음"}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-sm text-neutral-medium">
+                              {videoInfo.viewCount
+                                ? `조회수 ${formatViewCount(
+                                    videoInfo.viewCount
+                                  )}회`
+                                : "조회수 정보 없음"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+
+                  {/* 타임라인 영역 */}
+                  {timelineData.length > 0 ? (
+                    <motion.div
+                      className="mb-10"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.45 }}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-neutral-dark">
+                          타임라인
+                        </h2>
+                      </div>
+
+                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <TimelineAccordion
+                          timelineGroups={timelineData}
+                          onSeek={handleSeekTo}
+                          bookmarkedItems={Object.keys(bookmarkedItems).reduce(
+                            (acc, key) => ({
+                              ...acc,
+                              [key]: true,
+                            }),
+                            {}
+                          )}
+                          onBookmark={handleBookmark}
+                        />
+                      </div>
+                    </motion.div>
+                  ) : loading2 ? (
+                    <div className="flex justify-center items-center py-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary-color" />
+                      <span className="ml-2 text-neutral-medium">
+                        타임라인 추출 중...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-center py-10">
+                      <p className="text-neutral-medium mb-2">
+                        타임라인 추출에 실패했습니다.
+                      </p>
+                      <p className="text-sm text-neutral-medium">
+                        다른 YouTube 링크를 시도해보세요.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* 아직 검색하지 않은 경우 안내 메시지 */}
+              {!videoId && !loading2 && (
+                <div className="text-center py-16">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-primary-light rounded-full flex items-center justify-center">
+                    <Send className="h-8 w-8 text-primary-color" />
+                  </div>
+                  <h3 className="font-medium text-lg mb-2">
+                    YouTube 링크 입력
+                  </h3>
+                  <p className="text-neutral-medium max-w-md mx-auto">
+                    YouTube 영상 링크를 입력하면 영상의 타임라인을 추출해
+                    보여줍니다. 추출된 타임라인 항목은 클릭하면 해당 시간으로
+                    이동할 수 있습니다.
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
         </AnimatePresence>

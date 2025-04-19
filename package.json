@@ -106,6 +106,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "next-transpile-modules": "^10.0.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

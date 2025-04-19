@@ -156,23 +156,63 @@ export async function syncLocalTimelineBookmarks(digestId: number) {
     const bookmarkKey = `bookmarks_timeline_${digestId}`;
     const storedBookmarks = localStorage.getItem(bookmarkKey);
 
-    if (!storedBookmarks) return;
+    if (!storedBookmarks) return { success: true, syncCount: 0 };
 
     const parsedBookmarks: Record<string, BookmarkItem> =
       JSON.parse(storedBookmarks);
     const bookmarkEntries = Object.entries(parsedBookmarks);
 
-    for (const [id, bookmark] of bookmarkEntries) {
-      await saveTimelineBookmark(
-        digestId,
-        bookmark.id,
-        bookmark.seconds,
-        bookmark.text,
-        bookmark.memo
-      );
+    if (bookmarkEntries.length === 0) return { success: true, syncCount: 0 };
+
+    // 이미 동기화된 데이터인지 확인
+    const syncKey = `sync_status_${digestId}`;
+    const lastSyncTime = localStorage.getItem(syncKey);
+    const currentTime = Date.now();
+
+    // 마지막 동기화 후 5분 이내면 스킵 (최적화)
+    if (lastSyncTime && currentTime - parseInt(lastSyncTime) < 5 * 60 * 1000) {
+      console.log("최근에 동기화되었습니다. 스킵합니다.");
+      return { success: true, syncCount: 0, skipped: true };
     }
 
-    console.log(`${bookmarkEntries.length}개의 북마크가 동기화되었습니다.`);
+    const supabase = createClient();
+
+    // 유저 세션 확인
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      console.log("사용자 로그인이 필요합니다.");
+      return { error: "사용자 로그인이 필요합니다." };
+    }
+
+    // 북마크 일괄 업서트를 위한 데이터 준비
+    const batchData = bookmarkEntries.map(([_, bookmark]) => ({
+      user_id: sessionData.session.user.id,
+      digest_id: digestId,
+      timeline_id: bookmark.id,
+      seconds: bookmark.seconds,
+      text: bookmark.text,
+      memo: bookmark.memo,
+      updated_at: new Date().toISOString(),
+    }));
+
+    // 북마크 일괄 업서트
+    const { data, error } = await supabase
+      .from("timeline_bookmarks")
+      .upsert(batchData, {
+        onConflict: "user_id, digest_id, timeline_id",
+      });
+
+    if (error) {
+      console.error("타임라인 북마크 일괄 동기화 오류:", error);
+      return { error: error.message };
+    }
+
+    // 동기화 시간 저장
+    localStorage.setItem(syncKey, currentTime.toString());
+
+    console.log(
+      `${bookmarkEntries.length}개의 북마크가 일괄 동기화되었습니다.`
+    );
     return { success: true, syncCount: bookmarkEntries.length };
   } catch (error) {
     console.error("북마크 동기화 오류:", error);

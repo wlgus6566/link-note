@@ -59,7 +59,6 @@ export function SubtitleBlock({
           }`}
         >
           {text}
-          {dataSegmentId}
         </button>
         <Button
           variant="ghost"

@@ -2,42 +2,24 @@
 
 import type React from "react";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Clock,
-  Play,
-  Edit,
-  Calendar,
-  LogIn,
-  LinkIcon,
-  ChevronDown,
-  ChevronUp,
-  Send,
-  Loader2,
-  X,
-  Youtube,
-  ExternalLink,
-  Bookmark,
-  CheckCircle2,
-} from "lucide-react";
+import { Search, Clock, Play, Edit, Calendar, LogIn } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import BottomNav from "@/components/bottom-nav";
 import { getUserTimelineBookmarks, formatTime } from "@/lib/utils/timeline";
 import type { TimelineBookmark } from "@/types/timeline";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { SimpleToast } from "@/components/ui/toast";
 import { MemoPopup } from "@/components/ui/memo-popup";
 import { YouTubePopup } from "@/components/ui/youtube-popup";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getVideoId } from "@/lib/utils/client-youtube";
-import { saveTimelineBookmark } from "@/lib/utils/timeline";
-
+import { Header } from "@/components/Header";
 export default function TimelinesPage() {
   const router = useRouter();
   const [bookmarks, setBookmarks] = useState<TimelineBookmark[]>([]);
@@ -45,6 +27,7 @@ export default function TimelinesPage() {
     TimelineBookmark[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -58,28 +41,6 @@ export default function TimelinesPage() {
     videoId: "",
     startTime: 0,
   });
-
-  // 타임라인 추출 관련 상태
-  const [youtubeLink, setYoutubeLink] = useState("");
-  const linkInputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // YouTube URL 입력 후 extract 페이지로 리다이렉트
-  const handleExtractTimeline = () => {
-    if (!youtubeLink) {
-      setError("YouTube 링크를 입력해주세요");
-      return;
-    }
-
-    const extractedVideoId = getVideoId(youtubeLink);
-    if (!extractedVideoId) {
-      setError("올바른 YouTube 링크가 아닙니다");
-      return;
-    }
-
-    // 링크를 URL 인코딩하여 extract 페이지로 리다이렉트
-    router.push(`/timelines/extract?url=${encodeURIComponent(youtubeLink)}`);
-  };
 
   // 사용자 인증 상태 확인
   useEffect(() => {
@@ -145,6 +106,17 @@ export default function TimelinesPage() {
 
     let result = [...bookmarks];
 
+    // 검색 필터링
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (bookmark) =>
+          bookmark.digests?.title.toLowerCase().includes(query) ||
+          bookmark.text.toLowerCase().includes(query) ||
+          (bookmark.memo && bookmark.memo.toLowerCase().includes(query))
+      );
+    }
+
     // 정렬
     result = result.sort((a, b) => {
       if (sortOrder === "newest") {
@@ -159,7 +131,11 @@ export default function TimelinesPage() {
     });
 
     setFilteredBookmarks(result);
-  }, [sortOrder, bookmarks]);
+  }, [searchQuery, sortOrder, bookmarks]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
 
   const handleSort = () => {
     setSortOrder(sortOrder === "newest" ? "oldest" : "newest");
@@ -174,22 +150,34 @@ export default function TimelinesPage() {
     if (!currentBookmark) return;
 
     try {
-      // 로그 기록
+      // API 호출 시 fetch 상태 로깅
       console.log(
-        `메모 저장: 북마크 ID ${currentBookmark.id}, 메모 길이 ${memo.length}자`
+        `메모 저장 API 호출: 북마크 ID ${currentBookmark.id}, 메모 길이 ${memo.length}자`
       );
 
-      // saveTimelineBookmark 함수 호출
-      const result = await saveTimelineBookmark(
-        currentBookmark.digest_id,
-        currentBookmark.timeline_id,
-        currentBookmark.seconds,
-        currentBookmark.text,
-        memo
+      const response = await fetch(
+        `/api/timelines/${currentBookmark.id}/memo`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ memo }),
+          credentials: "include",
+        }
       );
+
+      // 응답 상태 확인
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("메모 저장 API 오류 응답:", response.status, errorText);
+        throw new Error(`API 오류: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
 
       if (result.error) {
-        console.error("메모 저장 오류:", result.error);
+        console.error("메모 저장 결과 오류:", result.error);
         throw new Error(result.error);
       }
 
@@ -273,80 +261,38 @@ export default function TimelinesPage() {
 
   return (
     <div className="flex flex-col min-h-screen pb-20">
+      <Header title={"저장된 타임라인"} backUrl="back" showBackButton={true} />
       <div className="container px-5 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-neutral-dark">타임라인</h1>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-medium" />
+            <Input
+              type="text"
+              placeholder="타임라인 검색"
+              className="pl-9 bg-gray-50 border-gray-200"
+              value={searchQuery}
+              onChange={handleSearch}
+            />
+          </div>
         </div>
 
-        <AnimatePresence>
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="overflow-hidden"
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-neutral-medium">
+            {filteredBookmarks.length}개의 타임라인
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-1 text-sm border border-border-line px-3"
+            onClick={handleSort}
           >
-            <div className="bg-gray-50 rounded-xl p-4 border border-border-line">
-              <div className="flex items-center mb-3">
-                <Youtube className="h-5 w-5 text-primary-color mr-2" />
-                <h3 className="text-base font-medium">
-                  YouTube 링크로 타임라인 추출
-                </h3>
-              </div>
-              <div className="flex gap-2 mb-3">
-                <div className="relative flex-1">
-                  <Input
-                    ref={linkInputRef}
-                    type="text"
-                    placeholder="YouTube 링크를 붙여넣으세요"
-                    className="pr-10"
-                    value={youtubeLink}
-                    onChange={(e) => setYoutubeLink(e.target.value)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && handleExtractTimeline()
-                    }
-                  />
-                  {youtubeLink && (
-                    <button
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                      onClick={() => setYoutubeLink("")}
-                    >
-                      <X className="h-4 w-4 text-neutral-medium hover:text-primary-color" />
-                    </button>
-                  )}
-                </div>
-
-                <Button
-                  onClick={handleExtractTimeline}
-                  className="bg-primary-color hover:bg-primary-color/90"
-                >
-                  <Send className="h-4 w-4" />
-                  <span className="ml-2">추출하기</span>
-                </Button>
-              </div>
-              {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-              <p className="text-neutral-medium max-w-md text-xs mt-2">
-                YouTube 영상 링크를 입력하면 영상의 타임라인을 추출해
-                보여줍니다. 추출된 타임라인 항목은 클릭하면 해당 시간으로 이동할
-                수 있습니다.
-              </p>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      <div className="container px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center">
-          <h2 className="text-xl font-bold text-neutral-dark">최근 추가됨</h2>
+            <Clock className="h-4 w-4" />
+            {sortOrder === "newest" ? "최신순" : "오래된순"}
+          </Button>
         </div>
-        <Link
-          href="/timelines/list"
-          className="text-primary-color font-medium p-0 hover:bg-transparent text-sm"
-        >
-          전체보기
-        </Link>
       </div>
-      <main className="containerflex-1">
+
+      <main className="flex-1">
         {loading ? (
           // 로딩 중
           renderSkeletons()

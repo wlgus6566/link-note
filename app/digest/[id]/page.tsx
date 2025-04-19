@@ -10,28 +10,32 @@ import {
   AlignJustify,
   Info,
   X,
+  MapPinIcon as MapPinCheckInside,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/bottom-nav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import { motion, type PanInfo } from "framer-motion";
+import { motion, type PanInfo, AnimatePresence } from "framer-motion";
 import { TimelineAccordion } from "@/components/timeline/TimelineAccordion";
 import type { TimelineGroup } from "@/lib/utils/youtube";
 import { SimpleTooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { SimpleToast } from "@/components/ui/toast";
-import { MemoPopup } from "@/components/ui/memo-popup";
 import {
   syncLocalTimelineBookmarks,
   saveTimelineBookmark,
   deleteTimelineBookmark,
 } from "@/lib/utils/timeline";
-import { createClient } from "@/lib/supabase/client";
-import { YouTubePopup } from "@/components/ui/youtube-popup";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
+import {
+  createClient,
+  saveTimelineData,
+  getTimelineData,
+} from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+// 기존 북마크 팝업과 가이드 팝업 코드를 제거하고 컴포넌트 import 추가
+import { TimelineBookmarkButton } from "@/components/ui/timeline-bookmark-button";
+import { TimelineGuideSheet } from "@/components/ui/timeline-guide-sheet";
+import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
 
 // YouTube API 타입 선언
 declare global {
@@ -63,6 +67,7 @@ declare global {
       ready: (callback: () => void) => void;
     };
     onYouTubeIframeAPIReady: (() => void) | null;
+    syncTimer?: NodeJS.Timeout; // number 대신 NodeJS.Timeout으로 수정
   }
 }
 
@@ -91,10 +96,7 @@ export default function DigestPage({
   const [error, setError] = useState<string | null>(null);
   const [pageId, setPageId] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
-  const [showTimeline, setShowTimeline] = useState(true);
-
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
 
@@ -124,7 +126,7 @@ export default function DigestPage({
     const active = segments.reduce(
       (prev, seg) =>
         seg.seconds <= currentTime && seg.seconds > prev.seconds ? seg : prev,
-      { id: "", seconds: -Infinity }
+      { id: "", seconds: Number.NEGATIVE_INFINITY }
     );
     console.log("active", active);
 
@@ -211,25 +213,90 @@ export default function DigestPage({
   }, [params]);
 
   useEffect(() => {
-    if (!pageId) return;
+    if (!pageId || !digest?.id) return;
 
-    try {
-      const timelineKey = `timeline_${pageId}`;
-      const storedTimeline = localStorage.getItem(timelineKey);
+    let isMounted = true;
 
-      if (storedTimeline) {
-        const parsedTimeline = JSON.parse(storedTimeline);
-        setTimelineData(parsedTimeline);
-        console.log(
-          `타임라인 데이터 로드 완료: ${parsedTimeline.length}개 그룹`
-        );
-      } else {
-        console.log("타임라인 데이터가 없습니다.");
+    const fetchTimelineData = async () => {
+      try {
+        console.log("타임라인 데이터 로드 시작...");
+        // 로컬 스토리지에서 데이터 확인
+        const timelineKey = `timeline_${pageId}`;
+        const storedTimeline = localStorage.getItem(timelineKey);
+        let parsedTimeline = null;
+
+        if (storedTimeline) {
+          try {
+            parsedTimeline = JSON.parse(storedTimeline);
+            setTimelineData(parsedTimeline);
+            console.log(
+              `로컬 타임라인 데이터 로드 완료: ${parsedTimeline.length}개 그룹`
+            );
+          } catch (parseError) {
+            console.error("로컬 타임라인 데이터 파싱 오류:", parseError);
+          }
+        }
+
+        // 로그인한 경우 서버에서 데이터 가져오기 시도
+        if (isAuthenticated) {
+          console.log("서버에서 타임라인 데이터 가져오기 시도...");
+          try {
+            const response = await getTimelineData(Number(digest.id));
+
+            if (
+              response.success &&
+              response.data &&
+              Array.isArray(response.data) &&
+              response.data.length > 0
+            ) {
+              // 서버 데이터가 있으면 사용
+              console.log(
+                `서버 타임라인 데이터 로드 완료: ${response.data.length}개 그룹`
+              );
+              setTimelineData(response.data);
+
+              // 로컬 스토리지도 업데이트
+              localStorage.setItem(timelineKey, JSON.stringify(response.data));
+            } else if (
+              parsedTimeline &&
+              Array.isArray(parsedTimeline) &&
+              parsedTimeline.length > 0
+            ) {
+              // 로컬 데이터가 있고 서버 데이터가 없으면 서버에 저장
+              console.log("로컬 데이터를 서버에 저장 시도...");
+              try {
+                const saveResult = await saveTimelineData(
+                  Number(digest.id),
+                  parsedTimeline
+                );
+                if (saveResult.success) {
+                  console.log("로컬 타임라인 데이터가 서버에 저장되었습니다.");
+                } else {
+                  console.warn("서버 저장 실패:", saveResult.error);
+                }
+              } catch (saveError) {
+                console.error("타임라인 데이터 서버 저장 오류:", saveError);
+              }
+            } else {
+              console.log("서버와 로컬 모두 타임라인 데이터가 없습니다.");
+            }
+          } catch (fetchError) {
+            console.error("서버 타임라인 데이터 가져오기 오류:", fetchError);
+          }
+        } else {
+          console.log("로그인되지 않았습니다. 로컬 데이터만 사용합니다.");
+        }
+      } catch (error) {
+        console.error("타임라인 데이터 처리 중 오류 발생:", error);
       }
-    } catch (error) {
-      console.error("타임라인 데이터 로딩 오류:", error);
-    }
-  }, [pageId]);
+    };
+
+    fetchTimelineData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pageId, digest?.id, isAuthenticated]);
 
   useEffect(() => {
     if (!pageId) return;
@@ -347,7 +414,7 @@ export default function DigestPage({
         const { data: sessionData } = await supabase.auth.getSession();
         setIsAuthenticated(!!sessionData.session);
 
-        // 로그인한 경우 로컬 북마크를 서버와 동기화
+        // 로그인한 경우에만 동기화 필요 상태로 설정
         if (sessionData.session && pageId && !syncNeeded) {
           setSyncNeeded(true);
         }
@@ -390,19 +457,32 @@ export default function DigestPage({
 
   // 로컬 스토리지의 북마크를 서버와 동기화
   useEffect(() => {
+    // syncNeeded가 true이고 필요한 데이터가 모두 있을 때만 동기화 실행
     if (isAuthenticated && syncNeeded && pageId && digest?.id) {
+      // 동기화 시작 시 바로 상태 변경하여 중복 실행 방지
+      setSyncNeeded(false);
+
       syncLocalTimelineBookmarks(Number(digest.id))
         .then((result) => {
           if (result?.success) {
-            console.log(
-              `로컬 북마크 ${result.syncCount}개가 서버와 동기화되었습니다.`
-            );
-            setSyncNeeded(false);
+            if (result.syncCount > 0) {
+              console.log(
+                `로컬 북마크 ${result.syncCount}개가 서버와 동기화되었습니다.`
+              );
+            } else if (result.skipped) {
+              console.log("최근에 동기화되어 스킵되었습니다.");
+            }
           } else if (result?.error) {
             console.error("북마크 동기화 오류:", result.error);
+            // 에러 발생 시 다시 시도할 수 있도록 설정
+            setTimeout(() => setSyncNeeded(true), 30000); // 30초 후 재시도
           }
         })
-        .catch((err) => console.error("북마크 동기화 실패:", err));
+        .catch((err) => {
+          console.error("북마크 동기화 실패:", err);
+          // 에러 발생 시 다시 시도할 수 있도록 설정
+          setTimeout(() => setSyncNeeded(true), 30000); // 30초 후 재시도
+        });
     }
   }, [isAuthenticated, syncNeeded, pageId, digest?.id]);
 
@@ -490,32 +570,17 @@ export default function DigestPage({
     localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
     setShowToast(true);
 
-    // 로그인한 경우에만 서버에 저장/삭제 시도
+    // 로그인한 경우에만 서버 동기화 표시 (디바운스 적용)
     if (isAuthenticated && digest?.id) {
-      try {
-        if (!newBookmarkedItems[id]) {
-          // 서버에서 북마크 삭제
-          const result = await deleteTimelineBookmark(id, Number(digest.id));
-          if (!result.success) {
-            console.error("서버 북마크 삭제 오류:", result.error);
-          }
-        } else {
-          // 서버에 북마크 저장
-          const result = await saveTimelineBookmark(
-            Number(digest.id),
-            id,
-            seconds,
-            text
-          );
-          if (!result.success) {
-            console.error("서버 북마크 저장 오류:", result.error);
-          }
-        }
-      } catch (err) {
-        console.error("타임라인 북마크 처리 오류:", err);
+      // 이미 예약된 동기화 타이머가 있으면 취소
+      if (window.syncTimer) {
+        clearTimeout(window.syncTimer);
       }
-    } else if (!isAuthenticated) {
-      console.log("로그인하지 않았습니다. 로컬에만 북마크가 저장됩니다.");
+
+      // 3초 후 동기화 트리거 (여러 번 빠르게 북마크 추가/제거 시 최적화)
+      window.syncTimer = setTimeout(() => {
+        setSyncNeeded(true);
+      }, 3000);
     }
   };
 
@@ -642,6 +707,11 @@ export default function DigestPage({
     return () => clearInterval(id);
   }, [playerReady]);
 
+  // 상태 추가 - 북마크 팝업 표시 여부
+  const [showBookmarksPopup, setShowBookmarksPopup] = useState(false);
+  // 상태 추가 - 가이드 팝업 표시 여부
+  const [showGuidePopup, setShowGuidePopup] = useState(false);
+
   if (error) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -721,7 +791,7 @@ export default function DigestPage({
                 size="icon"
                 className="h-9 w-9 rounded-full hover:bg-primary-light"
               >
-                <Bookmark className="h-5 w-5 text-neutral-dark" />
+                <MapPinCheckInside className="h-4 w-4 text-primary-color" />
               </Button>
               <Button
                 variant="ghost"
@@ -796,11 +866,13 @@ export default function DigestPage({
             <h1 className="text-lg font-medium text-neutral-dark truncate max-w-[60%]">
               {digest.title}
             </h1>
+            {/* 헤더에서 북마크 아이콘 버튼 제거하고 다른 버튼만 유지 */}
             <div className="flex gap-2">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 rounded-full hover:bg-primary-light"
+                onClick={handleSaveBookmark}
               >
                 {isSaved ? (
                   <BookmarkCheck className="h-5 w-5 text-primary-color" />
@@ -970,34 +1042,29 @@ export default function DigestPage({
                                 variant="ghost"
                                 size="sm"
                                 className="text-sm text-neutral-medium rounded-full px-3"
-                                onClick={() => setShowTimeline(!showTimeline)}
+                                onClick={() => setShowGuidePopup(true)}
                               >
-                                <AlignJustify className="h-4 w-4 mr-1" />
-                                {showTimeline
-                                  ? "타임라인 숨기기"
-                                  : "타임라인 보기"}
+                                이용가이드
                               </Button>
                             </div>
 
-                            {showTimeline && currentSegmentId && (
-                              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                <TimelineAccordion
-                                  timelineGroups={timelineData}
-                                  onSeek={handleSeekTo}
-                                  currentSegmentId={currentSegmentId}
-                                  bookmarkedItems={Object.keys(
-                                    bookmarkedItems
-                                  ).reduce(
-                                    (acc, key) => ({
-                                      ...acc,
-                                      [key]: true,
-                                    }),
-                                    {}
-                                  )}
-                                  onBookmark={handleBookmark}
-                                />
-                              </div>
-                            )}
+                            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                              <TimelineAccordion
+                                timelineGroups={timelineData}
+                                onSeek={handleSeekTo}
+                                currentSegmentId={currentSegmentId || undefined}
+                                bookmarkedItems={Object.keys(
+                                  bookmarkedItems
+                                ).reduce(
+                                  (acc, key) => ({
+                                    ...acc,
+                                    [key]: true,
+                                  }),
+                                  {}
+                                )}
+                                onBookmark={handleBookmark}
+                              />
+                            </div>
                           </motion.div>
                         )}
                     </TabsContent>
@@ -1010,65 +1077,39 @@ export default function DigestPage({
 
         <BottomNav />
 
-        <SimpleToast
-          isVisible={showToast}
-          message={toastMessage}
-          onClose={handleCloseToast}
-          actionLabel={
-            currentBookmarkId && !showMemoPopup ? "메모 추가하기" : undefined
-          }
-          onAction={
-            currentBookmarkId ? () => setShowMemoPopup(true) : undefined
-          }
+        {/* 타임라인 북마크 버튼 */}
+        <TimelineBookmarkButton
+          bookmarkCount={Object.keys(bookmarkedItems).length}
+          onClick={() => setShowBookmarksPopup(true)}
+          onGuideClick={() => setShowGuidePopup(true)}
         />
 
-        <MemoPopup
-          isOpen={showMemoPopup}
-          onClose={handleCloseMemoPopup}
-          onSave={handleSaveMemo}
-          initialMemo={
-            currentBookmarkId
-              ? bookmarkedItems[currentBookmarkId]?.memo || ""
-              : ""
-          }
-          title="타임라인 메모 추가하기"
-        />
+        {/* 북마크 팝업 */}
+        <AnimatePresence>
+          {showBookmarksPopup && (
+            <BookmarksPopup
+              isOpen={showBookmarksPopup}
+              onClose={() => setShowBookmarksPopup(false)}
+              bookmarks={bookmarkedItems}
+              onBookmarkClick={handleSeekTo}
+              formatTime={formatTime}
+            />
+          )}
+        </AnimatePresence>
 
-        {/* YouTube 팝업 컴포넌트 추가 */}
-        {youtubePopup.isOpen && (
-          <YouTubePopup
-            isOpen={youtubePopup.isOpen}
-            videoId={youtubePopup.videoId}
-            startTime={youtubePopup.startTime}
-            onClose={() =>
-              setYoutubePopup((prev) => ({ ...prev, isOpen: false }))
-            }
-          />
-        )}
-
-        {/* 저장 취소 확인 대화상자 */}
-        <ConfirmDialog
-          isOpen={showConfirmDialog}
-          title="저장 취소"
-          message="저장을 취소하시겠습니까?"
-          confirmText="취소하기"
-          cancelText="돌아가기"
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setShowConfirmDialog(false)}
-        />
-
-        {digest && (
-          <FolderSelectionModal
-            isOpen={showFolderSelectionModal}
-            onClose={() => setShowFolderSelectionModal(false)}
-            digestId={digest.id.toString()}
-            title={digest.title}
-            onSuccess={() => {
-              setIsSaved(true);
-              //checkBookmarkStatus();
-            }}
-          />
-        )}
+        {/* 타임라인 이용 가이드 */}
+        <AnimatePresence>
+          {showGuidePopup && (
+            <TimelineGuideSheet
+              isOpen={showGuidePopup}
+              onClose={() => setShowGuidePopup(false)}
+              onStartBookmarking={() => {
+                setShowGuidePopup(false);
+                setActiveTab("transcript");
+              }}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </TooltipProvider>
   );
@@ -1090,6 +1131,23 @@ function getYouTubeVideoId(url: string): string {
   if (embedMatch) return embedMatch[1];
 
   return "";
+}
+
+// formatTime 함수 추가 - 파일 맨 아래, getYouTubeVideoId 함수 위에 추가
+function formatTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  return `${minutes.toString().padStart(2, "0")}:${secs
+    .toString()
+    .padStart(2, "0")}`;
 }
 
 // 조회수 포맷 함수를 내부 함수로 변경

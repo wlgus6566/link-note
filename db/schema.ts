@@ -91,6 +91,17 @@ export const folderBookmarks = pgTable("folder_bookmarks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// 타임라인 테이블 정의 (유튜브 영상의 타임라인 데이터)
+export const timelines = pgTable("timelines", {
+  id: serial("id").primaryKey(),
+  digestId: integer("digest_id")
+    .notNull()
+    .references(() => digests.id, { onDelete: "cascade" }),
+  data: jsonb("data").notNull(), // TimelineGroup[] 형태의 JSON 데이터
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // 타입 정의
 export type Digest = typeof digests.$inferSelect;
 export type NewDigest = typeof digests.$inferInsert;
@@ -109,3 +120,6 @@ export type NewFolder = typeof folders.$inferInsert;
 
 export type FolderBookmark = typeof folderBookmarks.$inferSelect;
 export type NewFolderBookmark = typeof folderBookmarks.$inferInsert;
+
+export type Timeline = typeof timelines.$inferSelect;
+export type NewTimeline = typeof timelines.$inferInsert;

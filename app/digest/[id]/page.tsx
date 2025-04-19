@@ -33,6 +33,39 @@ import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
+// YouTube API 타입 선언
+declare global {
+  interface Window {
+    YT: {
+      Player: new (
+        elementId: string | HTMLElement,
+        options: {
+          videoId: string;
+          playerVars?: {
+            playsinline?: number;
+            rel?: number;
+            modestbranding?: number;
+            [key: string]: any;
+          };
+          events?: {
+            onReady?: (event: any) => void;
+            onError?: (event: any) => void;
+            onStateChange?: (event: any) => void;
+            [key: string]: any;
+          };
+        }
+      ) => {
+        seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+        playVideo: () => void;
+        pauseVideo: () => void;
+        getCurrentTime: () => number;
+      };
+      ready: (callback: () => void) => void;
+    };
+    onYouTubeIframeAPIReady: (() => void) | null;
+  }
+}
+
 interface BookmarkItem {
   id: string;
   seconds: number;
@@ -85,6 +118,11 @@ export default function DigestPage({
   const [activeTab, setActiveTab] = useState<string>("summary");
   const [swipeDirection, setSwipeDirection] = useState<number>(0);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // YouTube Player 관련 상태와 ref
+  const playerRef = useRef<any>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const [playerReady, setPlayerReady] = useState(false);
 
   // 스와이프 핸들러 함수 추가
   const handleDragEnd = (
@@ -323,6 +361,63 @@ export default function DigestPage({
     }
   }, [isAuthenticated, syncNeeded, pageId, digest?.id]);
 
+  // YouTube IFrame API 로드 및 초기화
+  useEffect(() => {
+    if (!digest || digest.sourceType !== "YouTube" || !digest.sourceUrl) return;
+
+    // YouTube IFrame API가 이미 로드되었는지 확인
+    if (window.YT && window.YT.Player) {
+      initializePlayer();
+      return;
+    }
+
+    // API 로드
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName("script")[0];
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+
+    // API 로드 완료 이벤트 처리
+    window.onYouTubeIframeAPIReady = initializePlayer;
+
+    return () => {
+      // 컴포넌트 언마운트 시 이벤트 핸들러 제거
+      window.onYouTubeIframeAPIReady = null;
+    };
+  }, [digest]);
+
+  const initializePlayer = () => {
+    if (!playerContainerRef.current || !digest?.sourceUrl) return;
+
+    const videoId = getYouTubeVideoId(digest.sourceUrl);
+    if (!videoId) return;
+
+    // Player 객체 생성
+    playerRef.current = new window.YT.Player(playerContainerRef.current, {
+      videoId,
+      playerVars: {
+        playsinline: 1,
+        rel: 0,
+        modestbranding: 1,
+      },
+      events: {
+        onReady: () => setPlayerReady(true),
+        onError: (e) => console.error("YouTube Player 오류:", e),
+      },
+    });
+  };
+
+  // 탭 변경 시 스크롤 위치 조정
+  useEffect(() => {
+    if (activeTab === "transcript" && playerContainerRef.current) {
+      // 탭 전환 시 스크롤 위치를 영상 위로 조정
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  }, [activeTab]);
+
   const handleBookmark = async (id: string, seconds: number, text: string) => {
     if (!pageId) return;
 
@@ -434,15 +529,23 @@ export default function DigestPage({
   const handleSeekTo = (seconds: number) => {
     if (!digest || digest.sourceType !== "YouTube") return;
 
-    const videoId = getYouTubeVideoId(digest.sourceUrl);
-    if (!videoId) return;
+    // 플레이어가 준비되었고 스크립트 탭에 있으면 iframe 직접 제어
+    if (playerReady && playerRef.current && activeTab === "transcript") {
+      // seekTo: 첫 번째 인자는 시간(초), 두 번째 인자가 true면 정확한 시간으로 이동
+      playerRef.current.seekTo(seconds, true);
+      // 필요시 재생 시작
+      playerRef.current.playVideo();
+    } else {
+      // 플레이어가 준비되지 않았거나 요약 탭에 있으면 팝업 사용
+      const videoId = getYouTubeVideoId(digest.sourceUrl);
+      if (!videoId) return;
 
-    // 팝업으로 재생하기
-    setYoutubePopup({
-      isOpen: true,
-      videoId,
-      startTime: seconds,
-    });
+      setYoutubePopup({
+        isOpen: true,
+        videoId,
+        startTime: seconds,
+      });
+    }
   };
 
   const handleSaveBookmark = () => {
@@ -665,17 +768,16 @@ export default function DigestPage({
           <div className="container px-0 sm:px-5">
             {/* 비디오 섹션 */}
             {digest.sourceType === "YouTube" && digest.sourceUrl && (
-              <div className="w-full mb-4">
+              <div
+                className={`w-full ${
+                  activeTab === "transcript" ? "sticky top-16 z-20" : "mb-4"
+                }`}
+              >
                 <div className="relative w-full aspect-video">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${getYouTubeVideoId(
-                      digest.sourceUrl
-                    )}`}
-                    title={digest.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
+                  <div
+                    ref={playerContainerRef}
                     className="absolute top-0 left-0 w-full h-full border-0"
-                  />
+                  ></div>
                 </div>
               </div>
             )}
@@ -686,7 +788,13 @@ export default function DigestPage({
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <div className="sticky top-16 z-10 bg-white border-b border-border-line">
+              <div
+                className={`sticky ${
+                  activeTab === "transcript"
+                    ? "top-[calc(56.25vw+64px)]"
+                    : "top-16"
+                } z-10 bg-white border-b border-border-line`}
+              >
                 <TabsList className="grid w-full grid-cols-2 p-0 h-12">
                   <TabsTrigger
                     value="summary"

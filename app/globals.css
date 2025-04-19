@@ -122,7 +122,12 @@
 .prose li {
   @apply mb-1;
 }
-
+.prose a {
+  @apply underline;
+}
+.prose a:hover {
+  @apply text-primary-color;
+}
 /* 카드 스타일 */
 .content-card {
   @apply bg-white rounded-xl shadow-sm border border-border-line overflow-hidden;

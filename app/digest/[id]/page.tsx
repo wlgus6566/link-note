@@ -35,6 +35,7 @@ import { YouTubePopup } from "@/components/ui/youtube-popup";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { toast } from "sonner";
+import { Header } from "@/components/Header";
 
 interface BookmarkItem {
   id: string;
@@ -595,18 +596,11 @@ export default function DigestPage({
   return (
     <TooltipProvider>
       <div className="flex flex-col min-h-screen pb-24">
-        <header className="header">
-          <div className="container flex items-center justify-between h-16 px-5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-0 hover:bg-transparent"
-              asChild
-            >
-              <Link href="/">
-                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
-              </Link>
-            </Button>
+        <Header
+          title={null}
+          backUrl="back"
+          showBackButton={true}
+          rightElement={
             <div className="flex gap-2">
               <Button
                 variant="ghost"
@@ -628,8 +622,23 @@ export default function DigestPage({
                 <Share2 className="h-5 w-5 text-neutral-dark" />
               </Button>
             </div>
+          }
+        />
+        {/* <header className="header">
+          <div className="container flex items-center justify-between h-16 px-5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-0 hover:bg-transparent"
+              asChild
+            >
+              <Link href="/">
+                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
+              </Link>
+            </Button>
+           
           </div>
-        </header>
+        </header> */}
 
         <main className="flex-1">
           <article className="max-w-3xl mx-auto px-5 py-8">

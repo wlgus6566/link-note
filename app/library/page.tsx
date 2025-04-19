@@ -24,7 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
-import { BottomPopup } from "@/components/BottomPopup";
+import { BottomPopup } from "@/components/bottom-popup";
 interface FolderType {
   id: string;
   name: string;

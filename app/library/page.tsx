@@ -24,7 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
-
+import { BottomPopup } from "@/components/BottomPopup";
 interface FolderType {
   id: string;
   name: string;
@@ -721,85 +721,38 @@ export default function LibraryPage() {
       <BottomNav />
 
       {/* 바텀 팝업 */}
-      <AnimatePresence>
-        {showBottomPopup && selectedBookmark && (
-          <motion.div
-            className="fixed bottom-0 left-0 w-full z-50"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={0.2}
-            onDragEnd={(e, info) => {
-              // 드래그 거리가 100px 이상이면 팝업 닫기
-              if (info.offset.y > 100) {
-                setShowBottomPopup(false);
-              }
-            }}
-          >
-            <div className="flex flex-col bg-white border-t border-border-line rounded-t-2xl overflow-hidden">
-              <div
-                className="p-4 border-b border-border-line cursor-grab active:cursor-grabbing"
-                onTouchStart={(e) =>
-                  e.currentTarget.classList.add("active:cursor-grabbing")
-                }
-                onTouchEnd={(e) =>
-                  e.currentTarget.classList.remove("active:cursor-grabbing")
-                }
-              >
-                <div className="w-12 h-1 bg-border-line rounded-full mx-auto mb-4" />
-                <h3 className="font-medium text-lg line-clamp-1">
-                  {selectedBookmark.digests.title}
-                </h3>
-              </div>
+      <BottomPopup
+        isOpen={showBottomPopup}
+        onClose={() => setShowBottomPopup(false)}
+        title={selectedBookmark?.digests.title}
+      >
+        <Button
+          variant="ghost"
+          className="w-full justify-start py-3 px-4 rounded-lg h-auto"
+          onClick={handleSaveToFolder}
+        >
+          <Folder className="mr-3 h-5 w-5 text-neutral-medium" />
+          <span>다른 재생목록에 저장</span>
+        </Button>
 
-              <div className="p-2">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start py-3 px-4 rounded-lg h-auto"
-                  onClick={handleSaveToFolder}
-                >
-                  <Folder className="mr-3 h-5 w-5 text-neutral-medium" />
-                  <span>다른 재생목록에 저장</span>
-                </Button>
+        <Button
+          variant="ghost"
+          className="w-full justify-start py-3 px-4 rounded-lg h-auto"
+          onClick={handleShareBookmark}
+        >
+          <Share2 className="mr-3 h-5 w-5 text-neutral-medium" />
+          <span>공유하기</span>
+        </Button>
 
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start py-3 px-4 rounded-lg h-auto"
-                  onClick={handleShareBookmark}
-                >
-                  <Share2 className="mr-3 h-5 w-5 text-neutral-medium" />
-                  <span>공유하기</span>
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start py-3 px-4 rounded-lg h-auto text-red-500 hover:text-red-600"
-                  onClick={handleDeleteBookmark}
-                >
-                  <Trash2 className="mr-3 h-5 w-5" />
-                  <span>저장 취소</span>
-                </Button>
-              </div>
-
-              <Button
-                variant="ghost"
-                className="py-4 border-t border-border-line rounded-none"
-                onClick={() => setShowBottomPopup(false)}
-              >
-                취소
-              </Button>
-            </div>
-
-            <div
-              className="fixed inset-0 bg-black/40 -z-10"
-              onClick={() => setShowBottomPopup(false)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <Button
+          variant="ghost"
+          className="w-full justify-start py-3 px-4 rounded-lg h-auto text-red-500 hover:text-red-600"
+          onClick={handleDeleteBookmark}
+        >
+          <Trash2 className="mr-3 h-5 w-5" />
+          <span>저장 취소</span>
+        </Button>
+      </BottomPopup>
 
       {/* 폴더 선택 모달 */}
       <FolderSelectionModal

@@ -29,7 +29,13 @@ export interface SubtitleItem {
 
 export interface TimelineGroup {
   range: string;
-  subtitles: SubtitleItem[];
+  subtitles: SubtitleItem[]; // 신구조
+  items?: {
+    // 구구조 호환
+    id: string;
+    seconds: number;
+    text: string;
+  }[];
 }
 
 // 자막을 5분 단위로 그룹화하는 함수

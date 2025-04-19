@@ -95,6 +95,51 @@ export default function DigestPage({
   const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
   const [showTimeline, setShowTimeline] = useState(true);
 
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
+
+  // 현재 시간에 가장 근접한 타임라인 아이템 찾고, 스크롤 & 하이라이트
+  useEffect(() => {
+    if (!timelineData.length) return;
+
+    const segments: Array<{ id: string; seconds: number }> =
+      timelineData.flatMap((group) => {
+        if (group.subtitles?.length) {
+          return group.subtitles.map((sub) => ({
+            id: String(sub.startSeconds),
+            seconds: Number(sub.startSeconds),
+          }));
+        }
+        if (group.items?.length) {
+          return group.items.map((it) => ({
+            id: String(it.id),
+            seconds: Number(it.seconds),
+          }));
+        }
+        return [];
+      });
+
+    if (!segments.length) return;
+
+    const active = segments.reduce(
+      (prev, seg) =>
+        seg.seconds <= currentTime && seg.seconds > prev.seconds ? seg : prev,
+      { id: "", seconds: -Infinity }
+    );
+    console.log("active", active);
+
+    if (active.id && active.id !== currentSegmentId) {
+      setCurrentSegmentId(active.id);
+      const safeId = CSS?.escape
+        ? CSS.escape(active.id)
+        : active.id.replace(/\./g, ".");
+      const el = document.querySelector(`[data-segment-id="${safeId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [currentTime, timelineData]);
+
   const [bookmarkedItems, setBookmarkedItems] = useState<
     Record<string, BookmarkItem>
   >({});
@@ -587,6 +632,16 @@ export default function DigestPage({
     }
   };
 
+  // YouTube IFrame API 초기화 (생략)
+  useEffect(() => {
+    if (!playerReady) return;
+    const id = setInterval(() => {
+      const t = playerRef.current?.getCurrentTime?.() ?? 0;
+      setCurrentTime(t);
+    }, 500);
+    return () => clearInterval(id);
+  }, [playerReady]);
+
   if (error) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -924,11 +979,12 @@ export default function DigestPage({
                               </Button>
                             </div>
 
-                            {showTimeline && (
+                            {showTimeline && currentSegmentId && (
                               <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                                 <TimelineAccordion
                                   timelineGroups={timelineData}
                                   onSeek={handleSeekTo}
+                                  currentSegmentId={currentSegmentId}
                                   bookmarkedItems={Object.keys(
                                     bookmarkedItems
                                   ).reduce(

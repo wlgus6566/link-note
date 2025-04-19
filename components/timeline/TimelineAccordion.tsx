@@ -13,10 +13,12 @@ interface TimelineAccordionProps {
   onSeek?: (seconds: number) => void;
   bookmarkedItems?: Record<string, boolean>;
   onBookmark?: (id: string, seconds: number, text: string) => void;
+  currentSegmentId?: string;
 }
 
 export function TimelineAccordion({
   timelineGroups,
+  currentSegmentId,
   onSeek,
   bookmarkedItems = {},
   onBookmark,
@@ -46,7 +48,9 @@ export function TimelineAccordion({
                 return (
                   <SubtitleBlock
                     key={i}
+                    isActive={subtitleId === currentSegmentId}
                     id={subtitleId}
+                    dataSegmentId={subtitle.startSeconds}
                     start={subtitle.start}
                     end={subtitle.end}
                     text={subtitle.text}

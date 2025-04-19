@@ -11,14 +11,18 @@ interface SubtitleBlockProps {
   isBookmarked?: boolean;
   onBookmark?: (id: string, seconds: number, text: string) => void;
   id?: string; // 고유 ID
+  isActive?: boolean;
+  dataSegmentId?: number | string;
 }
 
 export function SubtitleBlock({
   start,
   end,
+  isActive,
   text,
   startSeconds,
   onSeek,
+  dataSegmentId,
   isBookmarked = false,
   onBookmark,
   id = `subtitle_${start.replace(":", "")}_${startSeconds}`, // 기본 ID 생성
@@ -49,9 +53,13 @@ export function SubtitleBlock({
         </Button>
         <button
           onClick={handleClick}
-          className="text-sm flex-1 text-left hover:text-primary-color"
+          data-segment-id={dataSegmentId}
+          className={`text-sm flex-1 text-left hover:text-primary-color ${
+            isActive ? "text-primary-color" : ""
+          }`}
         >
           {text}
+          {dataSegmentId}
         </button>
         <Button
           variant="ghost"

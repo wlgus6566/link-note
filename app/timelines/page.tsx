@@ -36,6 +36,7 @@ import { MemoPopup } from "@/components/ui/memo-popup";
 import { YouTubePopup } from "@/components/ui/youtube-popup";
 import { createClient } from "@/lib/supabase/client";
 import { getVideoId } from "@/lib/utils/client-youtube";
+import { saveTimelineBookmark } from "@/lib/utils/timeline";
 
 export default function TimelinesPage() {
   const router = useRouter();
@@ -173,34 +174,22 @@ export default function TimelinesPage() {
     if (!currentBookmark) return;
 
     try {
-      // API 호출 시 fetch 상태 로깅
+      // 로그 기록
       console.log(
-        `메모 저장 API 호출: 북마크 ID ${currentBookmark.id}, 메모 길이 ${memo.length}자`
+        `메모 저장: 북마크 ID ${currentBookmark.id}, 메모 길이 ${memo.length}자`
       );
 
-      const response = await fetch(
-        `/api/timelines/${currentBookmark.id}/memo`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ memo }),
-          credentials: "include",
-        }
+      // saveTimelineBookmark 함수 호출
+      const result = await saveTimelineBookmark(
+        currentBookmark.digest_id,
+        currentBookmark.timeline_id,
+        currentBookmark.seconds,
+        currentBookmark.text,
+        memo
       );
-
-      // 응답 상태 확인
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("메모 저장 API 오류 응답:", response.status, errorText);
-        throw new Error(`API 오류: ${response.status} ${errorText}`);
-      }
-
-      const result = await response.json();
 
       if (result.error) {
-        console.error("메모 저장 결과 오류:", result.error);
+        console.error("메모 저장 오류:", result.error);
         throw new Error(result.error);
       }
 

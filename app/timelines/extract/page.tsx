@@ -141,17 +141,40 @@ export default function TimelineExtractPage() {
   };
 
   // 북마크 처리 함수
-  const handleBookmark = (id: string, seconds: number, text: string) => {
+  const handleBookmark = async (id: string, seconds: number, text: string) => {
     if (!videoId) return;
 
     const bookmarkKey = `bookmarks_timeline_extracted_${videoId}`;
     let newBookmarkedItems = { ...bookmarkedItems };
 
     if (newBookmarkedItems[id]) {
+      // 북마크 제거
       delete newBookmarkedItems[id];
       setToastMessage("타임라인에서 제거되었어요.");
       setCurrentBookmarkId(null);
+
+      // 서버에서도 북마크 삭제 (로그인된 경우)
+      if (isAuthenticated) {
+        try {
+          const response = await fetch(
+            `/api/timeline-bookmarks?timeline_id=${id}&digest_id=${videoId}`,
+            {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            console.error("서버 북마크 삭제 오류:", await response.json());
+          }
+        } catch (error) {
+          console.error("서버 북마크 삭제 요청 실패:", error);
+        }
+      }
     } else {
+      // 북마크 추가
       newBookmarkedItems[id] = {
         id,
         seconds,
@@ -160,8 +183,33 @@ export default function TimelineExtractPage() {
       };
       setToastMessage("🔖 타임라인에 저장했어요!");
       setCurrentBookmarkId(id);
+
+      // 서버에도 북마크 저장 (로그인된 경우)
+      if (isAuthenticated) {
+        try {
+          const response = await fetch("/api/timeline-bookmarks", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              digest_id: Number(videoId),
+              timeline_id: id,
+              seconds: seconds,
+              text: text,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error("서버 북마크 저장 오류:", await response.json());
+          }
+        } catch (error) {
+          console.error("서버 북마크 저장 요청 실패:", error);
+        }
+      }
     }
 
+    // 로컬 스토리지 업데이트
     setBookmarkedItems(newBookmarkedItems);
     localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
     setShowToast(true);
@@ -181,12 +229,81 @@ export default function TimelineExtractPage() {
         memo,
       };
 
+      // 서버에도 메모 저장 (로그인된 경우)
+      if (isAuthenticated) {
+        try {
+          // 북마크 ID 가져오기
+          const response = await fetch(
+            `/api/timeline-bookmarks?digest_id=${videoId}`,
+            {
+              method: "GET",
+            }
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+            const serverBookmarks = result.data || [];
+            const matchingBookmark = serverBookmarks.find(
+              (bm: any) => bm.timeline_id === currentBookmarkId
+            );
+
+            if (matchingBookmark) {
+              // 서버에 메모 업데이트
+              const memoResponse = await fetch(
+                `/api/timeline-bookmarks/${matchingBookmark.id}/memo`,
+                {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ memo }),
+                }
+              );
+
+              if (!memoResponse.ok) {
+                console.error(
+                  "서버 메모 저장 오류:",
+                  await memoResponse.json()
+                );
+              }
+            } else {
+              // 서버에 북마크가 없으면 새로 저장
+              const saveResponse = await fetch("/api/timeline-bookmarks", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  digest_id: Number(videoId),
+                  timeline_id: currentBookmarkId,
+                  seconds: newBookmarkedItems[currentBookmarkId].seconds,
+                  text: newBookmarkedItems[currentBookmarkId].text,
+                  memo,
+                }),
+              });
+
+              if (!saveResponse.ok) {
+                console.error(
+                  "서버 북마크 저장 오류:",
+                  await saveResponse.json()
+                );
+              }
+            }
+          }
+        } catch (error) {
+          console.error("서버 메모 저장 요청 실패:", error);
+        }
+      }
+
       setBookmarkedItems(newBookmarkedItems);
       localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
 
       setToastMessage("메모가 저장되었습니다.");
       setShowToast(true);
     }
+
+    // 메모 팝업 닫기
+    setShowMemoPopup(false);
   };
 
   // 영상 재생 위치 이동 함수

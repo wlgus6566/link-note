@@ -1,431 +1,438 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { Header } from "@/components/Header";
+import { TimelineAccordion } from "@/components/timeline/TimelineAccordion";
+import type { TimelineGroup } from "@/lib/utils/youtube";
+import { getVideoId } from "@/lib/utils/client-youtube";
+import BottomNav from "@/components/bottom-nav";
 import {
-  ArrowLeft,
-  Clock,
-  Link2,
-  Play,
-  Bookmark,
-  X,
   Loader2,
+  ArrowLeft,
+  Bookmark,
+  Share2,
+  BookmarkCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import BottomNav from "@/components/bottom-nav";
-import { motion } from "framer-motion";
-import { TimelineAccordion } from "@/components/timeline/TimelineAccordion";
+import { motion, AnimatePresence } from "framer-motion";
+import { SimpleToast } from "@/components/ui/toast";
+import { MemoPopup } from "@/components/ui/memo-popup";
+import { createClient } from "@/lib/supabase/client";
+
+interface YouTubeVideoInfo {
+  title?: string;
+  channelTitle?: string;
+  publishedAt?: string;
+  viewCount?: string;
+  channelId?: string;
+}
+
+interface BookmarkItem {
+  id: string;
+  seconds: number;
+  text: string;
+  timestamp: number;
+  memo?: string;
+}
 
 export default function TimelineExtractPage() {
-  const [url, setUrl] = useState("");
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [extractionComplete, setExtractionComplete] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [videoInfo, setVideoInfo] = useState<any>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const youtubeLink = searchParams.get("url") || "";
+
+  const [loading, setLoading] = useState(true);
+  const [videoId, setVideoId] = useState<string | null>(null);
+  const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [videoInfo, setVideoInfo] = useState<YouTubeVideoInfo | null>(null);
   const [bookmarkedItems, setBookmarkedItems] = useState<
-    Record<string, boolean>
+    Record<string, BookmarkItem>
   >({});
-  const [showTimeline, setShowTimeline] = useState(true);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [showMemoPopup, setShowMemoPopup] = useState(false);
+  const [currentBookmarkId, setCurrentBookmarkId] = useState<string | null>(
+    null
+  );
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  // 샘플 타임라인 데이터 (실제 구현 시 API에서 가져올 데이터)
-  const sampleTimelineGroups = [
-    {
-      range: "00:00 - 05:00",
-      subtitles: [
-        {
-          start: "00:15",
-          end: "00:20",
-          text: "안녕하세요, 오늘은 React 기초에 대해 알아보겠습니다.",
-          startSeconds: 15,
-        },
-        {
-          start: "01:30",
-          end: "01:40",
-          text: "React는 Facebook에서 개발한 JavaScript 라이브러리입니다.",
-          startSeconds: 90,
-        },
-        {
-          start: "02:45",
-          end: "03:00",
-          text: "컴포넌트 기반 아키텍처를 사용하여 UI를 구성합니다.",
-          startSeconds: 165,
-        },
-        {
-          start: "04:20",
-          end: "04:35",
-          text: "Virtual DOM을 사용하여 효율적인 렌더링을 제공합니다.",
-          startSeconds: 260,
-        },
-      ],
-    },
-    {
-      range: "05:00 - 10:00",
-      subtitles: [
-        {
-          start: "05:10",
-          end: "05:25",
-          text: "이제 첫 번째 React 컴포넌트를 만들어 보겠습니다.",
-          startSeconds: 310,
-        },
-        {
-          start: "06:30",
-          end: "06:45",
-          text: "JSX 문법을 사용하면 HTML과 유사한 코드를 작성할 수 있습니다.",
-          startSeconds: 390,
-        },
-        {
-          start: "08:15",
-          end: "08:30",
-          text: "props를 통해 컴포넌트 간에 데이터를 전달할 수 있습니다.",
-          startSeconds: 495,
-        },
-        {
-          start: "09:45",
-          end: "10:00",
-          text: "state를 사용하여 컴포넌트의 상태를 관리할 수 있습니다.",
-          startSeconds: 585,
-        },
-      ],
-    },
-  ];
+  // 사용자 인증 상태 확인
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const supabase = createClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+        setIsAuthenticated(!!sessionData.session);
+      } catch (error) {
+        console.error("인증 상태 확인 오류:", error);
+        setIsAuthenticated(false);
+      }
+    };
 
-  const steps = [
-    "링크 분석 중...",
-    "영상 정보 추출 중...",
-    "자막 데이터 추출 중...",
-    "타임라인 생성 중...",
-    "추출 완료!",
-  ];
+    checkAuth();
+  }, []);
 
-  const handleExtract = () => {
-    if (!url.trim()) return;
+  // URL 파라미터에서 YouTube 링크 처리
+  useEffect(() => {
+    if (!youtubeLink) {
+      setError("YouTube 링크가 제공되지 않았습니다");
+      setLoading(false);
+      return;
+    }
 
-    setIsExtracting(true);
-    setProgress(0);
-    setCurrentStep(0);
+    const extractedVideoId = getVideoId(youtubeLink);
+    if (!extractedVideoId) {
+      setError("올바른 YouTube 링크가 아닙니다");
+      setLoading(false);
+      return;
+    }
 
-    // 진행 상태 시뮬레이션 (실제 구현 시 API 호출로 대체)
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setExtractionComplete(true);
-          setVideoInfo({
-            title: "React 기초 강의 - 컴포넌트, Props, State 완벽 정리",
-            channelTitle: "코딩애플",
-            publishedAt: "2023-05-15T09:00:00Z",
-            viewCount: "125000",
-            thumbnailUrl: "/placeholder.svg?height=480&width=720",
-          });
-          return 100;
-        }
+    setVideoId(extractedVideoId);
+    extractTimeline(extractedVideoId);
+  }, [youtubeLink]);
 
-        // 단계 업데이트
-        const newProgress = prev + 5;
-        if (newProgress > 20 && currentStep === 0) setCurrentStep(1);
-        if (newProgress > 40 && currentStep === 1) setCurrentStep(2);
-        if (newProgress > 70 && currentStep === 2) setCurrentStep(3);
-        if (newProgress > 90 && currentStep === 3) setCurrentStep(4);
+  // 타임라인 추출 함수
+  const extractTimeline = async (videoId: string) => {
+    setLoading(true);
 
-        return newProgress;
+    try {
+      // API 호출
+      const response = await fetch(`/api/extract-timeline?videoId=${videoId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
-    }, 200);
 
-    return () => clearInterval(interval);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "타임라인 추출에 실패했습니다");
+      }
+
+      // 타임라인 데이터 저장
+      setTimelineData(data.timeline || []);
+      setVideoInfo(data.videoInfo || null);
+
+      // 로컬 스토리지에 저장
+      const timelineKey = `timeline_extracted_${videoId}`;
+      localStorage.setItem(timelineKey, JSON.stringify(data.timeline || []));
+
+      // 북마크 데이터 로드
+      const bookmarkKey = `bookmarks_timeline_extracted_${videoId}`;
+      const storedBookmarks = localStorage.getItem(bookmarkKey);
+      if (storedBookmarks) {
+        setBookmarkedItems(JSON.parse(storedBookmarks));
+      } else {
+        setBookmarkedItems({});
+      }
+    } catch (error) {
+      console.error("타임라인 추출 오류:", error);
+      setError(
+        error instanceof Error ? error.message : "타임라인 추출에 실패했습니다"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReset = () => {
-    setUrl("");
-    setIsExtracting(false);
-    setExtractionComplete(false);
-    setProgress(0);
-    setCurrentStep(0);
-    setVideoInfo(null);
-    setBookmarkedItems({});
-  };
-
+  // 북마크 처리 함수
   const handleBookmark = (id: string, seconds: number, text: string) => {
-    setBookmarkedItems((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    if (!videoId) return;
+
+    const bookmarkKey = `bookmarks_timeline_extracted_${videoId}`;
+    let newBookmarkedItems = { ...bookmarkedItems };
+
+    if (newBookmarkedItems[id]) {
+      delete newBookmarkedItems[id];
+      setToastMessage("타임라인에서 제거되었어요.");
+      setCurrentBookmarkId(null);
+    } else {
+      newBookmarkedItems[id] = {
+        id,
+        seconds,
+        text,
+        timestamp: Date.now(),
+      };
+      setToastMessage("🔖 타임라인에 저장했어요!");
+      setCurrentBookmarkId(id);
+    }
+
+    setBookmarkedItems(newBookmarkedItems);
+    localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
+    setShowToast(true);
   };
 
-  const handleSeekTo = (seconds: number) => {
-    // 실제 구현 시 영상 재생 기능 추가
-    console.log(`Seek to ${seconds} seconds`);
+  // 메모 저장 함수
+  const handleSaveMemo = async (memo: string) => {
+    if (!currentBookmarkId || !videoId) return;
+
+    const bookmarkKey = `bookmarks_timeline_extracted_${videoId}`;
+    let newBookmarkedItems = { ...bookmarkedItems };
+
+    if (newBookmarkedItems[currentBookmarkId]) {
+      // 로컬 스토리지에 메모 추가
+      newBookmarkedItems[currentBookmarkId] = {
+        ...newBookmarkedItems[currentBookmarkId],
+        memo,
+      };
+
+      setBookmarkedItems(newBookmarkedItems);
+      localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
+
+      setToastMessage("메모가 저장되었습니다.");
+      setShowToast(true);
+    }
   };
+
+  // 영상 재생 위치 이동 함수
+  const handleSeekTo = (seconds: number) => {
+    if (!videoId) return;
+
+    // iframe 찾기
+    const iframe = document.querySelector("iframe");
+    if (iframe) {
+      // YouTube Player API를 통해 특정 시간으로 이동
+      iframe.contentWindow?.postMessage(
+        JSON.stringify({
+          event: "command",
+          func: "seekTo",
+          args: [seconds, true],
+        }),
+        "*"
+      );
+    }
+  };
+
+  // 조회수 포맷 함수
+  const formatViewCount = (count: string | undefined): string => {
+    if (!count) return "0";
+
+    const num = Number.parseInt(count, 10);
+    if (isNaN(num)) return "0";
+
+    if (num >= 10000) {
+      return `${Math.floor(num / 10000)}만회`;
+    } else if (num >= 1000) {
+      return `${Math.floor(num / 1000)}천회`;
+    }
+
+    return `${num}회`;
+  };
+
+  // 토스트 닫기
+  const handleCloseToast = () => {
+    setShowToast(false);
+  };
+
+  // 메모 팝업 닫기
+  const handleCloseMemoPopup = () => {
+    setShowMemoPopup(false);
+    setCurrentBookmarkId(null);
+  };
+
+  if (error) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header title="타임라인 추출" backUrl="/timelines" />
+        <main className="flex-1 container px-5 py-8 flex items-center justify-center">
+          <div className="max-w-sm w-full bg-white p-8 space-y-6 text-center rounded-xl border border-border-line shadow-sm">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto border border-red-500/30">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-8 w-8 text-red-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold text-neutral-dark">
+              타임라인 추출 실패
+            </h1>
+            <p className="text-neutral-medium">{error}</p>
+            <Button
+              onClick={() => router.push("/timelines")}
+              className="bg-primary-color hover:bg-primary-color/90 text-white"
+            >
+              돌아가기
+            </Button>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (loading || !videoId) {
+    return (
+      <div className="flex flex-col min-h-screen pb-24">
+        <Header title="타임라인 추출" backUrl="/timelines" />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary-color mx-auto mb-4" />
+            <p className="text-neutral-medium">타임라인 추출 중...</p>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen pb-24">
-      <header className="sticky top-0 z-10 bg-white border-b border-border-line">
-        <div className="container flex items-center justify-between h-16 px-5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-0 hover:bg-transparent"
-            asChild
-          >
-            <Link href="/">
-              <ArrowLeft className="h-5 w-5 text-neutral-dark" />
-            </Link>
-          </Button>
-          <div className="text-sm font-medium text-neutral-dark">
-            타임라인 추출
+      <Header
+        title="타임라인 추출"
+        backUrl="/timelines"
+        rightElement={
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full hover:bg-primary-light"
+            >
+              <Share2 className="h-5 w-5 text-neutral-dark" />
+            </Button>
           </div>
-          <div className="w-5"></div>
-        </div>
-      </header>
+        }
+      />
 
-      <main className="flex-1 container px-5 py-6">
-        <div className="max-w-3xl mx-auto">
-          {!isExtracting ? (
-            <div className="space-y-6">
-              <div className="text-center space-y-2 mb-8">
-                <h1 className="text-2xl font-bold text-neutral-dark">
-                  타임라인 추출하기
-                </h1>
-                <p className="text-neutral-medium">
-                  YouTube 링크를 붙여넣으면 타임라인을 추출합니다.
-                </p>
+      <main className="flex-1">
+        <article className="max-w-3xl mx-auto px-5 py-8">
+          {/* 영상 영역 */}
+          <motion.div
+            className="mb-8 rounded-xl overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="flex flex-col bg-white rounded-xl overflow-hidden border border-border-line shadow-sm">
+              <div className="relative w-full h-48 md:h-80">
+                <iframe
+                  src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
+                  title={videoInfo?.title || "YouTube 비디오"}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute top-0 left-0 w-full h-full border-0"
+                />
               </div>
 
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Link2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-medium" />
-                  <Input
-                    type="text"
-                    placeholder="YouTube 링크를 붙여넣으세요"
-                    className="pl-9 bg-gray-50 border-gray-200"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                  />
-                </div>
-                <Button
-                  onClick={handleExtract}
-                  className="bg-primary-color hover:bg-primary-color/90"
-                >
-                  추출하기
-                </Button>
-              </div>
+              {videoInfo && (
+                <div className="p-4 space-y-3">
+                  <h2 className="text-xl font-bold text-neutral-dark">
+                    {videoInfo.title || "제목 없음"}
+                  </h2>
 
-              <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary-light rounded-full flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-primary-color" />
-                  </div>
-                  <div>
-                    <h2 className="font-medium text-neutral-dark">
-                      타임라인 추출이란?
-                    </h2>
-                    <p className="text-sm text-neutral-medium">
-                      영상의 자막을 분석하여 시간별로 정리합니다.
-                    </p>
-                  </div>
-                </div>
-
-                <ul className="space-y-2 text-sm text-neutral-medium">
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-color">•</span>
-                    <span>영상의 주요 내용을 시간별로 확인할 수 있습니다.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-color">•</span>
-                    <span>
-                      중요한 부분을 북마크하여 나중에 쉽게 찾아볼 수 있습니다.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary-color">•</span>
-                    <span>타임라인은 내 라이브러리에 저장됩니다.</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {!extractionComplete ? (
-                <div className="space-y-6">
-                  <div className="mb-8">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="text-sm font-medium">
-                        {steps[currentStep]}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-9 h-9 rounded-full overflow-hidden bg-secondary-color border border-border-line">
+                        {videoInfo.channelId ? (
+                          <Image
+                            src={`https://yt3.googleusercontent.com/ytc/${videoInfo.channelId}=s88-c-k-c0x00ffffff-no-rj`}
+                            alt={videoInfo.channelTitle || "채널 이미지"}
+                            width={36}
+                            height={36}
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gray-200" />
+                        )}
                       </div>
-                      <div className="text-sm text-gray-500">{progress}%</div>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary-color rounded-full transition-all duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-gray-50 rounded-xl flex items-start gap-3 border border-gray-200">
-                    <Link2 className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium mb-1 break-all">
-                        {url}
-                      </div>
-                      <div className="flex items-center text-xs text-gray-500">
-                        <Clock className="h-3.5 w-3.5 mr-1" />
-                        <span>추출 중...</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <Loader2 className="h-8 w-8 text-primary-color animate-spin" />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col bg-white rounded-xl overflow-hidden border border-border-line shadow-sm"
-                  >
-                    <div className="relative w-full h-48 md:h-64">
-                      <Image
-                        src={videoInfo.thumbnailUrl || "/placeholder.svg"}
-                        alt={videoInfo.title}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <button className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center hover:bg-primary-color transition-colors">
-                          <Play className="h-6 w-6 text-white" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-4 space-y-3">
-                      <h2 className="text-xl font-bold text-neutral-dark">
-                        {videoInfo.title}
-                      </h2>
-
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-9 h-9 rounded-full overflow-hidden bg-secondary-color border border-border-line">
-                            <Image
-                              src="/placeholder.svg?height=40&width=40"
-                              alt="채널 이미지"
-                              width={36}
-                              height={36}
-                              className="object-cover"
-                            />
-                          </div>
-                          <div>
-                            <div className="font-medium text-sm text-neutral-dark">
-                              {videoInfo.channelTitle}
-                            </div>
-                            <div className="text-xs text-neutral-medium">
-                              {new Date(
+                      <div>
+                        <div className="font-medium text-sm text-neutral-dark">
+                          {videoInfo.channelTitle || "채널명 없음"}
+                        </div>
+                        <div className="text-xs text-neutral-medium">
+                          {videoInfo.publishedAt
+                            ? new Date(
                                 videoInfo.publishedAt
                               ).toLocaleDateString("ko-KR", {
                                 year: "numeric",
                                 month: "long",
                                 day: "numeric",
-                              })}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-sm text-neutral-medium">
-                          조회수 {formatViewCount(videoInfo.viewCount)}회
+                              })
+                            : "날짜 정보 없음"}
                         </div>
                       </div>
                     </div>
-                  </motion.div>
 
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="mb-10"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-1.5">
-                        <h2 className="text-xl font-bold text-neutral-dark">
-                          타임라인
-                        </h2>
-                        <div className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-primary-light text-primary-color text-xs">
-                          {/* {sampleTimelineGroups.reduce(
-                            (acc, group) => acc + group.subtitles.length,
-                            0
-                          )}
-                          개 항목 */}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-sm text-neutral-medium rounded-full px-3"
-                        onClick={() => setShowTimeline(!showTimeline)}
-                      >
-                        {showTimeline ? "타임라인 숨기기" : "타임라인 보기"}
-                      </Button>
+                    <div className="text-sm text-neutral-medium">
+                      {videoInfo.viewCount
+                        ? `조회수 ${formatViewCount(videoInfo.viewCount)}회`
+                        : "조회수 정보 없음"}
                     </div>
-
-                    {showTimeline && (
-                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <TimelineAccordion
-                          timelineGroups={sampleTimelineGroups}
-                          onSeek={handleSeekTo}
-                          bookmarkedItems={bookmarkedItems}
-                          onBookmark={handleBookmark}
-                        />
-                      </div>
-                    )}
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="flex flex-col gap-4"
-                  >
-                    <Button className="w-full py-3 bg-primary-color hover:bg-primary-color/90">
-                      <Bookmark className="mr-2 h-5 w-5" />
-                      타임라인 저장하기
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full py-3"
-                      onClick={handleReset}
-                    >
-                      <X className="mr-2 h-5 w-5" />
-                      다시 시작하기
-                    </Button>
-                  </motion.div>
+                  </div>
                 </div>
               )}
             </div>
+          </motion.div>
+
+          {/* 타임라인 영역 */}
+          {timelineData.length > 0 && (
+            <motion.div
+              className="mb-10"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-neutral-dark">
+                  타임라인
+                </h2>
+              </div>
+
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <TimelineAccordion
+                  timelineGroups={timelineData}
+                  onSeek={handleSeekTo}
+                  bookmarkedItems={Object.keys(bookmarkedItems).reduce(
+                    (acc, key) => ({
+                      ...acc,
+                      [key]: true,
+                    }),
+                    {}
+                  )}
+                  onBookmark={handleBookmark}
+                />
+              </div>
+            </motion.div>
           )}
-        </div>
+        </article>
       </main>
 
       <BottomNav />
+
+      <SimpleToast
+        isVisible={showToast}
+        message={toastMessage}
+        onClose={handleCloseToast}
+        actionLabel={
+          currentBookmarkId && !showMemoPopup ? "메모 추가하기" : undefined
+        }
+        onAction={currentBookmarkId ? () => setShowMemoPopup(true) : undefined}
+      />
+
+      <MemoPopup
+        isOpen={showMemoPopup}
+        onClose={handleCloseMemoPopup}
+        onSave={handleSaveMemo}
+        initialMemo={
+          currentBookmarkId
+            ? bookmarkedItems[currentBookmarkId]?.memo || ""
+            : ""
+        }
+        title="타임라인 메모 추가하기"
+      />
     </div>
   );
-}
-
-// 조회수 포맷 함수
-function formatViewCount(count: string): string {
-  if (!count) return "0";
-
-  const num = Number.parseInt(count, 10);
-  if (isNaN(num)) return "0";
-
-  if (num >= 10000) {
-    return `${Math.floor(num / 10000)}만`;
-  } else if (num >= 1000) {
-    return `${Math.floor(num / 1000)}천`;
-  }
-
-  return `${num}`;
 }

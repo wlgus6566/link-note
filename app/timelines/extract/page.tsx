@@ -353,11 +353,11 @@ export default function TimelineExtractPage() {
                           타임라인
                         </h2>
                         <div className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-primary-light text-primary-color text-xs">
-                          {sampleTimelineGroups.reduce(
+                          {/* {sampleTimelineGroups.reduce(
                             (acc, group) => acc + group.subtitles.length,
                             0
                           )}
-                          개 항목
+                          개 항목 */}
                         </div>
                       </div>
                       <Button

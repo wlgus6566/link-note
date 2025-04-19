@@ -456,6 +456,7 @@ export default function TimelinesPage() {
                     </button>
                   )}
                 </div>
+
                 <Button
                   onClick={extractTimeline}
                   disabled={loading || !youtubeLink}
@@ -468,8 +469,14 @@ export default function TimelinesPage() {
                   )}
                   <span className="ml-2">추출하기</span>
                 </Button>
+
                 {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
               </div>
+              <p className="text-neutral-medium max-w-md text-xs mt-2">
+                YouTube 영상 링크를 입력하면 영상의 타임라인을 추출해
+                보여줍니다. 추출된 타임라인 항목은 클릭하면 해당 시간으로 이동할
+                수 있습니다.
+              </p>
               {/* 비디오 및 타임라인 영역 */}
               {videoId && (
                 <>
@@ -595,7 +602,7 @@ export default function TimelinesPage() {
               )}
 
               {/* 아직 검색하지 않은 경우 안내 메시지 */}
-              {!videoId && !loading2 && (
+              {/* {!videoId && !loading2 && (
                 <div className="text-center py-16">
                   <div className="w-16 h-16 mx-auto mb-4 bg-primary-light rounded-full flex items-center justify-center">
                     <Send className="h-8 w-8 text-primary-color" />
@@ -609,7 +616,7 @@ export default function TimelinesPage() {
                     이동할 수 있습니다.
                   </p>
                 </div>
-              )}
+              )} */}
             </div>
           </motion.div>
         </AnimatePresence>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { timelines } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { createClient } from "@/lib/supabase/server";
+import { getSession, isAuthenticated } from "@/lib/auth";
 
 // GET: 다이제스트 ID로 타임라인 데이터 가져오기
 export async function GET(request: Request) {
@@ -18,14 +18,11 @@ export async function GET(request: Request) {
     }
 
     // 인증 확인 (선택적)
-    const supabase = await createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { session, user } = await getSession();
 
     // 인증 상태 로깅
-    if (session?.user) {
-      console.log("인증된 사용자의 타임라인 조회 요청:", session.user.id);
+    if (user) {
+      console.log("인증된 사용자의 타임라인 조회 요청:", user.id);
     } else {
       console.log("인증되지 않은 사용자의 타임라인 조회 요청");
     }
@@ -56,11 +53,8 @@ export async function GET(request: Request) {
 // POST: 새 타임라인 데이터 저장 또는 기존 데이터 업데이트
 export async function POST(request: Request) {
   try {
-    // 인증 확인 - 서버용 Supabase 클라이언트 사용
-    const supabase = await createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    // 인증 확인
+    const { session, user } = await getSession();
 
     // 미인증 사용자 처리 (선택적)
     if (!session) {
@@ -70,6 +64,8 @@ export async function POST(request: Request) {
       //   { success: false, error: "인증이 필요합니다." },
       //   { status: 401 }
       // );
+    } else {
+      console.log("인증된 사용자의 타임라인 저장 요청:", user?.id);
     }
 
     // 요청 본문에서 데이터 추출

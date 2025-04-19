@@ -29,7 +29,12 @@ export function Header({
   };
 
   return (
-    <header className={cn("w-full border-b border-border", className)}>
+    <header
+      className={cn(
+        "sticky bg-white top-0 left-0 right-0 z-10 w-full border-b border-border",
+        className
+      )}
+    >
       <div className="container flex items-center justify-between h-16 px-5">
         {showBackButton ? (
           <Button
@@ -54,7 +59,7 @@ export function Header({
         )}
 
         {title && (
-          <h1 className="text-base font-semibold absolute left-1/2 transform -translate-x-1/2">
+          <h1 className="text-lg font-medium text-neutral-dark truncate max-w-[60%]">
             {title}
           </h1>
         )}

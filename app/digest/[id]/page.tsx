@@ -32,11 +32,11 @@ import {
 } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-// 기존 북마크 팝업과 가이드 팝업 코드를 제거하고 컴포넌트 import 추가
 import { TimelineBookmarkButton } from "@/components/ui/timeline-bookmark-button";
 import { TimelineGuideSheet } from "@/components/ui/timeline-guide-sheet";
 import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
-
+import { useAuth } from "@/lib/hooks/useAuth";
+import { Header } from "@/components/Header";
 // YouTube API 타입 선언
 declare global {
   interface Window {
@@ -91,6 +91,9 @@ export default function DigestPage({
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
+  // useAuth 훅을 먼저 호출
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+
   const [digest, setDigest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +154,6 @@ export default function DigestPage({
   const [currentBookmarkId, setCurrentBookmarkId] = useState<string | null>(
     null
   );
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [syncNeeded, setSyncNeeded] = useState(false);
   const [youtubePopup, setYoutubePopup] = useState<YouTubePopupState>({
     isOpen: false,
@@ -170,6 +172,10 @@ export default function DigestPage({
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const [playerReady, setPlayerReady] = useState(false);
+
+  // 타이머 참조를 위한 ref 추가
+  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 스와이프 핸들러 함수 추가
   const handleDragEnd = (
@@ -212,6 +218,7 @@ export default function DigestPage({
     resolveParams();
   }, [params]);
 
+  // 타임라인 데이터 로드 useEffect를 다른 useEffect 이전에 이동
   useEffect(() => {
     if (!pageId || !digest?.id) return;
 
@@ -237,8 +244,33 @@ export default function DigestPage({
           }
         }
 
-        // 로그인한 경우 서버에서 데이터 가져오기 시도
+        // 로그인한 경우 서버와 데이터 동기화
         if (isAuthenticated) {
+          console.log("서버와 타임라인 데이터 동기화 시작...");
+
+          // 로컬 데이터가 있으면 먼저 서버에 POST 요청 전송
+          if (
+            parsedTimeline &&
+            Array.isArray(parsedTimeline) &&
+            parsedTimeline.length > 0
+          ) {
+            console.log("로컬 데이터를 서버에 저장 시도...");
+            try {
+              const saveResult = await saveTimelineData(
+                Number(digest.id),
+                parsedTimeline
+              );
+              if (saveResult.success) {
+                console.log("로컬 타임라인 데이터가 서버에 저장되었습니다.");
+              } else {
+                console.warn("서버 저장 실패:", saveResult.error);
+              }
+            } catch (saveError) {
+              console.error("타임라인 데이터 서버 저장 오류:", saveError);
+            }
+          }
+
+          // POST 요청 후 서버에서 GET 요청으로 데이터 가져오기
           console.log("서버에서 타임라인 데이터 가져오기 시도...");
           try {
             const response = await getTimelineData(Number(digest.id));
@@ -257,28 +289,8 @@ export default function DigestPage({
 
               // 로컬 스토리지도 업데이트
               localStorage.setItem(timelineKey, JSON.stringify(response.data));
-            } else if (
-              parsedTimeline &&
-              Array.isArray(parsedTimeline) &&
-              parsedTimeline.length > 0
-            ) {
-              // 로컬 데이터가 있고 서버 데이터가 없으면 서버에 저장
-              console.log("로컬 데이터를 서버에 저장 시도...");
-              try {
-                const saveResult = await saveTimelineData(
-                  Number(digest.id),
-                  parsedTimeline
-                );
-                if (saveResult.success) {
-                  console.log("로컬 타임라인 데이터가 서버에 저장되었습니다.");
-                } else {
-                  console.warn("서버 저장 실패:", saveResult.error);
-                }
-              } catch (saveError) {
-                console.error("타임라인 데이터 서버 저장 오류:", saveError);
-              }
             } else {
-              console.log("서버와 로컬 모두 타임라인 데이터가 없습니다.");
+              console.log("서버에서 타임라인 데이터를 가져오지 못했습니다.");
             }
           } catch (fetchError) {
             console.error("서버 타임라인 데이터 가져오기 오류:", fetchError);
@@ -297,6 +309,16 @@ export default function DigestPage({
       isMounted = false;
     };
   }, [pageId, digest?.id, isAuthenticated]);
+
+  // 인증 상태 변경 감지 및 동기화 필요 상태 설정
+  useEffect(() => {
+    // isAuthenticated가 true이고, pageId가 있고, syncNeeded가 false일 때만 설정
+    // syncNeeded를 의존성 배열에서 제거하여 무한 루프 방지
+    if (isAuthenticated === true && pageId && !syncNeeded) {
+      console.log("인증 상태 확인: 동기화 필요 상태 설정");
+      setSyncNeeded(true);
+    }
+  }, [isAuthenticated, pageId]); // syncNeeded 의존성 제거
 
   useEffect(() => {
     if (!pageId) return;
@@ -406,31 +428,10 @@ export default function DigestPage({
     };
   }, [pageId, digest]);
 
-  // 사용자 인증 상태 확인
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient();
-        const { data: sessionData } = await supabase.auth.getSession();
-        setIsAuthenticated(!!sessionData.session);
-
-        // 로그인한 경우에만 동기화 필요 상태로 설정
-        if (sessionData.session && pageId && !syncNeeded) {
-          setSyncNeeded(true);
-        }
-      } catch (error) {
-        console.error("인증 상태 확인 오류:", error);
-        setIsAuthenticated(false);
-      }
-    };
-
-    checkAuth();
-  }, [pageId]);
-
   // 북마크 상태 확인
   useEffect(() => {
     const checkBookmarkStatus = async () => {
-      if (!isAuthenticated || !digest?.id) return;
+      if (isAuthenticated !== true || !digest?.id) return;
 
       try {
         const response = await fetch(`/api/bookmarks?digestId=${digest.id}`, {
@@ -457,10 +458,16 @@ export default function DigestPage({
 
   // 로컬 스토리지의 북마크를 서버와 동기화
   useEffect(() => {
-    // syncNeeded가 true이고 필요한 데이터가 모두 있을 때만 동기화 실행
-    if (isAuthenticated && syncNeeded && pageId && digest?.id) {
+    // isAuthenticated가 true이고 필요한 데이터가 모두 있을 때만 동기화 실행
+    if (isAuthenticated === true && syncNeeded && pageId && digest?.id) {
       // 동기화 시작 시 바로 상태 변경하여 중복 실행 방지
       setSyncNeeded(false);
+
+      // 이전 재시도 타이머가 있으면 초기화
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
 
       syncLocalTimelineBookmarks(Number(digest.id))
         .then((result) => {
@@ -475,15 +482,29 @@ export default function DigestPage({
           } else if (result?.error) {
             console.error("북마크 동기화 오류:", result.error);
             // 에러 발생 시 다시 시도할 수 있도록 설정
-            setTimeout(() => setSyncNeeded(true), 30000); // 30초 후 재시도
+            retryTimerRef.current = setTimeout(() => {
+              setSyncNeeded(true);
+              retryTimerRef.current = null;
+            }, 30000); // 30초 후 재시도
           }
         })
         .catch((err) => {
           console.error("북마크 동기화 실패:", err);
           // 에러 발생 시 다시 시도할 수 있도록 설정
-          setTimeout(() => setSyncNeeded(true), 30000); // 30초 후 재시도
+          retryTimerRef.current = setTimeout(() => {
+            setSyncNeeded(true);
+            retryTimerRef.current = null;
+          }, 30000); // 30초 후 재시도
         });
     }
+
+    // 컴포넌트 언마운트 시 타이머 정리
+    return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
   }, [isAuthenticated, syncNeeded, pageId, digest?.id]);
 
   // YouTube IFrame API 로드 및 초기화
@@ -571,15 +592,17 @@ export default function DigestPage({
     setShowToast(true);
 
     // 로그인한 경우에만 서버 동기화 표시 (디바운스 적용)
-    if (isAuthenticated && digest?.id) {
-      // 이미 예약된 동기화 타이머가 있으면 취소
-      if (window.syncTimer) {
-        clearTimeout(window.syncTimer);
+    if (isAuthenticated === true && digest?.id) {
+      // 이미 예약된 동기화 타이머가 있으면 취소 (window 객체 대신 ref 사용)
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
       }
 
       // 3초 후 동기화 트리거 (여러 번 빠르게 북마크 추가/제거 시 최적화)
-      window.syncTimer = setTimeout(() => {
+      syncTimerRef.current = setTimeout(() => {
         setSyncNeeded(true);
+        syncTimerRef.current = null;
       }, 3000);
     }
   };
@@ -601,7 +624,7 @@ export default function DigestPage({
       localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
 
       // 로그인한 경우에만 서버에 메모 업데이트 시도
-      if (isAuthenticated && digest?.id) {
+      if (isAuthenticated === true && digest?.id) {
         try {
           const bookmark = newBookmarkedItems[currentBookmarkId];
           const result = await saveTimelineBookmark(
@@ -618,7 +641,7 @@ export default function DigestPage({
         } catch (err) {
           console.error("메모 저장 오류:", err);
         }
-      } else if (!isAuthenticated) {
+      } else if (isAuthenticated !== true) {
         console.log("로그인하지 않았습니다. 로컬에만 메모가 저장됩니다.");
       }
 
@@ -659,7 +682,7 @@ export default function DigestPage({
   };
 
   const handleSaveBookmark = () => {
-    if (!isAuthenticated) {
+    if (isAuthenticated !== true) {
       toast.error("북마크를 저장하려면 로그인이 필요합니다");
       router.push("/login");
       return;
@@ -711,6 +734,29 @@ export default function DigestPage({
   const [showBookmarksPopup, setShowBookmarksPopup] = useState(false);
   // 상태 추가 - 가이드 팝업 표시 여부
   const [showGuidePopup, setShowGuidePopup] = useState(false);
+
+  // 컴포넌트 언마운트 시 모든 타이머 정리
+  useEffect(() => {
+    return () => {
+      // 동기화 타이머 정리
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+
+      // 재시도 타이머 정리
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+
+      // 윈도우 타이머 정리 (이전 코드와의 호환성)
+      if (window.syncTimer) {
+        clearTimeout(window.syncTimer);
+        window.syncTimer = undefined;
+      }
+    };
+  }, []);
 
   if (error) {
     return (
@@ -851,22 +897,11 @@ export default function DigestPage({
   return (
     <TooltipProvider>
       <div className="flex flex-col min-h-screen pb-24">
-        <header className="sticky top-0 z-20 bg-white border-b border-border-line">
-          <div className="container flex items-center justify-between h-16 px-5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-0 hover:bg-transparent"
-              asChild
-            >
-              <Link href="/">
-                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
-              </Link>
-            </Button>
-            <h1 className="text-lg font-medium text-neutral-dark truncate max-w-[60%]">
-              {digest.title}
-            </h1>
-            {/* 헤더에서 북마크 아이콘 버튼 제거하고 다른 버튼만 유지 */}
+        <Header
+          title={digest.title}
+          backUrl="back"
+          showBackButton={true}
+          rightElement={
             <div className="flex gap-2">
               <Button
                 variant="ghost"
@@ -888,8 +923,26 @@ export default function DigestPage({
                 <Share2 className="h-5 w-5 text-neutral-dark" />
               </Button>
             </div>
+          }
+        />
+        {/* <header className="sticky top-0 z-20 bg-white border-b border-border-line">
+          <div className="container flex items-center justify-between h-16 px-5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-0 hover:bg-transparent"
+              asChild
+            >
+              <Link href="/">
+                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
+              </Link>
+            </Button>
+            <h1 className="text-lg font-medium text-neutral-dark truncate max-w-[60%]">
+              {digest.title}
+            </h1>
+           
           </div>
-        </header>
+        </header> */}
 
         <main className="flex-1">
           <div className="container px-0 sm:px-5">
@@ -971,6 +1024,13 @@ export default function DigestPage({
                         transition={{ delay: 0.5 }}
                         dangerouslySetInnerHTML={{ __html: digest.content }}
                       />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 bg-transparent border border-primary text-primary font-semibold py-3 px-6 rounded-lg w-full"
+                      >
+                        콘텐츠 저장하기
+                      </Button>
                     </TabsContent>
                   </div>
 
@@ -1067,6 +1127,13 @@ export default function DigestPage({
                             </div>
                           </motion.div>
                         )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 bg-transparent border border-primary text-primary font-semibold py-3 px-6 rounded-lg w-full"
+                      >
+                        콘텐츠 저장하기
+                      </Button>
                     </TabsContent>
                   </div>
                 </motion.div>

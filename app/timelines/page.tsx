@@ -20,6 +20,8 @@ import { YouTubePopup } from "@/components/ui/youtube-popup";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Header } from "@/components/Header";
+import { useAuth } from "@/lib/hooks/useAuth";
+
 export default function TimelinesPage() {
   const router = useRouter();
   const [bookmarks, setBookmarks] = useState<TimelineBookmark[]>([]);
@@ -34,37 +36,28 @@ export default function TimelinesPage() {
   const [showMemoPopup, setShowMemoPopup] = useState(false);
   const [currentBookmark, setCurrentBookmark] =
     useState<TimelineBookmark | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
   const [youtubePopup, setYoutubePopup] = useState({
     isOpen: false,
     videoId: "",
     startTime: 0,
   });
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  // 사용자 인증 상태 확인
+  // useAuth 훅 사용
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+
+  // 인증 상태에 따른 UI 처리
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient();
-        const { data: sessionData } = await supabase.auth.getSession();
+    if (authLoading) return;
 
-        setIsAuthenticated(!!sessionData.session);
+    if (!isAuthenticated) {
+      setAuthError("로그인이 필요한 서비스입니다.");
+    } else {
+      setAuthError(null);
+    }
 
-        if (!sessionData.session) {
-          console.log("사용자가 로그인하지 않았습니다.");
-          setAuthError("로그인이 필요한 서비스입니다.");
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("인증 상태 확인 오류:", error);
-        setAuthError("인증 상태를 확인하는데 실패했습니다.");
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
+    setLoading(false);
+  }, [isAuthenticated, authLoading]);
 
   // 북마크 데이터 가져오기 (인증된 경우에만)
   useEffect(() => {

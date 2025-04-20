@@ -172,6 +172,30 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // 폴더명 중복 검사
+      const { data: existingFolder, error: checkError } = await supabase
+        .from("folders")
+        .select("*")
+        .eq("user_id", userId as any)
+        .ilike("name", name)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("POST - 폴더명 중복 검사 오류:", checkError);
+        return NextResponse.json(
+          { error: "폴더 중복 확인 중 오류가 발생했습니다" },
+          { status: 500 }
+        );
+      }
+
+      if (existingFolder) {
+        console.log("POST - 중복된 폴더명 발견:", name);
+        return NextResponse.json(
+          { error: "이미 존재하는 폴더명입니다" },
+          { status: 409 }
+        );
+      }
+
       // 스키마 테이블 구조 확인
       try {
         // 폴더 생성

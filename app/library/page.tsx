@@ -459,7 +459,7 @@ export default function LibraryPage() {
 
               {showFolderDropdown && (
                 <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-border-line z-10 overflow-hidden">
-                  <div className="max-h-60 overflow-y-auto py-1">
+                  <div className="max-h-60 overflow-y-auto py-1 overscroll-contain">
                     <button
                       className={`w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color ${
                         !activeFolder
@@ -666,6 +666,7 @@ export default function LibraryPage() {
 
       {/* 폴더 선택 모달 */}
       <FolderSelectionModal
+        activeFolder={activeFolder || selectedBookmark?.folder_id}
         isOpen={showFolderModal}
         onClose={() => setShowFolderModal(false)}
         digestId={selectedBookmark?.digest_id.toString() || ""}

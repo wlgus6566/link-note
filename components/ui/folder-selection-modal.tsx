@@ -19,6 +19,7 @@ interface FolderSelectionModalProps {
   digestId: string;
   title: string;
   onSuccess: () => void;
+  activeFolder?: string;
 }
 
 export function FolderSelectionModal({
@@ -27,6 +28,7 @@ export function FolderSelectionModal({
   digestId,
   title,
   onSuccess,
+  activeFolder,
 }: FolderSelectionModalProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,18 +138,20 @@ export function FolderSelectionModal({
     }
   };
 
-  const handleNewFolderSuccess = (folderId: string, folderName: string) => {
+  // 새 폴더 생성 후 성공 처리
+  const handleNewFolderSuccess = (
+    folderId: string,
+    folderName: string,
+    activeFolder: string
+  ) => {
+    console.log("새 폴더 생성 성공:", folderId, folderName);
+
+    // API에서 가져온 값으로 폴더 목록 새로고침
+    fetchFolders();
     setShowNewFolderModal(false);
-    setFolders((prev) => [
-      ...prev,
-      {
-        id: folderId,
-        name: folderName,
-        user_id: "user123", // 임시 유저 ID
-        created_at: new Date().toISOString(),
-      },
-    ]);
-    // 새로 생성된 폴더를 바로 선택할 수도 있지만, 여기서는 목록에만 추가합니다.
+
+    // 선택적으로 새 폴더를 자동으로 선택
+    // handleFolderSelect(folderId, folderName);
   };
 
   if (!isOpen) return null;
@@ -235,7 +239,11 @@ export function FolderSelectionModal({
                       {folders.map((folder) => (
                         <button
                           key={folder.id}
-                          className="w-full text-left py-3 px-4 rounded-md hover:bg-neutral-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-color/30"
+                          className={`w-full text-left py-3 px-4 rounded-md hover:bg-neutral-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-color/30 ${
+                            folder.id === activeFolder
+                              ? "bg-primary-light text-primary-color"
+                              : "text-neutral-dark"
+                          }`}
                           onClick={() =>
                             handleFolderSelect(folder.id, folder.name)
                           }

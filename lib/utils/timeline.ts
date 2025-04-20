@@ -81,7 +81,13 @@ export async function getUserTimelineBookmarks() {
   const supabase = createClient();
 
   // 유저 세션 확인
-  const { data: sessionData } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.getSession();
+  if (sessionError) {
+    console.error("인증 세션 확인 오류:", sessionError);
+    return { error: sessionError.message };
+  }
+
   if (!sessionData.session) {
     console.log("사용자 로그인이 필요합니다.");
     return { error: "사용자 로그인이 필요합니다." };

@@ -11,7 +11,7 @@ export default function BottomNav() {
   const navItems = [
     { icon: Home, label: "홈", href: "/" },
     { icon: Clock, label: "타임라인 저장소", href: "/timelines" },
-    { icon: Bookmark, label: "저장된 콘텐츠", href: "/library" },
+    { icon: Bookmark, label: "콘텐츠 저장소", href: "/library" },
   ];
 
   return (

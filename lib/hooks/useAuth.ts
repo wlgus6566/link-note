@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 interface UseAuthResult {
@@ -20,13 +20,20 @@ export function useAuth(): UseAuthResult {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [user, setUser] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const checkingRef = useRef(false);
 
   /**
    * 사용자 인증 상태를 확인하는 함수
    * @returns {Promise<boolean>} 인증 상태 (true: 로그인됨, false: 로그인되지 않음)
    */
   const checkAuth = async (): Promise<boolean> => {
+    // 이미 확인 중이면 중복 요청 방지
+    if (checkingRef.current) {
+      return isAuthenticated;
+    }
+
     try {
+      checkingRef.current = true;
       setIsLoading(true);
 
       const supabase = createClient();
@@ -65,12 +72,14 @@ export function useAuth(): UseAuthResult {
       setUser(null);
       return false;
     } finally {
+      checkingRef.current = false;
       setIsLoading(false);
     }
   };
 
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {
+    // 마운트 시 한 번만 실행
     checkAuth();
 
     // Supabase 인증 상태 변경 이벤트 구독
@@ -79,7 +88,14 @@ export function useAuth(): UseAuthResult {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event);
-      checkAuth();
+      // 상태 변경 이벤트가 있을 때만 checkAuth 호출
+      if (
+        event === "SIGNED_IN" ||
+        event === "SIGNED_OUT" ||
+        event === "TOKEN_REFRESHED"
+      ) {
+        checkAuth();
+      }
     });
 
     // 클린업 함수

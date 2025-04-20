@@ -423,7 +423,7 @@ export default function LibraryPage() {
           <div className="flex items-center mb-4">
             <Bookmark className="h-5 w-5 text-primary-color mr-2" />
             <h1 className="text-xl font-bold text-neutral-dark">
-              저장된 콘텐츠
+              콘텐츠 저장소
             </h1>
           </div>
 

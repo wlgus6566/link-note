@@ -7,23 +7,39 @@ import type { Database } from "@/types/supabase";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Supabase 클라이언트가 브라우저에서만 생성되도록 함
+// 싱글톤 클라이언트 인스턴스
+let supabaseInstance: ReturnType<typeof createBrowserClient<Database>> | null =
+  null;
+
+// Supabase 클라이언트 생성 및 재사용
 export const createClient = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Supabase URL과 익명 키가 설정되지 않았습니다.");
   }
 
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      flowType: "pkce", // PKCE 흐름 사용 (보안 강화)
-      detectSessionInUrl: true, // URL에서 세션 감지
-    },
-    global: {
-      fetch: fetch, // 기본 fetch 사용
-    },
-  });
+  // 기존 인스턴스가 있으면 재사용
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+
+  // 새 인스턴스 생성
+  supabaseInstance = createBrowserClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        flowType: "pkce", // PKCE 흐름 사용 (보안 강화)
+        detectSessionInUrl: true, // URL에서 세션 감지
+      },
+      global: {
+        fetch: fetch, // 기본 fetch 사용
+      },
+    }
+  );
+
+  return supabaseInstance;
 };
 
 // 타임라인 데이터를 서버에 저장

@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, Clock, Play, Edit, Calendar, LogIn } from "lucide-react";
@@ -43,11 +43,46 @@ export default function TimelinesPage() {
     startTime: 0,
   });
   const [authError, setAuthError] = useState<string | null>(null);
+  const fetchingRef = useRef(false);
 
   // useAuth 훅 사용
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  // 인증 상태에 따른 UI 처리
+  // 북마크 데이터 가져오기 (인증 의존성 제거)
+  const fetchBookmarks = useCallback(async () => {
+    if (fetchingRef.current || !isAuthenticated) return;
+
+    try {
+      setFetching(true);
+      fetchingRef.current = true;
+
+      const response = await getUserTimelineBookmarks();
+
+      if (response.success && response.data) {
+        // API 응답을 TimelineBookmark 타입에 맞게 변환
+        const bookmarkData = response.data.map((item: any) => ({
+          ...item,
+          user_id: 0, // user_id가 응답에 없으므로 기본값 설정
+        }));
+
+        setBookmarks(bookmarkData);
+        setFilteredBookmarks(bookmarkData);
+      } else {
+        console.error("북마크 로드 오류:", response.error);
+        setToastMessage("북마크를 불러오는데 실패했습니다.");
+        setShowToast(true);
+      }
+    } catch (error) {
+      console.error("북마크 로드 오류:", error);
+      setToastMessage("북마크를 불러오는데 실패했습니다.");
+      setShowToast(true);
+    } finally {
+      setFetching(false);
+      fetchingRef.current = false;
+    }
+  }, [isAuthenticated]);
+
+  // 인증 상태에 따른 UI 처리 및 북마크 로드
   useEffect(() => {
     if (authLoading) return;
 
@@ -55,46 +90,11 @@ export default function TimelinesPage() {
       setAuthError("로그인이 필요한 서비스입니다.");
     } else {
       setAuthError(null);
+      fetchBookmarks();
     }
 
     setLoading(false);
-  }, [isAuthenticated, authLoading]);
-
-  // 북마크 데이터 가져오기 (인증된 경우에만)
-  useEffect(() => {
-    if (isAuthenticated !== true) return;
-
-    const fetchBookmarks = async () => {
-      try {
-        setFetching(true);
-
-        const response = await getUserTimelineBookmarks();
-
-        if (response.success && response.data) {
-          // API 응답을 TimelineBookmark 타입에 맞게 변환
-          const bookmarkData = response.data.map((item: any) => ({
-            ...item,
-            user_id: 0, // user_id가 응답에 없으므로 기본값 설정
-          }));
-
-          setBookmarks(bookmarkData);
-          setFilteredBookmarks(bookmarkData);
-        } else {
-          console.error("북마크 로드 오류:", response.error);
-          setToastMessage("북마크를 불러오는데 실패했습니다.");
-          setShowToast(true);
-        }
-      } catch (error) {
-        console.error("북마크 로드 오류:", error);
-        setToastMessage("북마크를 불러오는데 실패했습니다.");
-        setShowToast(true);
-      } finally {
-        setFetching(false);
-      }
-    };
-
-    fetchBookmarks();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading, fetchBookmarks]);
 
   useEffect(() => {
     if (!bookmarks.length) return;

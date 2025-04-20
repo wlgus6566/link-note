@@ -76,6 +76,9 @@
       "Apple SD Gothic Neo", sans-serif;
     @apply bg-background text-foreground;
   }
+  li {
+    list-style: none;
+  }
   h1 {
     @apply text-2xl font-bold;
   }

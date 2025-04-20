@@ -1,7 +1,7 @@
 "use client";
 
 import React, { ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ interface HeaderProps {
   showBackButton?: boolean;
   rightElement?: ReactNode;
   className?: string;
+  leftElement?: ReactNode;
 }
 
 export function Header({
@@ -21,11 +22,16 @@ export function Header({
   showBackButton = true,
   rightElement,
   className,
+  leftElement,
 }: HeaderProps) {
   const router = useRouter();
 
   const handleBack = () => {
-    router.back();
+    if (backUrl === "back") {
+      router.back();
+    } else {
+      router.push(backUrl);
+    }
   };
 
   return (
@@ -46,17 +52,21 @@ export function Header({
           >
             {backUrl === "back" ? (
               <span>
-                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
+                <ChevronLeft className="h-5 w-5 text-neutral-dark" />
               </span>
             ) : (
               <Link href={backUrl}>
-                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
+                <ChevronLeft className="h-5 w-5 text-neutral-dark" />
               </Link>
             )}
           </Button>
-        ) : (
+        ) : !leftElement ? (
           <div className="w-9" />
+        ) : (
+          <></>
         )}
+
+        {leftElement && <div>{leftElement}</div>}
 
         {title && (
           <h1 className="text-lg font-medium text-neutral-dark truncate max-w-[60%]">

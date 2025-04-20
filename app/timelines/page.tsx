@@ -14,7 +14,6 @@ import {
   LogIn,
   ChevronDown,
   ChevronUp,
-  Bookmark,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -377,7 +376,7 @@ export default function TimelinesPage() {
               <Skeleton className="w-1/2 h-4 bg-secondary-color" />
             </div>
           </div>
-          <div className="p-4">
+          <div className="p-2">
             <Skeleton className="w-full h-12 mb-2 bg-secondary-color" />
             <Skeleton className="w-full h-12 bg-secondary-color" />
           </div>
@@ -393,7 +392,7 @@ export default function TimelinesPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="p-4 border border-border-line rounded-lg mb-4"
+        className="p-2 border border-border-line rounded-lg mb-4"
       >
         <div className="flex gap-4">
           <div className="relative w-32 h-24 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
@@ -503,7 +502,7 @@ export default function TimelinesPage() {
   // 그룹화된 북마크 렌더링 함수
   const renderGroupedBookmarks = (group: GroupedBookmarks) => {
     return (
-      <motion.div
+      <motion.li
         key={group.digestId}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -512,7 +511,7 @@ export default function TimelinesPage() {
       >
         {/* 콘텐츠 헤더 */}
         <div
-          className="flex gap-4 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+          className="flex gap-4 p-2 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => toggleDigestExpand(group.digestId)}
         >
           <div className="relative w-32 h-24 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
@@ -552,7 +551,7 @@ export default function TimelinesPage() {
                 variant="outline"
                 className="mr-2 bg-gray-50 border-gray-200 p-1"
               >
-                <Bookmark className="h-3 w-3 mr-1" /> {group.bookmarkCount}개
+                <Clock className="h-3 w-3 mr-1" /> {group.bookmarkCount}개
               </Badge>
               <p className="text-xs text-neutral-medium flex-1">
                 {group.videoInfo?.channelTitle || ""}
@@ -613,7 +612,7 @@ export default function TimelinesPage() {
                           >
                             {formatTime(bookmark.seconds)}
                           </Badge>
-                          <span className="text-xs text-neutral-medium">
+                          {/* <span className="text-xs text-neutral-medium">
                             {new Date(bookmark.created_at).toLocaleDateString(
                               "ko-KR",
                               {
@@ -622,7 +621,7 @@ export default function TimelinesPage() {
                                 day: "numeric",
                               }
                             )}
-                          </span>
+                          </span> */}
                         </div>
 
                         <p className="text-sm text-neutral-dark mb-2">
@@ -636,7 +635,7 @@ export default function TimelinesPage() {
                             aria-label="메모 편집"
                             className="flex items-start mt-1 w-full bg-gray-50 border border-gray-200 rounded-md p-2 relative group hover:border-primary-color/50 transition-colors"
                           >
-                            <span className="mr-2 p-1 rounded-full bg-white border border-border-line group-hover:border-primary-color group-hover:text-primary-color transition-colors">
+                            <span className="mr-2 rounded-full bg-white border border-border-line group-hover:border-primary-color group-hover:text-primary-color transition-colors">
                               <Edit className="h-3 w-3" />
                             </span>
                             <p className="flex-1 text-left text-xs text-neutral-dark">
@@ -663,13 +662,26 @@ export default function TimelinesPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </motion.li>
     );
   };
 
   return (
     <div className="flex flex-col min-h-screen pb-20">
-      <Header title={"타임라인 저장소"} showBackButton={false} />
+      <Header
+        title={"타임라인 저장소"}
+        showBackButton={true}
+        backUrl="back"
+        rightElement={
+          <Link href="/profile">
+            <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center border border-primary-color/30">
+              <span className="text-sm font-medium text-primary-color">
+                김링
+              </span>
+            </div>
+          </Link>
+        }
+      />
       <div className="container px-5 py-4">
         <div className="flex items-center gap-2 mb-4">
           <div className="relative flex-1">

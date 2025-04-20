@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BottomNav from "@/components/bottom-nav";
 import { motion } from "framer-motion";
+import { Header } from "@/components/Header";
 
 export default function Home() {
   const router = useRouter();
@@ -90,14 +91,17 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="header">
-        <div className="container flex items-center justify-between h-16 px-5">
+      <Header
+        leftElement={
           <Link href="/" className="flex items-center gap-1.5">
             <Image src="/images/logo_2.png" alt="logo" width={20} height={20} />
             <span className="text-lg font-bold text-neutral-dark">
               TubeLink
             </span>
           </Link>
+        }
+        showBackButton={false}
+        rightElement={
           <Link href="/profile">
             <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center border border-primary-color/30">
               <span className="text-sm font-medium text-primary-color">
@@ -105,9 +109,8 @@ export default function Home() {
               </span>
             </div>
           </Link>
-        </div>
-      </header>
-
+        }
+      />
       <main className="flex-1 pb-24">
         <motion.section
           className="w-full pt-8 pb-14 md:py-20 relative overflow-hidden"

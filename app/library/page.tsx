@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { BottomPopup } from "@/components/bottom-popup";
+import { Header } from "@/components/Header";
 interface FolderType {
   id: string;
   name: string;
@@ -418,111 +419,20 @@ export default function LibraryPage() {
 
   return (
     <div className="flex flex-col min-h-screen pb-24">
-      <header className="header">
-        <div className="container px-5 py-4">
-          <div className="flex items-center mb-4">
-            <Bookmark className="h-5 w-5 text-primary-color mr-2" />
-            <h1 className="text-xl font-bold text-neutral-dark">
-              콘텐츠 저장소
-            </h1>
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-medium" />
-            <Input
-              className="search-input"
-              placeholder="제목, 태그 검색"
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {/* 태그 필터 부분 수정 - 필터 아이콘 옆에 일부 태그 표시하고 확장 가능하도록 */}
-          {/* <div className="flex items-center justify-between">
-            <div className="flex-1 flex items-center flex-wrap gap-2 overflow-hidden">
-              <Button
-                variant="outline"
-                size="sm"
-                className={`category-btn ${
-                  activeTag === "전체" ? "active" : "inactive"
-                }`}
-                onClick={() => setActiveTag("전체")}
-              >
-                전체
-              </Button>
-              {activeTag !== "전체" ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="category-btn active"
-                  onClick={() => setActiveTag("전체")}
-                >
-                  {activeTag} <X className="h-3 w-3 ml-1" />
-                </Button>
-              ) : (
-                // 인기 태그 중 일부만 표시 (최대 3개)
-                popularTags.slice(0, 3).map((tag) => (
-                  <Button
-                    key={tag}
-                    variant="outline"
-                    size="sm"
-                    className={`category-btn ${
-                      activeTag === tag ? "active" : "inactive"
-                    }`}
-                    onClick={() => setActiveTag(tag)}
-                  >
-                    {tag}
-                  </Button>
-                ))
-              )}
+      <Header
+        title={"콘텐츠 저장소"}
+        showBackButton={true}
+        backUrl="back"
+        rightElement={
+          <Link href="/profile">
+            <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center border border-primary-color/30">
+              <span className="text-sm font-medium text-primary-color">
+                김링
+              </span>
             </div>
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full bg-white border-border-line flex-shrink-0 hover:border-primary-color hover:text-primary-color ml-2"
-              onClick={() => setShowTagFilter(!showTagFilter)}
-            >
-              <Filter className="h-4 w-4" />
-            </Button>
-          </div> */}
-
-          {/* 확장 가능한 태그 필터 */}
-          <AnimatePresence>
-            {showTagFilter && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden mt-2 mb-4"
-              >
-                <div className="bg-white p-3 rounded-xl border border-border-line shadow-sm">
-                  <div className="flex flex-wrap gap-2">
-                    {allTags.map((tag) => (
-                      <Button
-                        key={tag}
-                        variant="outline"
-                        size="sm"
-                        className={`category-btn ${
-                          activeTag === tag ? "active" : "inactive"
-                        }`}
-                        onClick={() => {
-                          setActiveTag(tag);
-                          setShowTagFilter(false);
-                        }}
-                      >
-                        {tag}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </header>
+          </Link>
+        }
+      />
 
       <main className="flex-1">
         <div className="container px-5 py-4">

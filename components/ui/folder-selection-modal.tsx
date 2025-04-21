@@ -139,11 +139,7 @@ export function FolderSelectionModal({
   };
 
   // 새 폴더 생성 후 성공 처리
-  const handleNewFolderSuccess = (
-    folderId: string,
-    folderName: string,
-    activeFolder: string
-  ) => {
+  const handleNewFolderSuccess = (folderId: string, folderName: string) => {
     console.log("새 폴더 생성 성공:", folderId, folderName);
 
     // API에서 가져온 값으로 폴더 목록 새로고침

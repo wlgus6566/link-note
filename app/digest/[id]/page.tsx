@@ -664,14 +664,19 @@ export default function DigestPage({
   const handleSeekTo = (seconds: number) => {
     if (!digest || digest.sourceType !== "YouTube") return;
 
-    // 플레이어가 준비되었고 스크립트 탭에 있으면 iframe 직접 제어
-    if (playerReady && playerRef.current && activeTab === "transcript") {
+    // 북마크 팝업이 열려있다면 닫기
+    if (showBookmarksPopup) {
+      setShowBookmarksPopup(false);
+    }
+
+    // 플레이어가 준비되었으면 어떤 탭에서든 iframe 직접 제어
+    if (playerReady && playerRef.current) {
       // seekTo: 첫 번째 인자는 시간(초), 두 번째 인자가 true면 정확한 시간으로 이동
       playerRef.current.seekTo(seconds, true);
-      // 필요시 재생 시작
+      // 영상 재생 시작
       playerRef.current.playVideo();
     } else {
-      // 플레이어가 준비되지 않았거나 요약 탭에 있으면 팝업 사용
+      // 플레이어가 준비되지 않았으면 팝업 사용
       const videoId = getYouTubeVideoId(digest.sourceUrl);
       if (!videoId) return;
 

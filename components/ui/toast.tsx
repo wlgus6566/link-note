@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, ReactNode } from "react";
-import { X } from "lucide-react";
+import { useEffect, ReactNode, useState } from "react";
+import { X, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // 필요한 타입 정의 추가
@@ -34,7 +34,7 @@ export function SimpleToast({
 
     if (isVisible) {
       timeoutId = setTimeout(() => {
-        onClose();
+        //onClose();
       }, duration);
     }
 
@@ -74,6 +74,82 @@ export function SimpleToast({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// 디자인 시스템 스타일을 적용한 토스트 컴포넌트
+interface DesignToastProps {
+  isVisible: boolean;
+  message: string;
+  onClose: () => void;
+  showAddButton?: boolean;
+  onAddButtonClick?: () => void;
+  duration?: number;
+}
+
+export function DesignToast({
+  isVisible,
+  message,
+  onClose,
+  showAddButton,
+  onAddButtonClick,
+  duration = 5000,
+}: DesignToastProps) {
+  const [exit, setExit] = useState(false);
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (isVisible) {
+      timeoutId = setTimeout(() => {
+        // 먼저 나가는 애니메이션을 시작하고
+        setExit(true);
+        // 애니메이션이 끝난 후에 닫기 함수 호출
+        setTimeout(() => {
+          onClose();
+          setExit(false);
+        }, 300); // CSS 애니메이션 지속 시간과 일치해야 함
+      }, duration);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isVisible, onClose, duration]);
+
+  if (!isVisible) return null;
+
+  const handleClose = () => {
+    setExit(true);
+    // 애니메이션이 끝난 후에 닫기 함수 호출
+    setTimeout(() => {
+      onClose();
+      setExit(false);
+    }, 300);
+  };
+
+  return (
+    <div
+      className={`fixed w-[90%] max-w-md bottom-6 left-1/2 transform -translate-x-1/2 bg-neutral-dark text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 ${
+        exit ? "animate-fade-out-down" : "animate-fade-in-up"
+      }`}
+    >
+      <CheckCircle size={20} className="text-[#2BA640]" />
+      <span>{message}</span>
+      {showAddButton && onAddButtonClick && (
+        <button
+          onClick={onAddButtonClick}
+          className="ml-2 bg-white bg-opacity-20 whitespace-nowrap text-primary-color px-2 py-1 rounded-md text-sm hover:bg-primary-color/30 transition-colors"
+        >
+          메모
+        </button>
+      )}
+      <button onClick={handleClose} className="ml-2">
+        <X size={16} className="text-white opacity-70 hover:opacity-100" />
+      </button>
     </div>
   );
 }

@@ -51,9 +51,9 @@ export function TimelineBookmarkButton({
           <Button
             variant="default"
             size="icon"
-            className={`h-14 w-14 rounded-full shadow-lg ${
+            className={`h-12 w-12 rounded-full shadow-lg ${
               bookmarkCount > 0
-                ? "bg-primary-color hover:bg-primary-color/90"
+                ? "bg-[#2BA640] hover:bg-[#2BA640]/90"
                 : "bg-white border border-border-line hover:bg-gray-50"
             }`}
             onClick={bookmarkCount > 0 ? onClick : onGuideClick}

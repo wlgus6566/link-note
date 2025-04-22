@@ -63,12 +63,12 @@ export function SubtitleBlock({
         <Button
           variant="ghost"
           size="sm"
-          className="p-1 h-auto text-gray-600 hover:text-primary-color"
+          className="p-1 h-auto text-gray-600"
           onClick={handleBookmark}
           title={isBookmarked ? "북마크 해제" : "북마크 저장"}
         >
           {isBookmarked ? (
-            <MapPinCheckInside className="h-4 w-4 text-primary-color" />
+            <MapPinCheckInside className="h-4 w-4 text-[#2BA640]" />
           ) : (
             <MapPinPlusInside className="h-4 w-4" />
           )}

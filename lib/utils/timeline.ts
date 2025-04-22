@@ -10,6 +10,10 @@ export async function saveTimelineBookmark(
   text: string,
   memo?: string
 ) {
+  console.log(
+    `타임라인 북마크 저장 시도 - ID: ${timelineId}, digestId: ${digestId}`
+  );
+
   const supabase = createClient();
 
   // 유저 세션 확인
@@ -19,23 +23,28 @@ export async function saveTimelineBookmark(
     return { error: "사용자 로그인이 필요합니다." };
   }
 
+  const userId = sessionData.session.user.id;
+  console.log(`인증된 사용자 ID: ${userId.substring(0, 8)}...`);
+
+  // 저장할 데이터 준비
+  const bookmarkData = {
+    user_id: userId,
+    digest_id: digestId,
+    timeline_id: timelineId,
+    seconds,
+    text,
+    memo,
+    updated_at: new Date().toISOString(),
+  };
+
+  console.log("저장할 데이터:", JSON.stringify(bookmarkData, null, 2));
+
   // 타임라인 북마크 저장
   const { data, error } = await supabase
     .from("timeline_bookmarks")
-    .upsert(
-      {
-        user_id: sessionData.session.user.id,
-        digest_id: digestId,
-        timeline_id: timelineId,
-        seconds,
-        text,
-        memo,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "user_id, digest_id, timeline_id",
-      }
-    )
+    .upsert(bookmarkData, {
+      onConflict: "user_id, digest_id, timeline_id",
+    })
     .select();
 
   if (error) {
@@ -43,6 +52,7 @@ export async function saveTimelineBookmark(
     return { error: error.message };
   }
 
+  console.log(`타임라인 북마크 저장 성공 - ID: ${timelineId}`);
   return { data, success: true };
 }
 
@@ -51,6 +61,10 @@ export async function deleteTimelineBookmark(
   timelineId: string,
   digestId: number
 ) {
+  console.log(
+    `타임라인 북마크 삭제 시도 - ID: ${timelineId}, digestId: ${digestId}`
+  );
+
   const supabase = createClient();
 
   // 유저 세션 확인
@@ -60,19 +74,23 @@ export async function deleteTimelineBookmark(
     return { error: "사용자 로그인이 필요합니다." };
   }
 
+  const userId = sessionData.session.user.id;
+  console.log(`인증된 사용자 ID: ${userId.substring(0, 8)}...`);
+
   // 타임라인 북마크 삭제
   const { error } = await supabase
     .from("timeline_bookmarks")
     .delete()
     .eq("timeline_id", timelineId)
     .eq("digest_id", digestId)
-    .eq("user_id", sessionData.session.user.id);
+    .eq("user_id", userId);
 
   if (error) {
     console.error("타임라인 북마크 삭제 오류:", error);
     return { error: error.message };
   }
 
+  console.log(`타임라인 북마크 삭제 성공 - ID: ${timelineId}`);
   return { success: true };
 }
 

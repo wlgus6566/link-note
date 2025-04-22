@@ -11,6 +11,7 @@ import {
   Info,
   X,
   MapPinIcon as MapPinCheckInside,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/bottom-nav";
@@ -39,6 +40,8 @@ import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Header } from "@/components/Header";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
+import { MemoPopup } from "@/components/ui/memo-popup";
+import { DesignToast } from "@/components/ui/toast";
 // YouTube API 타입 선언
 declare global {
   interface Window {
@@ -152,6 +155,7 @@ export default function DigestPage({
   >({});
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [showAddMemoButton, setShowAddMemoButton] = useState(false);
   const [showMemoPopup, setShowMemoPopup] = useState(false);
   const [currentBookmarkId, setCurrentBookmarkId] = useState<string | null>(
     null
@@ -571,21 +575,28 @@ export default function DigestPage({
 
     const bookmarkKey = `bookmarks_timeline_${pageId}`;
     const newBookmarkedItems = { ...bookmarkedItems };
+    let isAdding = false;
 
     // 북마크 추가/제거를 로컬 스토리지에 먼저 반영
     if (newBookmarkedItems[id]) {
+      // 북마크 제거
       delete newBookmarkedItems[id];
-      setToastMessage("타임라인에서 제거되었어요.");
+      setToastMessage("타임라인이 삭제되었습니다.");
       setCurrentBookmarkId(null);
+      setShowAddMemoButton(false);
+      isAdding = false;
     } else {
+      // 북마크 추가
       newBookmarkedItems[id] = {
         id,
         seconds,
         text,
         timestamp: Date.now(),
       };
-      setToastMessage("🔖 타임라인에 저장했어요!");
+      setToastMessage("타임라인에 저장되었습니다.");
       setCurrentBookmarkId(id);
+      setShowAddMemoButton(true);
+      isAdding = true;
     }
 
     // 로컬 스토리지에 저장
@@ -593,9 +604,42 @@ export default function DigestPage({
     localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
     setShowToast(true);
 
-    // 로그인한 경우에만 서버 동기화 표시 (디바운스 적용)
+    // 토스트 메시지 자동 숨김 타이머 설정
+    setTimeout(() => {
+      setShowToast(false);
+      setShowAddMemoButton(false);
+    }, 5000);
+
+    // 로그인한 경우에만 서버에 직접 저장/삭제 API 호출
     if (isAuthenticated === true && digest?.id) {
-      // 이미 예약된 동기화 타이머가 있으면 취소 (window 객체 대신 ref 사용)
+      try {
+        if (isAdding) {
+          // 북마크 추가 - 직접 API 호출
+          const result = await saveTimelineBookmark(
+            Number(digest.id),
+            id,
+            seconds,
+            text
+          );
+          if (!result.success) {
+            console.error("서버 북마크 저장 오류:", result.error);
+          } else {
+            console.log("서버에 북마크가 저장되었습니다:", id);
+          }
+        } else {
+          // 북마크 삭제 - 직접 API 호출
+          const result = await deleteTimelineBookmark(id, Number(digest.id));
+          if (!result.success) {
+            console.error("서버 북마크 삭제 오류:", result.error);
+          } else {
+            console.log("서버에서 북마크가 삭제되었습니다:", id);
+          }
+        }
+      } catch (err) {
+        console.error("북마크 서버 동기화 오류:", err);
+      }
+
+      // 기존 디바운싱 로직도 유지 (백업 동기화)
       if (syncTimerRef.current) {
         clearTimeout(syncTimerRef.current);
         syncTimerRef.current = null;
@@ -647,13 +691,21 @@ export default function DigestPage({
         console.log("로그인하지 않았습니다. 로컬에만 메모가 저장됩니다.");
       }
 
-      setToastMessage("메모가 저장되었습니다.");
+      setToastMessage("타임라인이 저장되었습니다.");
       setShowToast(true);
     }
   };
 
   const handleCloseToast = () => {
     setShowToast(false);
+    setShowAddMemoButton(false);
+  };
+
+  const handleAddMemo = () => {
+    if (currentBookmarkId) {
+      setShowMemoPopup(true);
+      setShowToast(false);
+    }
   };
 
   const handleCloseMemoPopup = () => {
@@ -1201,6 +1253,27 @@ export default function DigestPage({
             />
           )}
         </AnimatePresence>
+
+        {/* 메모 팝업 */}
+        <MemoPopup
+          isOpen={showMemoPopup}
+          onClose={handleCloseMemoPopup}
+          onSave={handleSaveMemo}
+          initialMemo={
+            (currentBookmarkId && bookmarkedItems[currentBookmarkId]?.memo) ||
+            ""
+          }
+          title="북마크 메모 추가"
+        />
+
+        {/* 토스트 메시지 */}
+        <DesignToast
+          isVisible={showToast}
+          message={toastMessage}
+          onClose={handleCloseToast}
+          showAddButton={showAddMemoButton}
+          onAddButtonClick={handleAddMemo}
+        />
       </div>
     </TooltipProvider>
   );

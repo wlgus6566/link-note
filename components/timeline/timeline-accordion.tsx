@@ -5,7 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { SubtitleBlock } from "./SubtitleBlock";
+import { SubtitleBlock } from "./subtitle-block";
 import { TimelineGroup } from "@/lib/utils/youtube";
 
 interface TimelineAccordionProps {

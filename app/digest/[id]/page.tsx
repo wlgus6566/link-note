@@ -15,7 +15,7 @@ import BottomNav from "@/components/bottom-nav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { motion, type PanInfo, AnimatePresence } from "framer-motion";
-import { TimelineAccordion } from "@/components/timeline/TimelineAccordion";
+import { TimelineAccordion } from "@/components/timeline/timeline-accordion";
 import type { TimelineGroup } from "@/lib/utils/youtube";
 import {
   syncLocalTimelineBookmarks,
@@ -26,14 +26,14 @@ import {
 import { saveTimelineData, getTimelineData } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { TimelineBookmarkButton } from "@/components/ui/timeline-bookmark-button";
-import { TimelineGuideSheet } from "@/components/ui/timeline-guide-sheet";
-import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
+import { TimelineBookmarkButton } from "@/components/timeline/timeline-bookmark-button";
+import { TimelineGuideSheet } from "@/components/timeline/timeline-guide-sheet";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Header } from "@/components/Header";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { MemoPopup } from "@/components/ui/memo-popup";
 import { DesignToast } from "@/components/ui/toast";
+import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
 
 // YouTube API 타입 선언
 declare global {

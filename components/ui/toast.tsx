@@ -142,7 +142,7 @@ export function DesignToast({
       {showAddButton && onAddButtonClick && (
         <button
           onClick={onAddButtonClick}
-          className="ml-2 bg-white bg-opacity-20 whitespace-nowrap text-primary-color px-2 py-1 rounded-md text-sm hover:bg-primary-color/30 transition-colors"
+          className="ml-2 bg-white bg-opacity-60 whitespace-nowrap text-neutral-dark px-2 py-1 rounded-md text-sm transition-colors"
         >
           메모
         </button>

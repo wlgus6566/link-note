@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Settings, BookOpen, Share2, Bell, User } from "lucide-react";
+import { Settings, BookOpen, Share2, Bell, User, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BottomNav from "@/components/bottom-nav";
@@ -144,6 +144,21 @@ export default function ProfilePage() {
               </Button>
             </div>
           </motion.div>
+
+          {/* 공지사항 배너 */}
+          <div className="bg-[#E3F2FD] p-4 rounded-xl mb-4">
+            <div className="flex items-center gap-3">
+              <Info size={24} className="text-[#1976D2]" />
+              <div className="flex-1">
+                <h3 className="font-medium text-[#1976D2] mb-1">
+                  새로운 기능 업데이트
+                </h3>
+                <p className="text-sm text-neutral-dark">
+                  이제 타임라인을 친구와 공유할 수 있습니다.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <Tabs defaultValue="saved" className="w-full">
             <TabsList className="grid w-full grid-cols-2 h-10 mb-4 bg-secondary-color">

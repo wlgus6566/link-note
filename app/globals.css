@@ -147,7 +147,7 @@
 
 /* 태그 스타일 */
 .tag {
-  @apply text-xs bg-primary-light text-primary-color px-2 py-1 rounded-full;
+  @apply text-xs bg-primary-light text-neutral-dark px-2 py-1 rounded-full;
 }
 
 /* 아이콘 컨테이너 */

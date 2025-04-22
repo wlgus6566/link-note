@@ -53,7 +53,7 @@ export function TimelineBookmarkButton({
             size="icon"
             className={`h-12 w-12 rounded-full shadow-lg ${
               bookmarkCount > 0
-                ? "bg-[#2BA640] hover:bg-[#2BA640]/90"
+                ? "bg-[#1976D2] hover:bg-[#1976D2]/90"
                 : "bg-white border border-border-line hover:bg-gray-50"
             }`}
             onClick={bookmarkCount > 0 ? onClick : onGuideClick}

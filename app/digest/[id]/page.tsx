@@ -240,6 +240,8 @@ export default function DigestPage({
   const [isSaved, setIsSaved] = useState(false);
   const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const [bookmarksInfo, setBookmarksInfo] = useState<BookmarkItem[]>([]);
+  const [activeFolderId, setActiveFolderId] = useState<string>("");
   const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
   const [bookmarkedItems, setBookmarkedItems] = useState<
     Record<string, BookmarkItem>
@@ -619,8 +621,12 @@ export default function DigestPage({
         });
 
         const result = await response.json();
-        if (result.success) {
-          setIsSaved(result.isBookmarked);
+        if (result.bookmark) {
+          setIsSaved(!!result.isBookmarked);
+          if (result.bookmark.folder_id) {
+            setActiveFolderId(String(result.bookmark.folder_id));
+            console.log("활성 폴더 ID 설정:", result.bookmark.folder_id);
+          }
         }
       } catch (error) {
         console.error("북마크 상태 확인 오류:", error);
@@ -630,10 +636,8 @@ export default function DigestPage({
     checkBookmarkStatus();
   }, [isAuthenticated, digest?.id]);
 
-  // 탭 변경 시 스크롤 위치 조정
   useEffect(() => {
     if (activeTab === "transcript" && playerInstanceRef.current) {
-      // 탭 전환 시 스크롤 위치를 영상 위로 조정
       window.scrollTo({
         top: 0,
         behavior: "smooth",
@@ -878,13 +882,24 @@ export default function DigestPage({
 
   const handleSaveBookmark = () => {
     console.log("북마크 저장 시도");
-    console.log(isAuthenticated);
+    console.log("인증 상태:", isAuthenticated);
+    console.log("북마크 상태:", { isSaved, activeFolderId });
+
     if (isAuthenticated !== true) {
       toast.error("북마크를 저장하려면 로그인이 필요합니다");
       router.push("/login");
       return;
     }
 
+    // 이미 저장된 북마크가 있는 경우
+    if (isSaved) {
+      console.log("이미 북마크가 저장되어 있음, 폴더 선택 모달 열기");
+      // 폴더 선택 모달을 열어 이미 저장된 폴더가 활성화되어 있도록 함
+      setShowFolderSelectionModal(true);
+      return;
+    }
+
+    console.log("새 북마크 저장을 위해 폴더 선택 모달 열기");
     setShowFolderSelectionModal(true);
   };
 
@@ -976,81 +991,7 @@ export default function DigestPage({
   }
 
   if (loading || !digest) {
-    return (
-      <div className="flex flex-col min-h-screen pb-24">
-        <header className="header">
-          <div className="container flex items-center justify-between h-16 px-5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-0 hover:bg-transparent"
-              asChild
-            >
-              <Link href="/">
-                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
-              </Link>
-            </Button>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-primary-light"
-              >
-                <MapPinCheckInside className="h-4 w-4 text-primary-color" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-primary-light"
-              >
-                <Share2 className="h-5 w-5 text-neutral-dark" />
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1">
-          <article className="max-w-3xl mx-auto px-5 py-8">
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              <Skeleton className="h-6 w-16 rounded-full bg-secondary-color" />
-              <Skeleton className="h-6 w-20 rounded-full bg-secondary-color" />
-              <Skeleton className="h-6 w-14 rounded-full bg-secondary-color" />
-            </div>
-
-            <div className="mb-4">
-              <Skeleton className="h-8 w-3/4 mb-2 bg-secondary-color" />
-              <Skeleton className="h-8 w-1/2 bg-secondary-color" />
-            </div>
-
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border-line">
-              <Skeleton className="h-12 w-12 rounded-full bg-secondary-color" />
-              <div className="flex-1">
-                <Skeleton className="h-5 w-36 mb-2 bg-secondary-color" />
-                <Skeleton className="h-4 w-24 bg-secondary-color" />
-              </div>
-              <div className="flex flex-col items-end">
-                <Skeleton className="h-4 w-24 mb-2 bg-secondary-color" />
-                <Skeleton className="h-4 w-20 bg-secondary-color" />
-              </div>
-            </div>
-
-            <Skeleton className="h-64 md:h-80 w-full mb-8 rounded-xl bg-secondary-color" />
-
-            <div className="space-y-6">
-              <Skeleton className="h-24 w-full rounded-lg bg-secondary-color" />
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-40 bg-secondary-color" />
-                <Skeleton className="h-4 w-full bg-secondary-color" />
-                <Skeleton className="h-4 w-full bg-secondary-color" />
-                <Skeleton className="h-4 w-3/4 bg-secondary-color" />
-              </div>
-            </div>
-          </article>
-        </main>
-
-        <BottomNav />
-      </div>
-    );
+    return <></>;
   }
 
   return (
@@ -1162,7 +1103,8 @@ export default function DigestPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-4 bg-transparent border border-primary text-primary font-semibold py-3 px-6 rounded-lg w-full"
+                      onClick={handleSaveBookmark}
+                      className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
                     >
                       콘텐츠 저장하기
                     </Button>
@@ -1223,7 +1165,8 @@ export default function DigestPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-4 bg-transparent border border-primary text-primary font-semibold py-3 px-6 rounded-lg w-full"
+                      onClick={handleSaveBookmark}
+                      className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
                     >
                       콘텐츠 저장하기
                     </Button>
@@ -1266,8 +1209,13 @@ export default function DigestPage({
             onClose={() => setShowFolderSelectionModal(false)}
             digestId={digest.id}
             title={digest.title}
-            onSuccess={() => {
+            activeFolder={activeFolderId}
+            onSuccess={(folderId) => {
+              // 폴더 ID를 저장하고 북마크 상태를 업데이트
+              setActiveFolderId(String(folderId));
+              setIsSaved(true);
               setShowFolderSelectionModal(false);
+              console.log("북마크가 폴더에 저장됨, 폴더 ID:", folderId);
             }}
           />
         )}
@@ -1326,22 +1274,4 @@ function getYouTubeVideoId(url: string): string {
   if (embedMatch) return embedMatch[1];
 
   return "";
-}
-
-// formatTime 함수 추가 - 파일 맨 아래, getYouTubeVideoId 함수 위에 추가
-
-// 조회수 포맷 함수를 내부 함수로 변경
-function formatViewCount(count: string | number): string {
-  if (!count) return "0";
-
-  const num = typeof count === "string" ? Number.parseInt(count, 10) : count;
-  if (isNaN(num)) return "0";
-
-  if (num >= 10000) {
-    return `${Math.floor(num / 10000)}만회`;
-  } else if (num >= 1000) {
-    return `${Math.floor(num / 1000)}천회`;
-  }
-
-  return `${num}회`;
 }

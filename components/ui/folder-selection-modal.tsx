@@ -18,7 +18,7 @@ interface FolderSelectionModalProps {
   onClose: () => void;
   digestId: string;
   title: string;
-  onSuccess: () => void;
+  onSuccess: (folderId: string) => void;
   activeFolder?: string;
 }
 
@@ -38,9 +38,10 @@ export function FolderSelectionModal({
 
   useEffect(() => {
     if (isOpen) {
+      console.log("activeFolder:", activeFolder, typeof activeFolder);
       fetchFolders();
     }
-  }, [isOpen]);
+  }, [isOpen, activeFolder]);
 
   const fetchFolders = async () => {
     try {
@@ -97,6 +98,13 @@ export function FolderSelectionModal({
     folderName: string
   ) => {
     console.log("폴더 선택 이벤트 발생:", folderId, folderName);
+    console.log("activeFolder와 비교:", {
+      selectedId: folderId,
+      activeFolder,
+      isEqual: String(folderId) === String(activeFolder),
+      selectedIdType: typeof folderId,
+      activeFolderType: typeof activeFolder,
+    });
 
     try {
       setSavingToFolder(true);
@@ -127,8 +135,8 @@ export function FolderSelectionModal({
       console.log("북마크를 폴더에 저장 완료:", data);
       toast.success(`"${folderName}" 폴더에 저장했습니다.`);
 
-      // 성공 콜백 호출
-      onSuccess();
+      // 성공 콜백 호출 - 폴더 ID 전달
+      onSuccess(String(folderId));
       onClose();
     } catch (err) {
       console.error("폴더에 북마크 저장 오류:", err);
@@ -146,8 +154,23 @@ export function FolderSelectionModal({
     fetchFolders();
     setShowNewFolderModal(false);
 
-    // 선택적으로 새 폴더를 자동으로 선택
-    // handleFolderSelect(folderId, folderName);
+    // 새 폴더를 자동으로 선택하는 옵션 제공
+    toast({
+      title: "새 폴더 생성 완료",
+      description: "새 폴더에 저장하시겠습니까?",
+      action: (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleFolderSelect(folderId, folderName)}
+          >
+            저장하기
+          </Button>
+        </div>
+      ),
+      duration: 5000,
+    });
   };
 
   if (!isOpen) return null;
@@ -236,7 +259,7 @@ export function FolderSelectionModal({
                         <button
                           key={folder.id}
                           className={`w-full text-left py-3 px-4 rounded-md hover:bg-neutral-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-color/30 ${
-                            folder.id === activeFolder
+                            String(folder.id) === String(activeFolder)
                               ? "bg-primary-light text-primary-color"
                               : "text-neutral-dark"
                           }`}

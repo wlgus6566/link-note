@@ -7,11 +7,8 @@ import {
   Bookmark,
   BookmarkCheck,
   Share2,
-  AlignJustify,
   Info,
-  X,
   MapPinIcon as MapPinCheckInside,
-  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/bottom-nav";
@@ -20,17 +17,12 @@ import { useRouter } from "next/navigation";
 import { motion, type PanInfo, AnimatePresence } from "framer-motion";
 import { TimelineAccordion } from "@/components/timeline/TimelineAccordion";
 import type { TimelineGroup } from "@/lib/utils/youtube";
-import { SimpleTooltip, TooltipProvider } from "@/components/ui/tooltip";
 import {
   syncLocalTimelineBookmarks,
   saveTimelineBookmark,
   deleteTimelineBookmark,
 } from "@/lib/utils/timeline";
-import {
-  createClient,
-  saveTimelineData,
-  getTimelineData,
-} from "@/lib/supabase/client";
+import { saveTimelineData, getTimelineData } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { log } from "console";
@@ -713,6 +705,45 @@ export default function DigestPage({
     setCurrentBookmarkId(null);
   };
 
+  const handleDeleteBookmark = async (id: string) => {
+    if (!pageId) return;
+
+    const bookmarkKey = `bookmarks_timeline_${pageId}`;
+    const newBookmarkedItems = { ...bookmarkedItems };
+
+    // 북마크가 존재하는지 확인
+    if (newBookmarkedItems[id]) {
+      // 북마크 제거
+      delete newBookmarkedItems[id];
+      setToastMessage("타임라인이 삭제되었습니다.");
+      setShowToast(true);
+
+      // 로컬 스토리지에 저장
+      setBookmarkedItems(newBookmarkedItems);
+      localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
+
+      // 로그인한 경우에만 서버에서도 삭제
+      if (isAuthenticated === true && digest?.id) {
+        try {
+          // 북마크 삭제 - 직접 API 호출
+          const result = await deleteTimelineBookmark(id, Number(digest.id));
+          if (!result.success) {
+            console.error("서버 북마크 삭제 오류:", result.error);
+          } else {
+            console.log("서버에서 북마크가 삭제되었습니다:", id);
+          }
+        } catch (err) {
+          console.error("북마크 서버 동기화 오류:", err);
+        }
+      }
+
+      // 토스트 메시지 자동 숨김 타이머 설정
+      setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+    }
+  };
+
   const handleSeekTo = (seconds: number) => {
     if (!digest || digest.sourceType !== "YouTube") return;
 
@@ -956,37 +987,36 @@ export default function DigestPage({
   }
 
   return (
-    <TooltipProvider>
-      <div className="flex flex-col min-h-screen pb-24">
-        <Header
-          title={digest.title}
-          backUrl="back"
-          showBackButton={true}
-          rightElement={
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-primary-light"
-                onClick={handleSaveBookmark}
-              >
-                {isSaved ? (
-                  <BookmarkCheck className="h-5 w-5 text-primary-color" />
-                ) : (
-                  <Bookmark className="h-5 w-5 text-neutral-dark" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-primary-light"
-              >
-                <Share2 className="h-5 w-5 text-neutral-dark" />
-              </Button>
-            </div>
-          }
-        />
-        {/* <header className="sticky top-0 z-20 bg-white border-b border-border-line">
+    <div className="flex flex-col min-h-screen pb-24">
+      <Header
+        title={digest.title}
+        backUrl="back"
+        showBackButton={true}
+        rightElement={
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full hover:bg-primary-light"
+              onClick={handleSaveBookmark}
+            >
+              {isSaved ? (
+                <BookmarkCheck className="h-5 w-5 text-primary-color" />
+              ) : (
+                <Bookmark className="h-5 w-5 text-neutral-dark" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full hover:bg-primary-light"
+            >
+              <Share2 className="h-5 w-5 text-neutral-dark" />
+            </Button>
+          </div>
+        }
+      />
+      {/* <header className="sticky top-0 z-20 bg-white border-b border-border-line">
           <div className="container flex items-center justify-between h-16 px-5">
             <Button
               variant="ghost"
@@ -1005,277 +1035,234 @@ export default function DigestPage({
           </div>
         </header> */}
 
-        <main className="flex-1">
-          <div className="container px-0 sm:px-5">
-            {/* 비디오 섹션 */}
-            {digest.sourceType === "YouTube" && digest.sourceUrl && (
-              <div
-                className={`w-full ${
-                  activeTab === "transcript" ? "sticky top-16 z-20" : "mb-4"
-                }`}
-              >
-                <div className="relative w-full aspect-video">
-                  <div
-                    ref={playerContainerRef}
-                    className="absolute top-0 left-0 w-full h-full border-0"
-                  ></div>
-                </div>
-              </div>
-            )}
-
-            {/* 탭 네비게이션 */}
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="w-full"
+      <main className="flex-1">
+        <div className="container px-0 sm:px-5">
+          {/* 비디오 섹션 */}
+          {digest.sourceType === "YouTube" && digest.sourceUrl && (
+            <div
+              className={`w-full ${
+                activeTab === "transcript" ? "sticky top-16 z-20" : "mb-4"
+              }`}
             >
-              <div
-                className={`sticky ${
-                  activeTab === "transcript"
-                    ? "top-[calc(56.25vw+64px)]"
-                    : "top-16"
-                } z-10 bg-white border-b border-border-line`}
-              >
-                <TabsList className="grid w-full grid-cols-2 p-0 h-12">
-                  <TabsTrigger
-                    value="summary"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
-                  >
-                    AI 요약 정리
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="transcript"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
-                  >
-                    스크립트
-                  </TabsTrigger>
-                </TabsList>
+              <div className="relative w-full aspect-video">
+                <div
+                  ref={playerContainerRef}
+                  className="absolute top-0 left-0 w-full h-full border-0"
+                ></div>
               </div>
+            </div>
+          )}
 
-              {/* 스와이프 가능한 콘텐츠 영역 */}
-              <div ref={contentRef} className="overflow-hidden">
-                <motion.div
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={0.2}
-                  onDragEnd={handleDragEnd}
-                  animate={{
-                    x: swipeDirection * window.innerWidth,
-                    transition: { duration: 0.3 },
-                  }}
-                  className="flex w-full"
+          {/* 탭 네비게이션 */}
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <div
+              className={`sticky ${
+                activeTab === "transcript"
+                  ? "top-[calc(56.25vw+64px)]"
+                  : "top-16"
+              } z-10 bg-white border-b border-border-line`}
+            >
+              <TabsList className="grid w-full grid-cols-2 p-0 h-12">
+                <TabsTrigger
+                  value="summary"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
                 >
-                  <div
-                    className={`w-full flex-shrink-0 ${
-                      activeTab === "summary" ? "block" : "hidden md:block"
-                    }`}
-                  >
-                    <TabsContent value="summary" className="mt-0 p-5">
-                      {/* AI 요약 정리 콘텐츠 */}
-                      <div className="mb-4 p-5 bg-primary-light rounded-lg border-l-4 border-primary-color">
-                        <p className="text-base italic text-neutral-dark">
-                          {digest.summary}
-                        </p>
-                      </div>
+                  AI 요약 정리
+                </TabsTrigger>
+                <TabsTrigger
+                  value="transcript"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
+                >
+                  스크립트
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-                      <motion.div
-                        className="prose prose-blue prose-lg max-w-none mb-10"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
-                        dangerouslySetInnerHTML={{ __html: digest.content }}
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-4 bg-transparent border border-primary text-primary font-semibold py-3 px-6 rounded-lg w-full"
-                      >
-                        콘텐츠 저장하기
-                      </Button>
-                    </TabsContent>
-                  </div>
+            {/* 스와이프 가능한 콘텐츠 영역 */}
+            <div ref={contentRef} className="overflow-hidden">
+              <motion.div
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.2}
+                onDragEnd={handleDragEnd}
+                animate={{
+                  x: swipeDirection * window.innerWidth,
+                  transition: { duration: 0.3 },
+                }}
+                className="flex w-full"
+              >
+                <div
+                  className={`w-full flex-shrink-0 ${
+                    activeTab === "summary" ? "block" : "hidden md:block"
+                  }`}
+                >
+                  <TabsContent value="summary" className="mt-0 p-5">
+                    {/* AI 요약 정리 콘텐츠 */}
+                    <div className="mb-4 p-5 bg-primary-light rounded-lg border-l-4 border-primary-color">
+                      <p className="text-base italic text-neutral-dark">
+                        {digest.summary}
+                      </p>
+                    </div>
 
-                  <div
-                    className={`w-full flex-shrink-0 ${
-                      activeTab === "transcript" ? "block" : "hidden md:block"
-                    }`}
-                  >
-                    <TabsContent value="transcript" className="mt-0 p-5">
-                      {/* 스크립트 콘텐츠 */}
-                      {digest.sourceType === "YouTube" &&
-                        timelineData.length > 0 && (
-                          <motion.div
-                            className="mb-10"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.45 }}
-                          >
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-1.5">
-                                <h2 className="text-xl font-bold text-neutral-dark">
-                                  타임라인
-                                </h2>
-                                <SimpleTooltip
-                                  content={
-                                    <div className="relative py-1">
-                                      <div className="flex gap-2">
-                                        <p className="text-xs">
-                                          <span className="mr-1">🔖</span>{" "}
-                                          타임라인을 북마크하면 나중에 쉽게
-                                          찾아볼 수 있어요!
-                                        </p>
-                                        <button
-                                          className="absolute top-0 right-0 p-1 text-white/60 hover:text-white"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            const tooltipElement =
-                                              e.currentTarget.closest(
-                                                '[role="tooltip"]'
-                                              );
-                                            if (tooltipElement) {
-                                              tooltipElement.classList.add(
-                                                "opacity-0"
-                                              );
-                                              setTimeout(() => {
-                                                tooltipElement.classList.add(
-                                                  "hidden"
-                                                );
-                                              }, 300);
-                                            }
-                                          }}
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  }
-                                  delay={100}
-                                >
-                                  <button
-                                    className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary-color/10 text-primary-color hover:bg-primary-color/20 transition-colors"
-                                    aria-label="타임라인 정보"
-                                  >
-                                    <Info className="h-3 w-3" />
-                                  </button>
-                                </SimpleTooltip>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-sm text-neutral-medium rounded-full px-3"
-                                onClick={() => setShowGuidePopup(true)}
-                              >
-                                이용가이드
-                              </Button>
+                    <motion.div
+                      className="prose prose-blue prose-lg max-w-none mb-10"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                      dangerouslySetInnerHTML={{ __html: digest.content }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4 bg-transparent border border-primary text-primary font-semibold py-3 px-6 rounded-lg w-full"
+                    >
+                      콘텐츠 저장하기
+                    </Button>
+                  </TabsContent>
+                </div>
+
+                <div
+                  className={`w-full flex-shrink-0 ${
+                    activeTab === "transcript" ? "block" : "hidden md:block"
+                  }`}
+                >
+                  <TabsContent value="transcript" className="mt-0 p-5">
+                    {/* 스크립트 콘텐츠 */}
+                    {digest.sourceType === "YouTube" &&
+                      timelineData.length > 0 && (
+                        <motion.div
+                          className="mb-10"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.45 }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <h2 className="text-lg font-bold text-neutral-dark">
+                                타임라인
+                              </h2>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-sm text-neutral-medium rounded-full px-3"
+                              onClick={() => setShowGuidePopup(true)}
+                            >
+                              <Info className="h-4 w-4 bg-primary-color text-white rounded-full p-0.5" />
+                              이용가이드
+                            </Button>
+                          </div>
 
-                            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                              <TimelineAccordion
-                                timelineGroups={timelineData}
-                                onSeek={handleSeekTo}
-                                currentSegmentId={currentSegmentId || undefined}
-                                bookmarkedItems={Object.keys(
-                                  bookmarkedItems
-                                ).reduce(
-                                  (acc, key) => ({
-                                    ...acc,
-                                    [key]: true,
-                                  }),
-                                  {}
-                                )}
-                                onBookmark={handleBookmark}
-                              />
-                            </div>
-                          </motion.div>
-                        )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-4 bg-transparent border border-primary text-primary font-semibold py-3 px-6 rounded-lg w-full"
-                      >
-                        콘텐츠 저장하기
-                      </Button>
-                    </TabsContent>
-                  </div>
-                </motion.div>
-              </div>
-            </Tabs>
-          </div>
-        </main>
+                          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <TimelineAccordion
+                              timelineGroups={timelineData}
+                              onSeek={handleSeekTo}
+                              currentSegmentId={currentSegmentId || undefined}
+                              bookmarkedItems={Object.keys(
+                                bookmarkedItems
+                              ).reduce(
+                                (acc, key) => ({
+                                  ...acc,
+                                  [key]: true,
+                                }),
+                                {}
+                              )}
+                              onBookmark={handleBookmark}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4 bg-transparent border border-primary text-primary font-semibold py-3 px-6 rounded-lg w-full"
+                    >
+                      콘텐츠 저장하기
+                    </Button>
+                  </TabsContent>
+                </div>
+              </motion.div>
+            </div>
+          </Tabs>
+        </div>
+      </main>
 
-        <BottomNav />
+      <BottomNav />
 
-        {/* 타임라인 북마크 버튼 */}
-        <TimelineBookmarkButton
-          bookmarkCount={Object.keys(bookmarkedItems).length}
-          onClick={() => setShowBookmarksPopup(true)}
-          onGuideClick={() => setShowGuidePopup(true)}
-        />
+      {/* 타임라인 북마크 버튼 */}
+      <TimelineBookmarkButton
+        bookmarkCount={Object.keys(bookmarkedItems).length}
+        onClick={() => setShowBookmarksPopup(true)}
+        onGuideClick={() => setShowGuidePopup(true)}
+      />
 
-        {/* 북마크 팝업 */}
-        <AnimatePresence>
-          {showBookmarksPopup && (
-            <BookmarksPopup
-              isOpen={showBookmarksPopup}
-              onClose={() => setShowBookmarksPopup(false)}
-              bookmarks={bookmarkedItems}
-              onBookmarkClick={handleSeekTo}
-              formatTime={formatTime}
-            />
-          )}
-        </AnimatePresence>
+      {/* 북마크 팝업 */}
+      <AnimatePresence>
+        {showBookmarksPopup && (
+          <BookmarksPopup
+            isOpen={showBookmarksPopup}
+            onClose={() => setShowBookmarksPopup(false)}
+            bookmarks={bookmarkedItems}
+            onBookmarkClick={handleSeekTo}
+            onBookmarkDelete={handleDeleteBookmark}
+            formatTime={formatTime}
+          />
+        )}
+      </AnimatePresence>
 
-        {/* 폴더 선택 모달    */}
-        <AnimatePresence>
-          {showFolderSelectionModal && (
-            <FolderSelectionModal
-              isOpen={showFolderSelectionModal}
-              onClose={() => setShowFolderSelectionModal(false)}
-              digestId={digest.id}
-              title={digest.title}
-              onSuccess={() => {
-                setShowFolderSelectionModal(false);
-              }}
-            />
-          )}
-        </AnimatePresence>
+      {/* 폴더 선택 모달    */}
+      <AnimatePresence>
+        {showFolderSelectionModal && (
+          <FolderSelectionModal
+            isOpen={showFolderSelectionModal}
+            onClose={() => setShowFolderSelectionModal(false)}
+            digestId={digest.id}
+            title={digest.title}
+            onSuccess={() => {
+              setShowFolderSelectionModal(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-        {/* 타임라인 이용 가이드 */}
-        <AnimatePresence>
-          {showGuidePopup && (
-            <TimelineGuideSheet
-              isOpen={showGuidePopup}
-              onClose={() => setShowGuidePopup(false)}
-              onStartBookmarking={() => {
-                setShowGuidePopup(false);
-                setActiveTab("transcript");
-              }}
-            />
-          )}
-        </AnimatePresence>
+      {/* 타임라인 이용 가이드 */}
+      <AnimatePresence>
+        {showGuidePopup && (
+          <TimelineGuideSheet
+            isOpen={showGuidePopup}
+            onClose={() => setShowGuidePopup(false)}
+            onStartBookmarking={() => {
+              setShowGuidePopup(false);
+              setActiveTab("transcript");
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-        {/* 메모 팝업 */}
-        <MemoPopup
-          isOpen={showMemoPopup}
-          onClose={handleCloseMemoPopup}
-          onSave={handleSaveMemo}
-          initialMemo={
-            (currentBookmarkId && bookmarkedItems[currentBookmarkId]?.memo) ||
-            ""
-          }
-          title="북마크 메모 추가"
-        />
+      {/* 메모 팝업 */}
+      <MemoPopup
+        isOpen={showMemoPopup}
+        onClose={handleCloseMemoPopup}
+        onSave={handleSaveMemo}
+        initialMemo={
+          (currentBookmarkId && bookmarkedItems[currentBookmarkId]?.memo) || ""
+        }
+        title="북마크 메모 추가"
+      />
 
-        {/* 토스트 메시지 */}
-        <DesignToast
-          isVisible={showToast}
-          message={toastMessage}
-          onClose={handleCloseToast}
-          showAddButton={showAddMemoButton}
-          onAddButtonClick={handleAddMemo}
-        />
-      </div>
-    </TooltipProvider>
+      {/* 토스트 메시지 */}
+      <DesignToast
+        isVisible={showToast}
+        message={toastMessage}
+        onClose={handleCloseToast}
+        showAddButton={showAddMemoButton}
+        onAddButtonClick={handleAddMemo}
+      />
+    </div>
   );
 }
 

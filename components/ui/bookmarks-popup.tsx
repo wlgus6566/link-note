@@ -10,6 +10,7 @@ interface BookmarksPopupProps {
   onClose: () => void;
   bookmarks: Record<string, BookmarkItem>;
   onBookmarkClick: (seconds: number) => void;
+  onBookmarkDelete?: (id: string) => void;
   formatTime: (seconds: number) => string;
 }
 
@@ -18,6 +19,7 @@ export function BookmarksPopup({
   onClose,
   bookmarks,
   onBookmarkClick,
+  onBookmarkDelete,
   formatTime,
 }: BookmarksPopupProps) {
   if (!isOpen) return null;
@@ -26,6 +28,13 @@ export function BookmarksPopup({
   const sortedBookmarks = Object.values(bookmarks).sort(
     (a, b) => a.seconds - b.seconds
   );
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // 이벤트 버블링 방지
+    if (onBookmarkDelete) {
+      onBookmarkDelete(id);
+    }
+  };
 
   return (
     <motion.div
@@ -75,7 +84,7 @@ export function BookmarksPopup({
                   key={bookmark.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-3 bg-gray-50 hover:bg-primary-light rounded-lg cursor-pointer transition-colors border border-gray-200 hover:border-primary-color/30"
+                  className="p-2 bg-gray-50 hover:bg-primary-light rounded-lg cursor-pointer transition-colors border border-gray-200 hover:border-primary-color/30"
                   onClick={() => {
                     onBookmarkClick(bookmark.seconds);
                     onClose();
@@ -84,7 +93,7 @@ export function BookmarksPopup({
                   whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="bg-white border border-gray-200 rounded-md px-2 py-1 text-sm font-medium text-primary-color">
+                    <div className="bg-white border border-gray-200 rounded-md px-1.5 py-0.5 text-sm font-medium text-primary-color">
                       {formatTime(bookmark.seconds)}
                     </div>
                     <div className="flex-1">
@@ -97,6 +106,15 @@ export function BookmarksPopup({
                         </p>
                       )}
                     </div>
+                    {onBookmarkDelete && (
+                      <button
+                        className="group p-1 rounded-full hover:bg-gray-200 transition-colors"
+                        onClick={(e) => handleDeleteClick(e, bookmark.id)}
+                        aria-label="타임라인 삭제"
+                      >
+                        <X className="h-4 w-4 text-neutral-medium group-hover:text-error" />
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}

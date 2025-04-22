@@ -21,11 +21,11 @@ import {
   syncLocalTimelineBookmarks,
   saveTimelineBookmark,
   deleteTimelineBookmark,
+  formatTime,
 } from "@/lib/utils/timeline";
 import { saveTimelineData, getTimelineData } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { log } from "console";
 import { TimelineBookmarkButton } from "@/components/ui/timeline-bookmark-button";
 import { TimelineGuideSheet } from "@/components/ui/timeline-guide-sheet";
 import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
@@ -34,6 +34,7 @@ import { Header } from "@/components/Header";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { MemoPopup } from "@/components/ui/memo-popup";
 import { DesignToast } from "@/components/ui/toast";
+
 // YouTube API 타입 선언
 declare global {
   interface Window {
@@ -64,7 +65,8 @@ declare global {
       ready: (callback: () => void) => void;
     };
     onYouTubeIframeAPIReady: (() => void) | null;
-    syncTimer?: NodeJS.Timeout; // number 대신 NodeJS.Timeout으로 수정
+    syncTimer?: NodeJS.Timeout;
+    ytPlayer?: any; // YouTube 플레이어 전역 참조
   }
 }
 
@@ -82,15 +84,155 @@ interface YouTubePopupState {
   startTime: number;
 }
 
+// YouTube 플레이어 컴포넌트
+interface TimelinePlayerSectionProps {
+  sourceType: string;
+  sourceUrl: string;
+  activeTab: string;
+  onPlayerReady: () => void;
+  onTimeUpdate: (currentTime: number) => void;
+}
+
+function TimelinePlayerSection({
+  sourceType,
+  sourceUrl,
+  activeTab,
+  onPlayerReady,
+  onTimeUpdate,
+}: TimelinePlayerSectionProps) {
+  const playerRef = useRef<any>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const [playerReady, setPlayerReady] = useState(false);
+
+  // YouTube IFrame API 로드 및 초기화
+  useEffect(() => {
+    if (sourceType !== "YouTube" || !sourceUrl) return;
+
+    // YouTube IFrame API가 이미 로드되었는지 확인
+    if (window.YT && window.YT.Player) {
+      initializePlayer();
+      return;
+    }
+
+    // API 로드
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName("script")[0];
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+
+    // API 로드 완료 이벤트 처리
+    window.onYouTubeIframeAPIReady = initializePlayer;
+
+    return () => {
+      // 컴포넌트 언마운트 시 이벤트 핸들러 제거
+      window.onYouTubeIframeAPIReady = null;
+    };
+  }, [sourceType, sourceUrl]);
+
+  // 플레이어 초기화
+  const initializePlayer = () => {
+    if (!playerContainerRef.current || !sourceUrl) return;
+
+    const videoId = getYouTubeVideoId(sourceUrl);
+    if (!videoId) return;
+
+    // Player 객체 생성
+    playerRef.current = new window.YT.Player(playerContainerRef.current, {
+      videoId,
+      playerVars: {
+        playsinline: 1,
+        rel: 0,
+        modestbranding: 1,
+        iv_load_policy: 3,
+        fs: 0,
+        controls: 1,
+        cc_load_policy: 0,
+        disablekb: 0,
+      },
+      events: {
+        onReady: () => {
+          setPlayerReady(true);
+          onPlayerReady();
+
+          // 외부에서 참조할 수 있도록 전역 변수에 저장
+          window.ytPlayer = playerRef.current;
+        },
+        onError: (e) => console.error("YouTube Player 오류:", e),
+      },
+    });
+  };
+
+  // 현재 시간 업데이트를 위한 인터벌
+  useEffect(() => {
+    if (!playerReady) return;
+
+    const id = setInterval(() => {
+      const time = playerRef.current?.getCurrentTime?.() ?? 0;
+      onTimeUpdate(time);
+    }, 500);
+
+    return () => clearInterval(id);
+  }, [playerReady, onTimeUpdate]);
+
+  // 탭 변경 시 스크롤 위치 조정
+  useEffect(() => {
+    if (activeTab === "transcript" && playerContainerRef.current) {
+      // 탭 전환 시 스크롤 위치를 영상 위로 조정
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  }, [activeTab]);
+
+  // 비디오 재생 위치 이동
+  const seekTo = (seconds: number) => {
+    if (playerReady && playerRef.current) {
+      playerRef.current.seekTo(seconds, true);
+      playerRef.current.playVideo();
+      return true;
+    }
+    return false;
+  };
+
+  // 컴포넌트 외부에서 메서드 사용 가능하게 함
+  useEffect(() => {
+    // playerRef를 외부에서 참조할 수 있도록 모듈화
+    if (playerRef.current) {
+      playerRef.current.seekToTime = seekTo;
+    }
+  }, [playerReady]);
+
+  if (sourceType !== "YouTube" || !sourceUrl) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`w-full ${
+        activeTab === "transcript" ? "sticky top-16 z-20" : "mb-4"
+      }`}
+    >
+      <div className="relative w-full aspect-video">
+        <div
+          ref={playerContainerRef}
+          className="absolute top-0 left-0 w-full h-full border-0"
+        ></div>
+      </div>
+    </div>
+  );
+}
+
 export default function DigestPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
-  // useAuth 훅을 먼저 호출
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const playerInstanceRef = useRef<any>(null);
 
+  // 상태 관리
   const [digest, setDigest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,37 +241,125 @@ export default function DigestPage({
   const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
+  const [bookmarkedItems, setBookmarkedItems] = useState<
+    Record<string, BookmarkItem>
+  >({});
 
-  // 현재 시간에 가장 근접한 타임라인 아이템 찾고, 스크롤 & 하이라이트
+  // UI 상태
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [showAddMemoButton, setShowAddMemoButton] = useState(false);
+  const [showMemoPopup, setShowMemoPopup] = useState(false);
+  const [currentBookmarkId, setCurrentBookmarkId] = useState<string | null>(
+    null
+  );
+  const [syncNeeded, setSyncNeeded] = useState(false);
+  const [showBookmarksPopup, setShowBookmarksPopup] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showFolderSelectionModal, setShowFolderSelectionModal] =
+    useState(false);
+  const [showGuidePopup, setShowGuidePopup] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<string>("summary");
+  const [swipeDirection, setSwipeDirection] = useState<number>(0);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [youtubePopup, setYoutubePopup] = useState<YouTubePopupState>({
+    isOpen: false,
+    videoId: "",
+    startTime: 0,
+  });
+
+  // 타이머 참조를 위한 ref
+  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 플레이어 준비 상태
+  const [playerReady, setPlayerReady] = useState(false);
+
+  // 플레이어 준비 완료 핸들러
+  const handlePlayerReady = () => {
+    setPlayerReady(true);
+
+    // 전역 참조에서 플레이어 인스턴스를 가져옴
+    if (!playerInstanceRef.current && window.ytPlayer) {
+      playerInstanceRef.current = window.ytPlayer;
+      console.log("전역 YouTube 플레이어 참조 성공");
+    }
+  };
+
+  // 플레이어 시간 업데이트 핸들러
+  const handleTimeUpdate = (time: number) => {
+    setCurrentTime(time);
+  };
+
+  // 스와이프 핸들러
+  const handleDragEnd = (
+    event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
+    const threshold = 50;
+    if (info.offset.x > threshold) {
+      setActiveTab("summary");
+      setSwipeDirection(1);
+    } else if (info.offset.x < -threshold) {
+      setActiveTab("transcript");
+      setSwipeDirection(-1);
+    }
+  };
+
+  // 탭 변경 시 스와이프 방향 설정
+  useEffect(() => {
+    if (activeTab === "summary" || activeTab === "transcript") {
+      setSwipeDirection(0);
+    }
+  }, [activeTab]);
+
+  // URL 파라미터에서 다이제스트 ID 추출
+  useEffect(() => {
+    const resolveParams = async () => {
+      try {
+        const resolvedParams = await params;
+        setPageId(resolvedParams.id);
+      } catch (error) {
+        console.error("URL 파라미터 처리 오류:", error);
+        setError("페이지 ID를 가져오는데 실패했습니다.");
+      }
+    };
+
+    resolveParams();
+  }, [params]);
+
+  // 현재 재생 시간과 타임라인 항목 연동
   useEffect(() => {
     if (!timelineData.length) return;
 
-    const segments: Array<{ id: string; seconds: number }> =
-      timelineData.flatMap((group) => {
-        if (group.subtitles?.length) {
-          return group.subtitles.map((sub) => ({
-            id: String(sub.startSeconds),
-            seconds: Number(sub.startSeconds),
-          }));
-        }
-        if (group.items?.length) {
-          return group.items.map((it) => ({
-            id: String(it.id),
-            seconds: Number(it.seconds),
-          }));
-        }
-        return [];
-      });
+    // 모든 세그먼트 추출
+    const segments = timelineData.flatMap((group) => {
+      if (group.subtitles?.length) {
+        return group.subtitles.map((sub) => ({
+          id: String(sub.startSeconds),
+          seconds: Number(sub.startSeconds),
+        }));
+      }
+      if (group.items?.length) {
+        return group.items.map((it) => ({
+          id: String(it.id),
+          seconds: Number(it.seconds),
+        }));
+      }
+      return [];
+    });
 
     if (!segments.length) return;
 
+    // 현재 시간과 가장 가까운 세그먼트 찾기
     const active = segments.reduce(
       (prev, seg) =>
         seg.seconds <= currentTime && seg.seconds > prev.seconds ? seg : prev,
       { id: "", seconds: Number.NEGATIVE_INFINITY }
     );
-    console.log("active", active);
 
+    // 새로운 세그먼트로 스크롤
     if (active.id && active.id !== currentSegmentId) {
       setCurrentSegmentId(active.id);
       const safeId = CSS?.escape
@@ -140,83 +370,9 @@ export default function DigestPage({
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
-  }, [currentTime, timelineData]);
+  }, [currentTime, timelineData, currentSegmentId]);
 
-  const [bookmarkedItems, setBookmarkedItems] = useState<
-    Record<string, BookmarkItem>
-  >({});
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [showAddMemoButton, setShowAddMemoButton] = useState(false);
-  const [showMemoPopup, setShowMemoPopup] = useState(false);
-  const [currentBookmarkId, setCurrentBookmarkId] = useState<string | null>(
-    null
-  );
-  const [syncNeeded, setSyncNeeded] = useState(false);
-  const [youtubePopup, setYoutubePopup] = useState<YouTubePopupState>({
-    isOpen: false,
-    videoId: "",
-    startTime: 0,
-  });
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showFolderSelectionModal, setShowFolderSelectionModal] =
-    useState(false);
-
-  const [activeTab, setActiveTab] = useState<string>("summary");
-  const [swipeDirection, setSwipeDirection] = useState<number>(0);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  // YouTube Player 관련 상태와 ref
-  const playerRef = useRef<any>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
-  const [playerReady, setPlayerReady] = useState(false);
-
-  // 타이머 참조를 위한 ref 추가
-  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 스와이프 핸들러 함수 추가
-  const handleDragEnd = (
-    event: MouseEvent | TouchEvent | PointerEvent,
-    info: PanInfo
-  ) => {
-    const threshold = 50; // 스와이프 감지 임계값
-
-    if (info.offset.x > threshold) {
-      // 오른쪽으로 스와이프 - 이전 탭으로
-      setActiveTab("summary");
-      setSwipeDirection(1);
-    } else if (info.offset.x < -threshold) {
-      // 왼쪽으로 스와이프 - 다음 탭으로
-      setActiveTab("transcript");
-      setSwipeDirection(-1);
-    }
-  };
-
-  // 탭 변경 시 스와이프 방향 설정
-  useEffect(() => {
-    if (activeTab === "summary") {
-      setSwipeDirection(0);
-    } else if (activeTab === "transcript") {
-      setSwipeDirection(0);
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    const resolveParams = async () => {
-      try {
-        const resolvedParams = await params;
-        setPageId(resolvedParams.id);
-      } catch (error) {
-        console.error("params 해결 오류:", error);
-        setError("페이지 ID를 가져오는데 실패했습니다.");
-      }
-    };
-
-    resolveParams();
-  }, [params]);
-
-  // 타임라인 데이터 로드 useEffect를 다른 useEffect 이전에 이동
+  // 타임라인 데이터 로드
   useEffect(() => {
     if (!pageId || !digest?.id) return;
 
@@ -224,7 +380,6 @@ export default function DigestPage({
 
     const fetchTimelineData = async () => {
       try {
-        console.log("타임라인 데이터 로드 시작...");
         // 로컬 스토리지에서 데이터 확인
         const timelineKey = `timeline_${pageId}`;
         const storedTimeline = localStorage.getItem(timelineKey);
@@ -234,9 +389,6 @@ export default function DigestPage({
           try {
             parsedTimeline = JSON.parse(storedTimeline);
             setTimelineData(parsedTimeline);
-            console.log(
-              `로컬 타임라인 데이터 로드 완료: ${parsedTimeline.length}개 그룹`
-            );
           } catch (parseError) {
             console.error("로컬 타임라인 데이터 파싱 오류:", parseError);
           }
@@ -244,32 +396,20 @@ export default function DigestPage({
 
         // 로그인한 경우 서버와 데이터 동기화
         if (isAuthenticated) {
-          console.log("서버와 타임라인 데이터 동기화 시작...");
-
-          // 로컬 데이터가 있으면 먼저 서버에 POST 요청 전송
+          // 로컬 데이터가 있으면 먼저 서버에 저장
           if (
             parsedTimeline &&
             Array.isArray(parsedTimeline) &&
             parsedTimeline.length > 0
           ) {
-            console.log("로컬 데이터를 서버에 저장 시도...");
             try {
-              const saveResult = await saveTimelineData(
-                Number(digest.id),
-                parsedTimeline
-              );
-              if (saveResult.success) {
-                console.log("로컬 타임라인 데이터가 서버에 저장되었습니다.");
-              } else {
-                console.warn("서버 저장 실패:", saveResult.error);
-              }
+              await saveTimelineData(Number(digest.id), parsedTimeline);
             } catch (saveError) {
               console.error("타임라인 데이터 서버 저장 오류:", saveError);
             }
           }
 
-          // POST 요청 후 서버에서 GET 요청으로 데이터 가져오기
-          console.log("서버에서 타임라인 데이터 가져오기 시도...");
+          // 서버에서 데이터 가져오기
           try {
             const response = await getTimelineData(Number(digest.id));
 
@@ -280,21 +420,13 @@ export default function DigestPage({
               response.data.length > 0
             ) {
               // 서버 데이터가 있으면 사용
-              console.log(
-                `서버 타임라인 데이터 로드 완료: ${response.data.length}개 그룹`
-              );
               setTimelineData(response.data);
-
               // 로컬 스토리지도 업데이트
               localStorage.setItem(timelineKey, JSON.stringify(response.data));
-            } else {
-              console.log("서버에서 타임라인 데이터를 가져오지 못했습니다.");
             }
           } catch (fetchError) {
             console.error("서버 타임라인 데이터 가져오기 오류:", fetchError);
           }
-        } else {
-          console.log("로그인되지 않았습니다. 로컬 데이터만 사용합니다.");
         }
       } catch (error) {
         console.error("타임라인 데이터 처리 중 오류 발생:", error);
@@ -308,16 +440,7 @@ export default function DigestPage({
     };
   }, [pageId, digest?.id, isAuthenticated]);
 
-  // 인증 상태 변경 감지 및 동기화 필요 상태 설정
-  useEffect(() => {
-    // isAuthenticated가 true이고, pageId가 있고, syncNeeded가 false일 때만 설정
-    // syncNeeded를 의존성 배열에서 제거하여 무한 루프 방지
-    if (isAuthenticated === true && pageId && !syncNeeded) {
-      console.log("인증 상태 확인: 동기화 필요 상태 설정");
-      setSyncNeeded(true);
-    }
-  }, [isAuthenticated, pageId]); // syncNeeded 의존성 제거
-
+  // 북마크 데이터 로드
   useEffect(() => {
     if (!pageId) return;
 
@@ -328,34 +451,94 @@ export default function DigestPage({
       if (storedBookmarks) {
         const parsedBookmarks = JSON.parse(storedBookmarks);
         setBookmarkedItems(parsedBookmarks);
-        console.log(
-          `북마크 데이터 로드 완료: ${
-            Object.keys(parsedBookmarks).length
-          }개 항목`
-        );
       }
     } catch (error) {
       console.error("북마크 데이터 로딩 오류:", error);
     }
   }, [pageId]);
 
+  // 인증 상태 변경 감지 및 북마크 동기화
+  useEffect(() => {
+    if (isAuthenticated === true && pageId && !syncNeeded) {
+      setSyncNeeded(true);
+    }
+  }, [isAuthenticated, pageId]);
+
+  // 북마크 서버 동기화
+  useEffect(() => {
+    if (isAuthenticated !== true || !syncNeeded || !pageId || !digest?.id)
+      return;
+
+    // 동기화 시작 시 바로 상태 변경하여 중복 실행 방지
+    setSyncNeeded(false);
+
+    // 이전 재시도 타이머가 있으면 초기화
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    syncLocalTimelineBookmarks(Number(digest.id))
+      .then((result) => {
+        if (!result?.success && result?.error) {
+          // 에러 발생 시 나중에 다시 시도
+          retryTimerRef.current = setTimeout(() => {
+            setSyncNeeded(true);
+            retryTimerRef.current = null;
+          }, 30000); // 30초 후 재시도
+        }
+      })
+      .catch(() => {
+        // 예외 발생 시 나중에 다시 시도
+        retryTimerRef.current = setTimeout(() => {
+          setSyncNeeded(true);
+          retryTimerRef.current = null;
+        }, 30000);
+      });
+
+    // 컴포넌트 언마운트 시 타이머 정리
+    return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
+  }, [isAuthenticated, syncNeeded, pageId, digest?.id]);
+
+  // 컴포넌트 언마운트 시 모든 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+
+      if (window.syncTimer) {
+        clearTimeout(window.syncTimer);
+        window.syncTimer = undefined;
+      }
+    };
+  }, []);
+
+  // 다이제스트 데이터 가져오기
   useEffect(() => {
     if (!pageId) return;
 
     let isMounted = true;
-
     let isDataFetched = false;
 
     const fetchDigest = async () => {
+      // 이미 데이터가 있거나 가져오는 중이면 중복 요청 방지
       if (digest && digest.id === Number.parseInt(pageId)) {
-        console.log(
-          `ID ${pageId}의 다이제스트 데이터가 이미 로드되어 있습니다.`
-        );
         return;
       }
 
       if (isDataFetched) {
-        console.log("이미 데이터를 가져오는 중입니다.");
         return;
       }
 
@@ -363,9 +546,6 @@ export default function DigestPage({
 
       try {
         setLoading(true);
-
-        console.log(`다이제스트 데이터 가져오기 시작: ID=${pageId}`);
-
         const response = await fetch(`/api/digest/${pageId}`, {
           cache: "no-store",
           headers: {
@@ -375,14 +555,11 @@ export default function DigestPage({
         const result = await response.json();
 
         if (result.success) {
-          console.log("API에서 다이제스트 데이터 가져오기 성공:", result.data);
-
           const digestData = result.data;
 
+          // YouTube 채널 썸네일 정보 처리
           if (digestData.sourceType === "YouTube" && digestData.sourceUrl) {
             try {
-              const videoId = getYouTubeVideoId(digestData.sourceUrl);
-
               if (
                 !digestData.channelThumbnail &&
                 digestData.videoInfo?.channelId
@@ -416,9 +593,8 @@ export default function DigestPage({
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      fetchDigest();
-    }, 100);
+    // 약간의 지연을 두고 데이터 가져오기 (디바운싱)
+    const timeoutId = setTimeout(fetchDigest, 100);
 
     return () => {
       isMounted = false;
@@ -454,106 +630,9 @@ export default function DigestPage({
     checkBookmarkStatus();
   }, [isAuthenticated, digest?.id]);
 
-  // 로컬 스토리지의 북마크를 서버와 동기화
-  useEffect(() => {
-    // isAuthenticated가 true이고 필요한 데이터가 모두 있을 때만 동기화 실행
-    if (isAuthenticated === true && syncNeeded && pageId && digest?.id) {
-      // 동기화 시작 시 바로 상태 변경하여 중복 실행 방지
-      setSyncNeeded(false);
-
-      // 이전 재시도 타이머가 있으면 초기화
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
-
-      syncLocalTimelineBookmarks(Number(digest.id))
-        .then((result) => {
-          if (result?.success) {
-            if (result.syncCount > 0) {
-              console.log(
-                `로컬 북마크 ${result.syncCount}개가 서버와 동기화되었습니다.`
-              );
-            } else if (result.skipped) {
-              console.log("최근에 동기화되어 스킵되었습니다.");
-            }
-          } else if (result?.error) {
-            console.error("북마크 동기화 오류:", result.error);
-            // 에러 발생 시 다시 시도할 수 있도록 설정
-            retryTimerRef.current = setTimeout(() => {
-              setSyncNeeded(true);
-              retryTimerRef.current = null;
-            }, 30000); // 30초 후 재시도
-          }
-        })
-        .catch((err) => {
-          console.error("북마크 동기화 실패:", err);
-          // 에러 발생 시 다시 시도할 수 있도록 설정
-          retryTimerRef.current = setTimeout(() => {
-            setSyncNeeded(true);
-            retryTimerRef.current = null;
-          }, 30000); // 30초 후 재시도
-        });
-    }
-
-    // 컴포넌트 언마운트 시 타이머 정리
-    return () => {
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
-    };
-  }, [isAuthenticated, syncNeeded, pageId, digest?.id]);
-
-  // YouTube IFrame API 로드 및 초기화
-  useEffect(() => {
-    if (!digest || digest.sourceType !== "YouTube" || !digest.sourceUrl) return;
-
-    // YouTube IFrame API가 이미 로드되었는지 확인
-    if (window.YT && window.YT.Player) {
-      initializePlayer();
-      return;
-    }
-
-    // API 로드
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName("script")[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-
-    // API 로드 완료 이벤트 처리
-    window.onYouTubeIframeAPIReady = initializePlayer;
-
-    return () => {
-      // 컴포넌트 언마운트 시 이벤트 핸들러 제거
-      window.onYouTubeIframeAPIReady = null;
-    };
-  }, [digest]);
-
-  const initializePlayer = () => {
-    if (!playerContainerRef.current || !digest?.sourceUrl) return;
-
-    const videoId = getYouTubeVideoId(digest.sourceUrl);
-    if (!videoId) return;
-
-    // Player 객체 생성
-    playerRef.current = new window.YT.Player(playerContainerRef.current, {
-      videoId,
-      playerVars: {
-        playsinline: 1,
-        rel: 0,
-        modestbranding: 1,
-      },
-      events: {
-        onReady: () => setPlayerReady(true),
-        onError: (e) => console.error("YouTube Player 오류:", e),
-      },
-    });
-  };
-
   // 탭 변경 시 스크롤 위치 조정
   useEffect(() => {
-    if (activeTab === "transcript" && playerContainerRef.current) {
+    if (activeTab === "transcript" && playerInstanceRef.current) {
       // 탭 전환 시 스크롤 위치를 영상 위로 조정
       window.scrollTo({
         top: 0,
@@ -744,6 +823,7 @@ export default function DigestPage({
     }
   };
 
+  // 타임라인 아이템 클릭 시 해당 시간으로 이동
   const handleSeekTo = (seconds: number) => {
     if (!digest || digest.sourceType !== "YouTube") return;
 
@@ -752,12 +832,37 @@ export default function DigestPage({
       setShowBookmarksPopup(false);
     }
 
-    // 플레이어가 준비되었으면 어떤 탭에서든 iframe 직접 제어
-    if (playerReady && playerRef.current) {
-      // seekTo: 첫 번째 인자는 시간(초), 두 번째 인자가 true면 정확한 시간으로 이동
-      playerRef.current.seekTo(seconds, true);
-      // 영상 재생 시작
-      playerRef.current.playVideo();
+    // 첫 번째로 전역 플레이어 인스턴스 확인
+    if (window.ytPlayer && typeof window.ytPlayer.seekTo === "function") {
+      try {
+        console.log(`${seconds}초로 이동합니다 (전역 참조 사용)`);
+        window.ytPlayer.seekTo(seconds, true);
+        window.ytPlayer.playVideo();
+        return;
+      } catch (error) {
+        console.error("전역 플레이어 참조로 시간 이동 중 오류 발생:", error);
+      }
+    }
+
+    // 다음으로 컴포넌트 플레이어 인스턴스 확인
+    if (playerReady && playerInstanceRef.current) {
+      try {
+        if (typeof playerInstanceRef.current.seekTo !== "function") {
+          console.error(
+            "seekTo 메서드가 존재하지 않습니다. 유효한 플레이어 인스턴스가 아닙니다."
+          );
+          return;
+        }
+
+        console.log(`${seconds}초로 이동합니다 (컴포넌트 참조 사용)`);
+        // seekTo: 첫 번째 인자는 시간(초), 두 번째 인자가 true면 정확한 시간으로 이동
+        playerInstanceRef.current.seekTo(seconds, true);
+
+        // 영상 재생 시작
+        playerInstanceRef.current.playVideo();
+      } catch (error) {
+        console.error("시간 이동 중 오류 발생:", error);
+      }
     } else {
       // 플레이어가 준비되지 않았으면 팝업 사용
       const videoId = getYouTubeVideoId(digest.sourceUrl);
@@ -811,44 +916,6 @@ export default function DigestPage({
       setShowConfirmDialog(false);
     }
   };
-
-  // YouTube IFrame API 초기화 (생략)
-  useEffect(() => {
-    if (!playerReady) return;
-    const id = setInterval(() => {
-      const t = playerRef.current?.getCurrentTime?.() ?? 0;
-      setCurrentTime(t);
-    }, 500);
-    return () => clearInterval(id);
-  }, [playerReady]);
-
-  // 상태 추가 - 북마크 팝업 표시 여부
-  const [showBookmarksPopup, setShowBookmarksPopup] = useState(false);
-  // 상태 추가 - 가이드 팝업 표시 여부
-  const [showGuidePopup, setShowGuidePopup] = useState(false);
-
-  // 컴포넌트 언마운트 시 모든 타이머 정리
-  useEffect(() => {
-    return () => {
-      // 동기화 타이머 정리
-      if (syncTimerRef.current) {
-        clearTimeout(syncTimerRef.current);
-        syncTimerRef.current = null;
-      }
-
-      // 재시도 타이머 정리
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
-
-      // 윈도우 타이머 정리 (이전 코드와의 호환성)
-      if (window.syncTimer) {
-        clearTimeout(window.syncTimer);
-        window.syncTimer = undefined;
-      }
-    };
-  }, []);
 
   if (error) {
     return (
@@ -1016,41 +1083,18 @@ export default function DigestPage({
           </div>
         }
       />
-      {/* <header className="sticky top-0 z-20 bg-white border-b border-border-line">
-          <div className="container flex items-center justify-between h-16 px-5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-0 hover:bg-transparent"
-              asChild
-            >
-              <Link href="/">
-                <ArrowLeft className="h-5 w-5 text-neutral-dark" />
-              </Link>
-            </Button>
-            <h1 className="text-lg font-medium text-neutral-dark truncate max-w-[60%]">
-              {digest.title}
-            </h1>
-           
-          </div>
-        </header> */}
 
       <main className="flex-1">
         <div className="container px-0 sm:px-5">
           {/* 비디오 섹션 */}
           {digest.sourceType === "YouTube" && digest.sourceUrl && (
-            <div
-              className={`w-full ${
-                activeTab === "transcript" ? "sticky top-16 z-20" : "mb-4"
-              }`}
-            >
-              <div className="relative w-full aspect-video">
-                <div
-                  ref={playerContainerRef}
-                  className="absolute top-0 left-0 w-full h-full border-0"
-                ></div>
-              </div>
-            </div>
+            <TimelinePlayerSection
+              sourceType={digest.sourceType}
+              sourceUrl={digest.sourceUrl}
+              activeTab={activeTab}
+              onPlayerReady={handlePlayerReady}
+              onTimeUpdate={handleTimeUpdate}
+            />
           )}
 
           {/* 탭 네비게이션 */}
@@ -1285,21 +1329,6 @@ function getYouTubeVideoId(url: string): string {
 }
 
 // formatTime 함수 추가 - 파일 맨 아래, getYouTubeVideoId 함수 위에 추가
-function formatTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  }
-
-  return `${minutes.toString().padStart(2, "0")}:${secs
-    .toString()
-    .padStart(2, "0")}`;
-}
 
 // 조회수 포맷 함수를 내부 함수로 변경
 function formatViewCount(count: string | number): string {

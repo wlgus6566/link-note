@@ -1185,7 +1185,7 @@ export default function DigestPage({
                           transition={{ delay: 0.45 }}
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               <h2 className="text-lg font-bold text-neutral-dark">
                                 타임라인
                               </h2>
@@ -1196,7 +1196,7 @@ export default function DigestPage({
                               className="text-sm text-neutral-medium rounded-full px-3"
                               onClick={() => setShowGuidePopup(true)}
                             >
-                              <Info className="h-4 w-4 bg-primary-color text-white rounded-full p-0.5" />
+                              <Info className="h-4 w-4 bg-[#1976D2] text-white rounded-full p-0.5" />
                               이용가이드
                             </Button>
                           </div>

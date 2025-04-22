@@ -633,7 +633,7 @@ export default function TimelinesPage() {
                           <button
                             onClick={() => handleMemoClick(bookmark)}
                             aria-label="메모 편집"
-                            className="flex items-start mt-1 w-full bg-gray-50 border border-gray-200 rounded-md p-2 relative group hover:border-primary-color/50 transition-colors"
+                            className="flex items-start mt-1 w-full bg-blue-50 border border-gray-200 rounded-md p-2 relative group hover:border-primary-color/50 transition-colors"
                           >
                             <span className="mr-2 rounded-full bg-white border border-border-line group-hover:border-primary-color group-hover:text-primary-color transition-colors">
                               <Edit className="h-3 w-3" />

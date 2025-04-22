@@ -13,7 +13,7 @@ interface TimelineAccordionProps {
   onSeek?: (seconds: number) => void;
   bookmarkedItems?: Record<string, boolean>;
   onBookmark?: (id: string, seconds: number, text: string) => void;
-  currentSegmentId?: string;
+  currentSegmentId?: string | number;
 }
 
 export function TimelineAccordion({
@@ -41,14 +41,15 @@ export function TimelineAccordion({
           <AccordionContent>
             <div className="space-y-1 pl-1 pt-2">
               {group.subtitles.map((subtitle, i) => {
+                const sst = subtitle.startSeconds;
                 const subtitleId = `subtitle_${subtitle.start.replace(
                   ":",
                   ""
                 )}_${subtitle.startSeconds}`;
                 return (
                   <SubtitleBlock
-                    key={i}
-                    isActive={subtitleId === currentSegmentId}
+                    key={subtitleId}
+                    isActive={currentSegmentId == sst}
                     id={subtitleId}
                     dataSegmentId={subtitle.startSeconds}
                     start={subtitle.start}

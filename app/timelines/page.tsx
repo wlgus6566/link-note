@@ -565,7 +565,7 @@ export default function TimelinesPage() {
                 <Badge
                   key={idx}
                   variant="outline"
-                  className="bg-gray-50 border-gray-200 text-xs"
+                  className="bg-blue-50 border-none rounded-none text-xs text-info p-1 py-0.5"
                 >
                   {formatTime(bookmark.seconds)}
                 </Badge>
@@ -608,7 +608,7 @@ export default function TimelinesPage() {
                           <Badge
                             variant="outline"
                             onClick={() => handlePlayClick(bookmark)}
-                            className="bg-gray-50 border-gray-200 cursor-pointer hover:border-primary-color transition-colors"
+                            className="bg-blue-50 border-none rounded-none text-xs text-info p-1 cursor-pointer"
                           >
                             {formatTime(bookmark.seconds)}
                           </Badge>
@@ -635,7 +635,7 @@ export default function TimelinesPage() {
                             aria-label="메모 편집"
                             className="flex items-start mt-1 w-full bg-blue-50 border border-gray-200 rounded-md p-2 relative group hover:border-primary-color/50 transition-colors"
                           >
-                            <span className="mr-2 rounded-full bg-white border border-border-line group-hover:border-primary-color group-hover:text-primary-color transition-colors">
+                            <span className="mr-2 rounded-full bg-white border border-border-line ">
                               <Edit className="h-3 w-3" />
                             </span>
                             <p className="flex-1 text-left text-xs text-neutral-dark">

@@ -54,7 +54,7 @@ export function SubtitleBlock({
         <button
           onClick={handleClick}
           data-segment-id={dataSegmentId}
-          className={`text-sm flex-1 text-left hover:text-primary-color ${
+          className={`p-0 text-sm flex-1 text-left hover:text-primary-color ${
             isActive ? "text-primary-color" : ""
           }`}
         >
@@ -63,12 +63,12 @@ export function SubtitleBlock({
         <Button
           variant="ghost"
           size="sm"
-          className="p-1 h-auto text-gray-600"
+          className="p-0 h-auto text-gray-600"
           onClick={handleBookmark}
           title={isBookmarked ? "북마크 해제" : "북마크 저장"}
         >
           {isBookmarked ? (
-            <MapPinCheckInside className="h-4 w-4 text-[#2BA640]" />
+            <MapPinCheckInside className="h-4 w-4 text-info" />
           ) : (
             <MapPinPlusInside className="h-4 w-4" />
           )}

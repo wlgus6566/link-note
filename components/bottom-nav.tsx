@@ -11,7 +11,7 @@ export default function BottomNav() {
   const navItems = [
     { icon: Home, label: "홈", href: "/" },
     { icon: Clock, label: "타임라인 저장소", href: "/timelines" },
-    { icon: Bookmark, label: "콘텐츠 저장소", href: "/library" },
+    { icon: Bookmark, label: "콘텐츠 저장소", href: "/digest" },
   ];
 
   return (
@@ -28,7 +28,7 @@ export default function BottomNav() {
             <Link href={item.href} key={item.href} className="relative">
               <div
                 className={`bottom-nav-item ${
-                  isActive ? "active" : "inactive"
+                  isActive ? "text-primary-color" : "text-gray-600"
                 }`}
               >
                 <Icon className="h-5 w-5" />

@@ -54,7 +54,7 @@ export function BookmarksPopup({
       >
         <div className="p-4 border-b border-border-line flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary-color" />
+            <MapPin className="h-5 w-5 text-info" />
             <h3 className="text-lg font-medium">
               저장된 타임라인 ({bookmarkCount})
             </h3>
@@ -69,7 +69,7 @@ export function BookmarksPopup({
           </Button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-2">
+        <div className="overflow-y-auto flex-1 p-4">
           {bookmarkCount === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
               <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mb-4">
@@ -93,7 +93,7 @@ export function BookmarksPopup({
                   whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="bg-white border border-gray-200 rounded-md px-1.5 py-0.5 text-sm font-medium text-primary-color">
+                    <div className="bg-white border border-blue-200 rounded-md p-0.5 text-sm leading-none font-medium  text-info">
                       {formatTime(bookmark.seconds)}
                     </div>
                     <div className="flex-1">
@@ -108,7 +108,7 @@ export function BookmarksPopup({
                     </div>
                     {onBookmarkDelete && (
                       <button
-                        className="group p-1 rounded-full hover:bg-gray-200 transition-colors"
+                        className="group rounded-full hover:bg-gray-200 transition-colors"
                         onClick={(e) => handleDeleteClick(e, bookmark.id)}
                         aria-label="타임라인 삭제"
                       >

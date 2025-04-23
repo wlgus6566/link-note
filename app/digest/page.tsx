@@ -1,325 +1,52 @@
 "use client";
 
-import type React from "react";
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import {
-  Search,
-  MoreVertical,
-  Share2,
-  Trash2,
-  Folder,
-  ChevronDown,
-  Sparkles,
-  Filter,
-  CheckCircle,
-  Plus,
-} from "lucide-react";
+import { Search, Share2, Trash2, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BottomNav from "@/components/bottom-nav";
 import { motion } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { BottomPopup } from "@/components/bottom-popup";
 import { Header } from "@/components/Header";
-interface FolderType {
-  id: string;
-  name: string;
-  description: string | null;
-  user_id: string;
-  created_at: string;
-}
+import { BookmarkItem } from "@/types/digest";
+import { useBookmarks } from "@/hooks/useBookmarks";
+import { BookmarkCard } from "@/components/bookmark-card";
+import { SortDropdown } from "@/components/sort-dropdown";
+import { FolderFilter } from "@/components/folder-filter";
+import { TagFilter } from "@/components/tag-filter";
 
-interface Digest {
-  id: number;
-  title: string;
-  summary: string;
-  tags: string[];
-  source_type: string;
-  source_url: string;
-  created_at: string;
-  date: string;
-  image: string;
-  video_info?: {
-    channelTitle?: string;
-    viewCount?: string;
-    duration?: string;
-  };
-}
+export default function DigestPage() {
+  const {
+    bookmarks,
+    filteredBookmarks,
+    folders,
+    popularTags,
+    loading,
+    error,
+    searchQuery,
+    setSearchQuery,
+    activeTag,
+    setActiveTag,
+    activeFolder,
+    setActiveFolder,
+    sortBy,
+    applySort,
+    fetchBookmarks,
+    refreshData,
+    deleteBookmark,
+  } = useBookmarks();
 
-interface BookmarkItem {
-  id: number;
-  user_id: string;
-  digest_id: number;
-  created_at: string;
-  folder_id?: string;
-  digests: Digest;
-  folders?: {
-    id: string;
-    name: string;
-    description: string | null;
-  };
-}
-
-export default function LibraryPage() {
-  const [showTagFilter, setShowTagFilter] = useState(false);
-  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
-  const [filteredBookmarks, setFilteredBookmarks] = useState<BookmarkItem[]>(
-    []
-  );
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTag, setActiveTag] = useState("전체");
-  const [allTags, setAllTags] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const [showBottomPopup, setShowBottomPopup] = useState(false);
   const [selectedBookmark, setSelectedBookmark] = useState<BookmarkItem | null>(
     null
   );
   const [showFolderModal, setShowFolderModal] = useState(false);
-  const [folders, setFolders] = useState<FolderType[]>([]);
-  const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [folderBookmarks, setFolderBookmarks] = useState<
-    Record<string, number[]>
-  >({});
-  const [isLoadingFolderData, setIsLoadingFolderData] = useState(false);
-  const [showFolderDropdown, setShowFolderDropdown] = useState(false);
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [sortBy, setSortBy] = useState<
-    "latest" | "oldest" | "popular" | "duration"
-  >("latest");
-
-  // 바깥 영역 클릭 시 드롭다운 닫기 이벤트 추가
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (showFolderDropdown && !target.closest(".folder-dropdown")) {
-        setShowFolderDropdown(false);
-      }
-      if (showSortDropdown && !target.closest(".sort-dropdown")) {
-        setShowSortDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showFolderDropdown, showSortDropdown]);
-
-  // 정렬 함수 구현
-  const sortBookmarks = (
-    bookmarks: BookmarkItem[],
-    sortType: "latest" | "oldest" | "popular" | "duration"
-  ) => {
-    let sorted = [...bookmarks];
-
-    switch (sortType) {
-      case "latest":
-        // 최신순 정렬 (생성일 기준 내림차순)
-        sorted.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        break;
-      case "oldest":
-        // 오래된순 정렬 (생성일 기준 오름차순)
-        sorted.sort(
-          (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        break;
-      case "popular":
-        // 인기순 정렬 (조회수 기준 내림차순)
-        sorted.sort((a, b) => {
-          const viewCountA = Number(a.digests.video_info?.viewCount || 0);
-          const viewCountB = Number(b.digests.video_info?.viewCount || 0);
-          return viewCountB - viewCountA;
-        });
-        break;
-      case "duration":
-        // 길이순 정렬 (영상 길이 기준 내림차순)
-        sorted.sort((a, b) => {
-          const durationA = convertISO8601ToSeconds(
-            a.digests.video_info?.duration || ""
-          );
-          const durationB = convertISO8601ToSeconds(
-            b.digests.video_info?.duration || ""
-          );
-          return durationB - durationA;
-        });
-        break;
-    }
-
-    return sorted;
-  };
-
-  // ISO8601 형식의 duration을 초로 변환하는 함수
-  const convertISO8601ToSeconds = (duration: string): number => {
-    if (!duration) return 0;
-
-    let seconds = 0;
-
-    // 시간 추출
-    const hourMatch = duration.match(/(\d+)H/);
-    if (hourMatch) {
-      seconds += parseInt(hourMatch[1]) * 60 * 60;
-    }
-
-    // 분 추출
-    const minuteMatch = duration.match(/(\d+)M/);
-    if (minuteMatch) {
-      seconds += parseInt(minuteMatch[1]) * 60;
-    }
-
-    // 초 추출
-    const secondMatch = duration.match(/(\d+)S/);
-    if (secondMatch) {
-      seconds += parseInt(secondMatch[1]);
-    }
-
-    return seconds;
-  };
-
-  // 북마크 불러오기 함수 최적화 - 폴더 필터링 관련 코드 제거
-  const fetchBookmarks = async () => {
-    setLoading(true);
-    try {
-      const supabase = createClient();
-      const { data: session } = await supabase.auth.getSession();
-
-      if (!session.session) {
-        setError("로그인이 필요합니다.");
-        setLoading(false);
-        return;
-      }
-
-      // 북마크 데이터 가져오기 - 이제 한 번의 호출로 폴더 정보 포함
-      const bookmarksResponse = await fetch("/api/bookmarks", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      });
-
-      const bookmarksData = await bookmarksResponse.json();
-
-      if (bookmarksData.error) {
-        setError("북마크를 불러오는데 실패했습니다.");
-        console.error("북마크 조회 오류:", bookmarksData.error);
-        return;
-      }
-
-      if (bookmarksData.bookmarks) {
-        // 북마크 데이터 가공
-        console.log("북마크 데이터:", bookmarksData.bookmarks);
-        const formattedBookmarks = bookmarksData.bookmarks.map(
-          (bookmark: any) => ({
-            ...bookmark,
-            digests: {
-              ...bookmark.digests,
-              tags: Array.isArray(bookmark.digests.tags)
-                ? bookmark.digests.tags
-                : JSON.parse(bookmark.digests.tags || "[]"),
-            },
-          })
-        );
-
-        setBookmarks(formattedBookmarks);
-        setFilteredBookmarks(formattedBookmarks);
-
-        // 모든 태그 수집
-        const tags = formattedBookmarks.reduce(
-          (acc: string[], bookmark: BookmarkItem) => {
-            const digestTags = bookmark.digests.tags || [];
-            return [
-              ...acc,
-              ...digestTags.filter((tag: string) => !acc.includes(tag)),
-            ];
-          },
-          []
-        );
-
-        setAllTags(tags);
-
-        // 폴더 목록 불러오기
-        fetchFolders();
-      }
-    } catch (error) {
-      console.error("북마크 불러오기 오류:", error);
-      setError("북마크를 불러오는데 실패했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 폴더 목록 불러오기 함수 다시 추가
-  const fetchFolders = async () => {
-    try {
-      const response = await fetch("/api/folders");
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("폴더 목록 불러오기 오류:", data.error);
-        return;
-      }
-
-      setFolders(data.folders || []);
-    } catch (error) {
-      console.error("폴더 목록 불러오기 오류:", error);
-    }
-  };
-
-  // 데이터 새로고침 함수 단순화
-  const refreshFolderData = async () => {
-    console.log("북마크 데이터 새로고침 시작");
-    await fetchBookmarks();
-    console.log("북마크 데이터 새로고침 완료");
-  };
-
-  // 폴더별 북마크 필터링 로직 수정
-  useEffect(() => {
-    if (bookmarks.length === 0) return;
-
-    let filtered = [...bookmarks];
-
-    // 검색어 필터링
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (bookmark) =>
-          bookmark.digests.title
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          bookmark.digests.summary
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // 태그 필터링
-    if (activeTag !== "전체") {
-      filtered = filtered.filter(
-        (bookmark) =>
-          bookmark.digests.tags && bookmark.digests.tags.includes(activeTag)
-      );
-    }
-
-    // 폴더 필터링 - 이제 bookmark.folder_id로 필터링
-    if (activeFolder) {
-      filtered = filtered.filter(
-        (bookmark) => bookmark.folder_id === activeFolder
-      );
-    }
-
-    setFilteredBookmarks(filtered);
-  }, [searchQuery, activeTag, bookmarks, activeFolder]);
+  const [showTagFilter, setShowTagFilter] = useState(false);
 
   // 아이템 메뉴 열기
   const handleOpenMenu = (e: React.MouseEvent, bookmark: BookmarkItem) => {
@@ -333,33 +60,9 @@ export default function LibraryPage() {
   const handleDeleteBookmark = async () => {
     if (!selectedBookmark) return;
 
-    try {
-      const response = await fetch(
-        `/api/bookmarks?digestId=${selectedBookmark.digest_id}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const result = await response.json();
-      if (result.success) {
-        // 북마크 목록에서 삭제된 항목 제거
-        const updatedBookmarks = bookmarks.filter(
-          (bookmark) => bookmark.id !== selectedBookmark.id
-        );
-        setBookmarks(updatedBookmarks);
-        setFilteredBookmarks(
-          filteredBookmarks.filter(
-            (bookmark) => bookmark.id !== selectedBookmark.id
-          )
-        );
-        setShowBottomPopup(false);
-      }
-    } catch (error) {
-      console.error("북마크 삭제 오류:", error);
+    const success = await deleteBookmark(selectedBookmark.digest_id);
+    if (success) {
+      setShowBottomPopup(false);
     }
   };
 
@@ -387,115 +90,13 @@ export default function LibraryPage() {
     }
   };
 
-  // ISO 8601 형식의 duration을 mm:ss 또는 hh:mm:ss 형식으로 변환하는 함수
-  const formatDuration = (isoDuration: string): string => {
-    if (!isoDuration) return "00:00";
-
-    // PT1H30M20S와 같은 형식에서 시간, 분, 초 추출
-    const hourMatch = isoDuration.match(/(\d+)H/);
-    const minuteMatch = isoDuration.match(/(\d+)M/);
-    const secondMatch = isoDuration.match(/(\d+)S/);
-
-    const hours = hourMatch ? Number.parseInt(hourMatch[1]) : 0;
-    const minutes = minuteMatch ? Number.parseInt(minuteMatch[1]) : 0;
-    const seconds = secondMatch ? Number.parseInt(secondMatch[1]) : 0;
-
-    // 시간이 있는 경우: hh:mm:ss
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, "0")}:${minutes
-        .toString()
-        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-    }
-
-    // 시간이 없는 경우: mm:ss
-    return `${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
-  // 조회수 포맷 함수
-  const formatViewCount = (count: string): string => {
-    if (!count) return "0";
-
-    const num = Number.parseInt(count, 10);
-    if (isNaN(num)) return "0";
-
-    if (num >= 10000) {
-      return `${Math.floor(num / 10000)}만회`;
-    } else if (num >= 1000) {
-      return `${Math.floor(num / 1000)}천회`;
-    }
-
-    return `${num}회`;
-  };
-
-  // 날짜 포맷 함수
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${month}월 ${day}일`;
-  };
-
-  // 인기 태그 (모든 태그에서 최대 6개)
-  const popularTags = allTags.slice(0, 6);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-      },
-    },
-  };
-
-  const bottomPopupVariants = {
-    hidden: { opacity: 0, y: 100 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: "spring",
-        damping: 25,
-        stiffness: 300,
-      },
-    },
-    exit: {
-      opacity: 0,
-      y: 100,
-      transition: {
-        duration: 0.2,
-      },
-    },
-  };
-
-  const backdropVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-    exit: { opacity: 0 },
-  };
-
-  // 바텀 팝업의 '다른 재생목록에 저장' 버튼 클릭 함수 수정
+  // 바텀 팝업의 '다른 재생목록에 저장' 버튼 클릭 함수
   const handleSaveToFolder = () => {
     setShowFolderModal(true);
   };
 
   // 컴포넌트 마운트 시 데이터 불러오기
   useEffect(() => {
-    // 북마크 데이터 로드 (폴더 데이터도 함께 로드됨)
     fetchBookmarks();
   }, []);
 
@@ -529,36 +130,13 @@ export default function LibraryPage() {
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-medium" />
             </div>
-            {/* 가로스크롤 폴더 필터링 추가 */}
-            <div className="flex overflow-x-auto gap-2 pb-2 mb-2 no-scrollbar">
-              <button
-                className={`${
-                  !activeFolder
-                    ? "bg-primary-color text-white"
-                    : "bg-white border border-border-line text-neutral-medium"
-                } text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap`}
-                onClick={() => {
-                  setActiveFolder(null);
-                }}
-              >
-                전체 폴더
-              </button>
-              {folders.map((folder) => (
-                <button
-                  key={folder.id}
-                  className={`${
-                    activeFolder === folder.id
-                      ? "bg-primary-color text-white"
-                      : "bg-white border border-border-line text-neutral-medium"
-                  } text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap`}
-                  onClick={() => {
-                    setActiveFolder(folder.id);
-                  }}
-                >
-                  {folder.name}
-                </button>
-              ))}
-            </div>
+
+            {/* 폴더 필터 */}
+            <FolderFilter
+              folders={folders}
+              activeFolder={activeFolder}
+              onFolderSelect={setActiveFolder}
+            />
 
             {/* 정렬 및 필터 옵션 */}
             <div className="flex items-center justify-between mb-4">
@@ -566,129 +144,17 @@ export default function LibraryPage() {
                 {filteredBookmarks.length}개 항목
               </div>
               <div className="flex gap-2">
-                {/* 정렬 드롭다운 */}
-                <div className="relative sort-dropdown">
-                  <button
-                    className="flex items-center gap-2 bg-white border border-border-line rounded-full px-4 py-1.5 text-sm text-neutral-dark focus:outline-none focus:border-primary-color hover:border-primary-color transition-colors"
-                    onClick={() => setShowSortDropdown(!showSortDropdown)}
-                  >
-                    <Filter className="h-4 w-4 text-neutral-medium" />
-                    <span>
-                      {sortBy === "latest" && "최신순"}
-                      {sortBy === "oldest" && "오래된순"}
-                      {sortBy === "popular" && "인기순"}
-                      {sortBy === "duration" && "길이순"}
-                    </span>
-                    <ChevronDown className="h-4 w-4 text-neutral-medium" />
-                  </button>
-
-                  {showSortDropdown && (
-                    <div className="absolute right-0 mt-1 min-w-32 bg-white rounded-xl shadow-lg border border-border-line z-10 overflow-hidden">
-                      <div className="max-h-60 overflow-y-auto py-1 overscroll-contain">
-                        <div className="flex flex-col py-2">
-                          <button
-                            className="px-3 py-2 text-left hover:bg-neutral-100 text-sm flex items-center"
-                            onClick={() => {
-                              setSortBy("latest");
-                              setFilteredBookmarks(
-                                sortBookmarks(filteredBookmarks, "latest")
-                              );
-                              setShowSortDropdown(false);
-                            }}
-                          >
-                            {sortBy === "latest" ? (
-                              <CheckCircle className="h-4 w-4 text-primary-color mr-2" />
-                            ) : (
-                              <span className="w-4"></span>
-                            )}
-                            <span>최신순</span>
-                          </button>
-                          <button
-                            className="px-3 py-2 text-left hover:bg-neutral-100 text-sm flex items-center"
-                            onClick={() => {
-                              setSortBy("oldest");
-                              setFilteredBookmarks(
-                                sortBookmarks(filteredBookmarks, "oldest")
-                              );
-                              setShowSortDropdown(false);
-                            }}
-                          >
-                            {sortBy === "oldest" ? (
-                              <CheckCircle className="h-4 w-4 text-primary-color mr-2" />
-                            ) : (
-                              <span className="w-4"></span>
-                            )}
-                            <span>오래된순</span>
-                          </button>
-                          <button
-                            className="px-3 py-2 text-left hover:bg-neutral-100 text-sm flex items-center"
-                            onClick={() => {
-                              setSortBy("popular");
-                              setFilteredBookmarks(
-                                sortBookmarks(filteredBookmarks, "popular")
-                              );
-                              setShowSortDropdown(false);
-                            }}
-                          >
-                            {sortBy === "popular" ? (
-                              <CheckCircle className="h-4 w-4 text-primary-color mr-2" />
-                            ) : (
-                              <span className="w-4"></span>
-                            )}
-                            <span>인기순</span>
-                          </button>
-                          <button
-                            className="px-3 py-2 text-left hover:bg-neutral-100 text-sm flex items-center"
-                            onClick={() => {
-                              setSortBy("duration");
-                              setFilteredBookmarks(
-                                sortBookmarks(filteredBookmarks, "duration")
-                              );
-                              setShowSortDropdown(false);
-                            }}
-                          >
-                            {sortBy === "duration" ? (
-                              <CheckCircle className="h-4 w-4 text-primary-color mr-2" />
-                            ) : (
-                              <span className="w-4"></span>
-                            )}
-                            <span>길이순</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <SortDropdown sortBy={sortBy} onSortChange={applySort} />
               </div>
             </div>
 
-            {/* 태그 필터링 (기존 코드) */}
+            {/* 태그 필터링 */}
             {showTagFilter && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                <button
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    activeTag === "전체"
-                      ? "bg-primary-color text-white"
-                      : "bg-white border border-border-line text-neutral-medium"
-                  }`}
-                  onClick={() => setActiveTag("전체")}
-                >
-                  전체
-                </button>
-                {popularTags.map((tag) => (
-                  <button
-                    key={tag}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      activeTag === tag
-                        ? "bg-primary-color text-white"
-                        : "bg-white border border-border-line text-neutral-medium"
-                    }`}
-                    onClick={() => setActiveTag(tag)}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
+              <TagFilter
+                tags={popularTags}
+                activeTag={activeTag}
+                onTagSelect={setActiveTag}
+              />
             )}
           </div>
 
@@ -715,7 +181,7 @@ export default function LibraryPage() {
               <p className="text-neutral-medium mb-3">{error}</p>
               <Button
                 variant="outline"
-                onClick={() => window.location.reload()}
+                onClick={() => refreshData()}
                 className="rounded-full px-4"
               >
                 다시 시도
@@ -736,81 +202,24 @@ export default function LibraryPage() {
           ) : (
             <motion.div
               className="grid grid-cols-2 gap-4"
-              variants={containerVariants}
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.05,
+                  },
+                },
+              }}
               initial="hidden"
               animate="visible"
             >
               {filteredBookmarks.map((bookmark) => (
-                <motion.div
+                <BookmarkCard
                   key={bookmark.id}
-                  variants={itemVariants}
-                  className="group"
-                >
-                  <Link href={`/digest/${bookmark.digest_id}`}>
-                    <motion.div
-                      className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm h-full flex flex-col group-hover:border-primary-color"
-                      whileHover={{ y: -5 }}
-                    >
-                      <div className="relative h-24 w-full">
-                        <Image
-                          src={bookmark.digests.image || "/placeholder.svg"}
-                          alt={bookmark.digests.title}
-                          fill
-                          className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                        />
-                        {/* 영상 길이 표시 */}
-                        {bookmark.digests.source_type === "YouTube" &&
-                          bookmark.digests.video_info?.duration && (
-                            <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-[10px] rounded">
-                              {formatDuration(
-                                bookmark.digests.video_info.duration
-                              )}
-                            </div>
-                          )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full absolute top-2 right-2 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
-                          onClick={(e) => handleOpenMenu(e, bookmark)}
-                        >
-                          <MoreVertical className="h-4 w-4 text-neutral-dark" />
-                        </Button>
-                      </div>
-                      <div className="p-3 flex-1 flex flex-col">
-                        <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
-                          {bookmark.digests.title}
-                        </h3>
-
-                        {/* 유튜버 이름과 조회수 표시 */}
-                        {bookmark.digests.source_type === "YouTube" &&
-                        bookmark.digests.video_info ? (
-                          <p className="text-xs text-neutral-medium mb-1">
-                            {bookmark.digests.video_info.channelTitle || ""} ·
-                            조회수{" "}
-                            {formatViewCount(
-                              bookmark.digests.video_info.viewCount || "0"
-                            )}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-neutral-medium mb-1">
-                            {formatDate(bookmark.created_at)}
-                          </p>
-                        )}
-
-                        <div className="flex flex-wrap gap-1 mt-auto">
-                          {bookmark.digests.tags &&
-                            bookmark.digests.tags
-                              .slice(0, 2)
-                              .map((tag: string) => (
-                                <span key={tag} className="tag text-xs">
-                                  {tag}
-                                </span>
-                              ))}
-                        </div>
-                      </div>
-                    </motion.div>
-                  </Link>
-                </motion.div>
+                  bookmark={bookmark}
+                  onOpenMenu={handleOpenMenu}
+                />
               ))}
             </motion.div>
           )}
@@ -862,7 +271,7 @@ export default function LibraryPage() {
         title={selectedBookmark?.digests.title || ""}
         onSuccess={() => {
           // 성공적으로 폴더에 추가한 후 폴더 데이터 새로고침
-          refreshFolderData();
+          refreshData();
           setShowFolderModal(false);
           setShowBottomPopup(false);
         }}

@@ -428,3 +428,163 @@ export async function GET(req: Request) {
     );
   }
 }
+
+// PATCH: 북마크의 폴더 변경
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createClient();
+
+    // 세션 확인
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: "로그인이 필요합니다" },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
+
+    // 요청 내용 파싱
+    const body = await request.json();
+    const { digestId, newFolderId } = body;
+
+    if (!digestId || !newFolderId) {
+      return NextResponse.json(
+        { error: "다이제스트 ID와 새 폴더 ID가 필요합니다" },
+        { status: 400 }
+      );
+    }
+
+    // 새 폴더 소유권 확인
+    const { data: folderData, error: folderError } = await supabase
+      .from("folders")
+      .select("id")
+      .eq("id", newFolderId as any)
+      .eq("user_id", userId as any)
+      .single();
+
+    if (folderError || !folderData) {
+      console.error("새 폴더 소유권 확인 오류:", folderError);
+      return NextResponse.json(
+        { error: "새 폴더에 접근 권한이 없습니다" },
+        { status: 403 }
+      );
+    }
+
+    // 현재 북마크 정보 가져오기
+    const { data: bookmarkData, error: bookmarkError } = await supabase
+      .from("bookmarks")
+      .select("id, folder_id")
+      .eq("user_id", userId as any)
+      .eq("digest_id", digestId as any)
+      .single();
+
+    if (bookmarkError || !bookmarkData) {
+      console.error("북마크 조회 오류:", bookmarkError);
+      return NextResponse.json(
+        { error: "북마크를 찾을 수 없습니다" },
+        { status: 404 }
+      );
+    }
+
+    const bookmarkId = bookmarkData.id;
+    const currentFolderId = bookmarkData.folder_id;
+
+    // 같은 폴더로 이동하려는 경우
+    if (currentFolderId === newFolderId) {
+      return NextResponse.json({
+        success: true,
+        message: "이미 해당 폴더에 있는 북마크입니다",
+        newFolderId,
+        bookmarkId,
+      });
+    }
+
+    // 트랜잭션 대신 단계적으로 처리
+    // 1. 이전 폴더-북마크 관계 삭제 (있는 경우)
+    if (currentFolderId) {
+      const { error: deleteError } = await supabase
+        .from("folder_bookmarks")
+        .delete()
+        .eq("folder_id", currentFolderId as any)
+        .eq("bookmark_id", bookmarkId as any);
+
+      if (deleteError) {
+        console.error("이전 폴더-북마크 관계 삭제 오류:", deleteError);
+        return NextResponse.json(
+          { error: "폴더 변경 중 오류 발생" },
+          { status: 500 }
+        );
+      }
+    }
+
+    // 2. 새 폴더-북마크 관계 확인 또는 생성
+    // 먼저 이미 존재하는지 확인
+    const { data: existingRelation, error: checkError } = await supabase
+      .from("folder_bookmarks")
+      .select("id")
+      .eq("folder_id", newFolderId as any)
+      .eq("bookmark_id", bookmarkId as any)
+      .maybeSingle();
+
+    let relationId;
+
+    if (existingRelation) {
+      // 이미 관계가 있다면 그대로 사용
+      relationId = existingRelation.id;
+      console.log("기존 폴더-북마크 관계 사용:", relationId);
+    } else {
+      // 관계가 없다면 새로 생성
+      const { data: newRelation, error: insertError } = await supabase
+        .from("folder_bookmarks")
+        .insert({
+          folder_id: newFolderId as any,
+          bookmark_id: bookmarkId as any,
+        } as any)
+        .select("id")
+        .single();
+
+      if (insertError) {
+        console.error("새 폴더-북마크 관계 생성 오류:", insertError);
+        return NextResponse.json(
+          { error: "폴더 변경 중 오류 발생" },
+          { status: 500 }
+        );
+      }
+
+      relationId = newRelation.id;
+      console.log("새 폴더-북마크 관계 생성:", relationId);
+    }
+
+    // 3. 북마크의 folder_id 필드 업데이트
+    const { error: updateError } = await supabase
+      .from("bookmarks")
+      .update({ folder_id: newFolderId as any } as any)
+      .eq("id", bookmarkId as any)
+      .eq("user_id", userId as any);
+
+    if (updateError) {
+      console.error("북마크 폴더 ID 업데이트 오류:", updateError);
+      return NextResponse.json(
+        { error: "폴더 변경 중 오류 발생" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "북마크 폴더가 성공적으로 변경되었습니다",
+      newFolderId,
+      bookmarkId,
+    });
+  } catch (error) {
+    console.error("폴더 변경 중 오류:", error);
+    return NextResponse.json(
+      { error: "폴더 변경 중 서버 오류 발생" },
+      { status: 500 }
+    );
+  }
+}

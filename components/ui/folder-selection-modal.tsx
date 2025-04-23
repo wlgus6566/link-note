@@ -20,6 +20,10 @@ interface FolderSelectionModalProps {
   title: string;
   onSuccess: (folderId: string) => void;
   activeFolder?: string;
+  onChangeFolder?: (
+    digestId: string,
+    newFolderId: string
+  ) => Promise<{ success: boolean; error?: string; message?: string }>;
 }
 
 export function FolderSelectionModal({
@@ -29,6 +33,7 @@ export function FolderSelectionModal({
   title,
   onSuccess,
   activeFolder,
+  onChangeFolder,
 }: FolderSelectionModalProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,38 +114,63 @@ export function FolderSelectionModal({
     try {
       setSavingToFolder(true);
 
-      // 북마크를 폴더에 저장 (folder-bookmarks API 사용)
-      const response = await fetch("/api/folder-bookmarks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          folderId: String(folderId),
-          digestId: digestId,
-        }),
-        credentials: "include",
-      });
-
-      const data = await response.json();
-      console.log("북마크 폴더 저장 API 응답:", data);
-
-      if (!response.ok) {
-        const errorMsg =
-          data.error || "폴더에 북마크를 저장하는데 실패했습니다.";
-        console.error("API 오류:", response.status, errorMsg);
-        throw new Error(errorMsg);
+      // 이미 같은 폴더가 선택된 경우 처리
+      if (String(folderId) === String(activeFolder)) {
+        toast.info("이미 해당 폴더에 저장된 북마크입니다.");
+        onClose();
+        return;
       }
 
-      console.log("북마크를 폴더에 저장 완료:", data);
-      toast.success(`"${folderName}" 폴더에 저장했습니다.`);
+      // activeFolder가 있고 onChangeFolder 함수도 있으면 폴더 변경 로직 수행
+      if (activeFolder && onChangeFolder) {
+        console.log("폴더 변경 로직 수행:", {
+          digestId,
+          newFolderId: String(folderId),
+        });
 
-      // 성공 콜백 호출 - 폴더 ID 전달
-      onSuccess(String(folderId));
-      onClose();
+        const result = await onChangeFolder(digestId, String(folderId));
+
+        if (result.success) {
+          toast.success(`"${folderName}" 폴더로 이동했습니다.`);
+          onSuccess(String(folderId));
+          onClose();
+        } else {
+          throw new Error(result.error || "폴더 변경에 실패했습니다.");
+        }
+      } else {
+        // 기존 로직: 북마크를 새 폴더에 저장
+        const response = await fetch("/api/folder-bookmarks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            folderId: String(folderId),
+            digestId: digestId,
+          }),
+          credentials: "include",
+        });
+
+        const data = await response.json();
+        console.log("북마크 폴더 저장 API 응답:", data);
+
+        if (!response.ok) {
+          const errorMsg =
+            data.error || "폴더에 북마크를 저장하는데 실패했습니다.";
+          console.error("API 오류:", response.status, errorMsg);
+          throw new Error(errorMsg);
+        }
+
+        console.log("북마크를 폴더에 저장 완료:", data);
+        toast.success(`"${folderName}" 폴더에 저장했습니다.`);
+
+        // 성공 콜백 호출 - 폴더 ID 전달
+        onSuccess(String(folderId));
+        onClose();
+      }
     } catch (err) {
-      console.error("폴더에 북마크 저장 오류:", err);
-      toast.error("폴더에 저장하는데 실패했습니다. 다시 시도해주세요.");
+      console.error("폴더에 북마크 저장/변경 오류:", err);
+      toast.error("폴더 작업에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setSavingToFolder(false);
     }
@@ -155,20 +185,12 @@ export function FolderSelectionModal({
     setShowNewFolderModal(false);
 
     // 새 폴더를 자동으로 선택하는 옵션 제공
-    toast({
-      title: "새 폴더 생성 완료",
+    toast("새 폴더 생성 완료", {
       description: "새 폴더에 저장하시겠습니까?",
-      action: (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleFolderSelect(folderId, folderName)}
-          >
-            저장하기
-          </Button>
-        </div>
-      ),
+      action: {
+        label: "저장하기",
+        onClick: () => handleFolderSelect(folderId, folderName),
+      },
       duration: 5000,
     });
   };

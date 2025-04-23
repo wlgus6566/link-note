@@ -38,6 +38,7 @@ export default function DigestPage() {
     fetchBookmarks,
     refreshData,
     deleteBookmark,
+    changeBookmarkFolder,
   } = useBookmarks();
 
   const router = useRouter();
@@ -275,6 +276,9 @@ export default function DigestPage() {
           setShowFolderModal(false);
           setShowBottomPopup(false);
         }}
+        onChangeFolder={(digestId, newFolderId) =>
+          changeBookmarkFolder(parseInt(digestId), newFolderId)
+        }
       />
     </div>
   );

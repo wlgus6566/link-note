@@ -174,6 +174,46 @@ export function useBookmarks() {
     }
   };
 
+  // 북마크 폴더 변경
+  const changeBookmarkFolder = async (
+    digestId: number,
+    newFolderId: string
+  ) => {
+    try {
+      const response = await fetch(`/api/folder-bookmarks`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ digestId, newFolderId }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // 성공적으로 폴더가 변경된 경우 북마크 목록 업데이트
+        const updatedBookmarks = bookmarks.map((bookmark) => {
+          if (bookmark.digest_id === digestId) {
+            return { ...bookmark, folder_id: newFolderId };
+          }
+          return bookmark;
+        });
+
+        setBookmarks(updatedBookmarks);
+        return { success: true, message: result.message };
+      } else {
+        console.error("폴더 변경 오류:", result.error);
+        return {
+          success: false,
+          error: result.error || "폴더 변경 중 오류가 발생했습니다",
+        };
+      }
+    } catch (error) {
+      console.error("폴더 변경 중 예외 발생:", error);
+      return { success: false, error: "폴더 변경 요청 중 오류가 발생했습니다" };
+    }
+  };
+
   // 인기 태그 (모든 태그에서 최대 6개)
   const popularTags = allTags.slice(0, 6);
 
@@ -185,7 +225,6 @@ export function useBookmarks() {
   // 정렬 적용
   const applySort = (sortType: SortType) => {
     setSortBy(sortType);
-    setFilteredBookmarks(sortBookmarks(filteredBookmarks, sortType));
   };
 
   return {
@@ -208,5 +247,6 @@ export function useBookmarks() {
     fetchBookmarks,
     refreshData,
     deleteBookmark,
+    changeBookmarkFolder,
   };
 }

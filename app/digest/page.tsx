@@ -91,6 +91,9 @@ export default function LibraryPage() {
   const [isLoadingFolderData, setIsLoadingFolderData] = useState(false);
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [sortBy, setSortBy] = useState<
+    "latest" | "oldest" | "popular" | "duration"
+  >("latest");
 
   // 바깥 영역 클릭 시 드롭다운 닫기 이벤트 추가
   useEffect(() => {
@@ -109,6 +112,80 @@ export default function LibraryPage() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showFolderDropdown, showSortDropdown]);
+
+  // 정렬 함수 구현
+  const sortBookmarks = (
+    bookmarks: BookmarkItem[],
+    sortType: "latest" | "oldest" | "popular" | "duration"
+  ) => {
+    let sorted = [...bookmarks];
+
+    switch (sortType) {
+      case "latest":
+        // 최신순 정렬 (생성일 기준 내림차순)
+        sorted.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        break;
+      case "oldest":
+        // 오래된순 정렬 (생성일 기준 오름차순)
+        sorted.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        break;
+      case "popular":
+        // 인기순 정렬 (조회수 기준 내림차순)
+        sorted.sort((a, b) => {
+          const viewCountA = Number(a.digests.video_info?.viewCount || 0);
+          const viewCountB = Number(b.digests.video_info?.viewCount || 0);
+          return viewCountB - viewCountA;
+        });
+        break;
+      case "duration":
+        // 길이순 정렬 (영상 길이 기준 내림차순)
+        sorted.sort((a, b) => {
+          const durationA = convertISO8601ToSeconds(
+            a.digests.video_info?.duration || ""
+          );
+          const durationB = convertISO8601ToSeconds(
+            b.digests.video_info?.duration || ""
+          );
+          return durationB - durationA;
+        });
+        break;
+    }
+
+    return sorted;
+  };
+
+  // ISO8601 형식의 duration을 초로 변환하는 함수
+  const convertISO8601ToSeconds = (duration: string): number => {
+    if (!duration) return 0;
+
+    let seconds = 0;
+
+    // 시간 추출
+    const hourMatch = duration.match(/(\d+)H/);
+    if (hourMatch) {
+      seconds += parseInt(hourMatch[1]) * 60 * 60;
+    }
+
+    // 분 추출
+    const minuteMatch = duration.match(/(\d+)M/);
+    if (minuteMatch) {
+      seconds += parseInt(minuteMatch[1]) * 60;
+    }
+
+    // 초 추출
+    const secondMatch = duration.match(/(\d+)S/);
+    if (secondMatch) {
+      seconds += parseInt(secondMatch[1]);
+    }
+
+    return seconds;
+  };
 
   // 북마크 불러오기 함수 최적화 - 폴더 필터링 관련 코드 제거
   const fetchBookmarks = async () => {
@@ -496,44 +573,88 @@ export default function LibraryPage() {
                     onClick={() => setShowSortDropdown(!showSortDropdown)}
                   >
                     <Filter className="h-4 w-4 text-neutral-medium" />
-                    <span>정렬 기준</span>
+                    <span>
+                      {sortBy === "latest" && "최신순"}
+                      {sortBy === "oldest" && "오래된순"}
+                      {sortBy === "popular" && "인기순"}
+                      {sortBy === "duration" && "길이순"}
+                    </span>
                     <ChevronDown className="h-4 w-4 text-neutral-medium" />
                   </button>
 
                   {showSortDropdown && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-border-line z-10 overflow-hidden">
+                    <div className="absolute right-0 mt-1 min-w-32 bg-white rounded-xl shadow-lg border border-border-line z-10 overflow-hidden">
                       <div className="max-h-60 overflow-y-auto py-1 overscroll-contain">
-                        <button
-                          className="w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color flex items-center gap-2"
-                          onClick={() => setShowSortDropdown(false)}
-                        >
-                          <CheckCircle
-                            size={16}
-                            className="text-primary-color"
-                          />
-                          <span>최신순</span>
-                        </button>
-                        <button
-                          className="w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color flex items-center gap-2"
-                          onClick={() => setShowSortDropdown(false)}
-                        >
-                          <span className="w-4"></span>
-                          <span>오래된순</span>
-                        </button>
-                        <button
-                          className="w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color flex items-center gap-2"
-                          onClick={() => setShowSortDropdown(false)}
-                        >
-                          <span className="w-4"></span>
-                          <span>인기순</span>
-                        </button>
-                        <button
-                          className="w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color flex items-center gap-2"
-                          onClick={() => setShowSortDropdown(false)}
-                        >
-                          <span className="w-4"></span>
-                          <span>길이순</span>
-                        </button>
+                        <div className="flex flex-col py-2">
+                          <button
+                            className="px-3 py-2 text-left hover:bg-neutral-100 text-sm flex items-center"
+                            onClick={() => {
+                              setSortBy("latest");
+                              setFilteredBookmarks(
+                                sortBookmarks(filteredBookmarks, "latest")
+                              );
+                              setShowSortDropdown(false);
+                            }}
+                          >
+                            {sortBy === "latest" ? (
+                              <CheckCircle className="h-4 w-4 text-primary-color mr-2" />
+                            ) : (
+                              <span className="w-4"></span>
+                            )}
+                            <span>최신순</span>
+                          </button>
+                          <button
+                            className="px-3 py-2 text-left hover:bg-neutral-100 text-sm flex items-center"
+                            onClick={() => {
+                              setSortBy("oldest");
+                              setFilteredBookmarks(
+                                sortBookmarks(filteredBookmarks, "oldest")
+                              );
+                              setShowSortDropdown(false);
+                            }}
+                          >
+                            {sortBy === "oldest" ? (
+                              <CheckCircle className="h-4 w-4 text-primary-color mr-2" />
+                            ) : (
+                              <span className="w-4"></span>
+                            )}
+                            <span>오래된순</span>
+                          </button>
+                          <button
+                            className="px-3 py-2 text-left hover:bg-neutral-100 text-sm flex items-center"
+                            onClick={() => {
+                              setSortBy("popular");
+                              setFilteredBookmarks(
+                                sortBookmarks(filteredBookmarks, "popular")
+                              );
+                              setShowSortDropdown(false);
+                            }}
+                          >
+                            {sortBy === "popular" ? (
+                              <CheckCircle className="h-4 w-4 text-primary-color mr-2" />
+                            ) : (
+                              <span className="w-4"></span>
+                            )}
+                            <span>인기순</span>
+                          </button>
+                          <button
+                            className="px-3 py-2 text-left hover:bg-neutral-100 text-sm flex items-center"
+                            onClick={() => {
+                              setSortBy("duration");
+                              setFilteredBookmarks(
+                                sortBookmarks(filteredBookmarks, "duration")
+                              );
+                              setShowSortDropdown(false);
+                            }}
+                          >
+                            {sortBy === "duration" ? (
+                              <CheckCircle className="h-4 w-4 text-primary-color mr-2" />
+                            ) : (
+                              <span className="w-4"></span>
+                            )}
+                            <span>길이순</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

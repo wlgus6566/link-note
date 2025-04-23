@@ -82,7 +82,7 @@ export function SimpleToast({
 interface DesignToastProps {
   isVisible: boolean;
   message: string;
-  onClose: () => void;
+  onClose?: () => void;
   showAddButton?: boolean;
   onAddButtonClick?: () => void;
   duration?: number;
@@ -107,7 +107,7 @@ export function DesignToast({
         setExit(true);
         // 애니메이션이 끝난 후에 닫기 함수 호출
         setTimeout(() => {
-          onClose();
+          onClose?.();
           setExit(false);
         }, 300); // CSS 애니메이션 지속 시간과 일치해야 함
       }, duration);
@@ -121,15 +121,6 @@ export function DesignToast({
   }, [isVisible, onClose, duration]);
 
   if (!isVisible) return null;
-
-  const handleClose = () => {
-    setExit(true);
-    // 애니메이션이 끝난 후에 닫기 함수 호출
-    setTimeout(() => {
-      onClose();
-      setExit(false);
-    }, 300);
-  };
 
   return (
     <div
@@ -147,9 +138,6 @@ export function DesignToast({
           메모
         </button>
       )}
-      <button onClick={handleClose} className="ml-2">
-        <X size={16} className="text-white opacity-70 hover:opacity-100" />
-      </button>
     </div>
   );
 }

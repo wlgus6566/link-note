@@ -7,20 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BottomNav from "@/components/bottom-nav";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useState, useEffect } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProfilePage() {
-  // 샘플 사용자 데이터
-  const user = {
-    name: "김링크",
-    username: "@kimlink",
-    bio: "디지털 콘텐츠 큐레이터 | 지식 관리 애호가",
-    joinDate: "2025년 4월",
-    stats: {
-      saved: 128,
-      shared: 32,
-    },
-    avatar: "/placeholder.svg?height=100&width=100",
-  };
+  const { isAuthenticated, isLoading: authLoading, user: authUser } = useAuth();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // 샘플 저장된 콘텐츠
   const savedContent = [
@@ -46,6 +41,38 @@ export default function ProfilePage() {
       image: "/placeholder.svg?height=200&width=400",
     },
   ];
+
+  // 사용자 정보 가져오기
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!isAuthenticated) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await fetch("/api/users");
+        const data = await response.json();
+
+        if (response.ok) {
+          setUser(data.user);
+          setError(null);
+        } else {
+          setError(data.error || "프로필 정보를 불러오는데 실패했습니다");
+        }
+      } catch (err) {
+        setError("프로필 정보를 불러오는데 실패했습니다");
+        console.error("프로필 조회 오류:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!authLoading) {
+      fetchUserProfile();
+    }
+  }, [isAuthenticated, authLoading]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -91,42 +118,77 @@ export default function ProfilePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="flex items-start gap-4 mb-4">
-              <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-primary-color/50">
-                <Image
-                  src={user.avatar || "/placeholder.svg"}
-                  alt={user.name}
-                  fill
-                  className="object-cover"
-                />
+            {loading || authLoading ? (
+              <>
+                <div className="flex items-start gap-4 mb-4">
+                  <Skeleton className="w-16 h-16 rounded-full" />
+                  <div className="flex-1">
+                    <Skeleton className="h-6 w-32 mb-1" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-40 mt-2" />
+                  </div>
+                </div>
+                <div className="flex gap-3 mb-4">
+                  <Skeleton className="flex-1 h-16 rounded-lg" />
+                  <Skeleton className="flex-1 h-16 rounded-lg" />
+                </div>
+              </>
+            ) : error ? (
+              <div className="text-center py-4">
+                <p className="text-red-500 mb-2">{error}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.reload()}
+                  className="mx-auto"
+                >
+                  다시 시도
+                </Button>
               </div>
-              <div className="flex-1">
-                <h2 className="font-bold text-lg text-neutral-dark">
-                  {user.name}
-                </h2>
-                <p className="text-sm text-primary-color">{user.username}</p>
-                <p className="text-sm mt-1 text-neutral-medium">{user.bio}</p>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-primary-color/50">
+                    <Image
+                      src={user?.avatar || "/placeholder.svg"}
+                      alt={user?.name || "프로필 이미지"}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="font-bold text-lg text-neutral-dark">
+                      {user?.name || "사용자"}
+                    </h2>
+                    <p className="text-sm text-neutral-dark">{user?.email}</p>
+                    <p className="text-sm mt-1 text-neutral-medium">
+                      {user?.bio || "소개가 없습니다"}
+                    </p>
+                  </div>
+                </div>
 
-            <div className="flex gap-3 mb-4">
-              <div className="flex-1 rounded-lg p-3 text-center border border-border-line bg-secondary-color">
-                <div className="font-bold text-lg text-primary-color">
-                  {user.stats.saved}
+                <div className="flex gap-3 mb-4">
+                  <div className="flex-1 rounded-lg p-3 text-center border border-border-line bg-secondary-color">
+                    <div className="font-bold text-lg text-primary-color">
+                      {user?.saved_count || 0}
+                    </div>
+                    <div className="text-xs text-neutral-medium">저장됨</div>
+                  </div>
+                  <div className="flex-1 rounded-lg p-3 text-center border border-border-line bg-secondary-color">
+                    <div className="font-bold text-lg text-primary-color">
+                      {user?.shared_count || 0}
+                    </div>
+                    <div className="text-xs text-neutral-medium">공유됨</div>
+                  </div>
                 </div>
-                <div className="text-xs text-neutral-medium">저장됨</div>
-              </div>
-              <div className="flex-1 rounded-lg p-3 text-center border border-border-line bg-secondary-color">
-                <div className="font-bold text-lg text-primary-color">
-                  {user.stats.shared}
-                </div>
-                <div className="text-xs text-neutral-medium">공유됨</div>
-              </div>
-            </div>
+              </>
+            )}
 
             <div className="flex gap-2">
-              <Button className="flex-1 bg-primary-color hover:bg-primary-color/90 h-10 text-sm text-white">
-                프로필 편집
+              <Button
+                className="flex-1 bg-primary-color hover:bg-primary-color/90 h-10 text-sm text-white"
+                asChild
+              >
+                <Link href="/settings?tab=account">프로필 편집</Link>
               </Button>
               <Button
                 variant="outline"

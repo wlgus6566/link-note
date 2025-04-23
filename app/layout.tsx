@@ -2,10 +2,10 @@ import type React from "react";
 import type { Metadata } from "next";
 import "./globals.css";
 import { ClientOnlyThemeProvider } from "@/components/client-theme-provider";
-
+import { Toaster } from "@/components/ui/toaster";
 export const metadata: Metadata = {
-  title: "LinkDigest",
-  description: "콘텐츠를 스마트하게 정리하세요",
+  title: "TubeLink",
+  description: "유튜브 영상을 스마트하게 정리하세요",
   generator: "v0.dev",
 };
 
@@ -24,6 +24,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-background">
         <ClientOnlyThemeProvider>{children}</ClientOnlyThemeProvider>
+        <Toaster />
       </body>
     </html>
   );

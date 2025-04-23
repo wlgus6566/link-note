@@ -37,7 +37,7 @@ export function Header({
   return (
     <header
       className={cn(
-        "sticky bg-white top-0 left-0 right-0 z-10 w-full border-b border-border",
+        "sticky bg-white top-0 left-0 right-0 z-10 w-full border-b border-border z-50",
         className
       )}
     >

@@ -80,35 +80,12 @@ export function convertISO8601ToSeconds(duration: string): number {
 }
 
 /**
- * 조회수 포맷 함수 - 10000 -> 1만회, 1000 -> 1천회
+ * 사용자 이름에서 이니셜을 가져오는 함수
  */
-export function formatViewCount(count: string): string {
-  if (!count) return "0";
+export const getUserInitials = (): string => {
+  const { user, isAuthenticated } = useUserStore.getState();
 
-  const num = Number.parseInt(count, 10);
-  if (isNaN(num)) return "0";
-
-  if (num >= 10000) {
-    return `${Math.floor(num / 10000)}만회`;
-  } else if (num >= 1000) {
-    return `${Math.floor(num / 1000)}천회`;
-  }
-
-  return `${num}회`;
-}
-
-/**
- * 날짜 포맷 함수 - YYYY-MM-DD -> MM월 DD일
- */
-export function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  return `${month}월 ${day}일`;
-}
-export function getUserInitials() {
-  const { user } = useUserStore();
-  if (!user || !user.name) return "게";
+  if (!isAuthenticated || !user || !user.name) return "게";
 
   // 한글 이름이면 성만, 영문 이름이면 첫 글자만
   if (/^[가-힣]+$/.test(user.name)) {
@@ -125,4 +102,70 @@ export function getUserInitials() {
       return names[0].charAt(0).toUpperCase();
     }
   }
+};
+
+/**
+ * 조회수를 포맷팅하는 함수
+ * @param viewCount 조회수
+ * @returns 포맷팅된 조회수 문자열 (예: 1.2만회, 3.5천회)
+ */
+export const formatViewCount = (viewCount: number): string => {
+  if (viewCount >= 10000) {
+    return `${(viewCount / 10000).toFixed(1)}만회`;
+  } else if (viewCount >= 1000) {
+    return `${(viewCount / 1000).toFixed(1)}천회`;
+  } else {
+    return `${viewCount}회`;
+  }
+};
+
+/**
+ * 날짜를 상대적 시간으로 변환하는 함수
+ * @param dateString ISO 8601 형식의 날짜 문자열
+ * @returns 상대적 시간 문자열 (예: 1일 전, 2주 전, 3개월 전)
+ */
+export const formatTimeAgo = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+
+  // 시간 단위 (밀리초)
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const week = 7 * day;
+  const month = 30 * day;
+  const year = 365 * day;
+
+  if (diffMs < minute) {
+    return "방금 전";
+  } else if (diffMs < hour) {
+    const minutes = Math.floor(diffMs / minute);
+    return `${minutes}분 전`;
+  } else if (diffMs < day) {
+    const hours = Math.floor(diffMs / hour);
+    return `${hours}시간 전`;
+  } else if (diffMs < week) {
+    const days = Math.floor(diffMs / day);
+    return `${days}일 전`;
+  } else if (diffMs < month) {
+    const weeks = Math.floor(diffMs / week);
+    return `${weeks}주 전`;
+  } else if (diffMs < year) {
+    const months = Math.floor(diffMs / month);
+    return `${months}개월 전`;
+  } else {
+    const years = Math.floor(diffMs / year);
+    return `${years}년 전`;
+  }
+};
+
+/**
+ * 날짜 포맷 함수 - YYYY-MM-DD -> MM월 DD일
+ */
+export function formatDate(dateString: string) {
+  const date = new Date(dateString);
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${month}월 ${day}일`;
 }

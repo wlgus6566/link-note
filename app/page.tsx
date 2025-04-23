@@ -2,15 +2,13 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight,
-  Search,
   FileText,
-  Tag,
   Sparkles,
   Clock,
   PlayCircle,
@@ -21,45 +19,36 @@ import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useUserStore } from "@/store/userStore";
 import { getUserInitials } from "@/lib/utils";
+import { useBookmarks } from "@/hooks/useBookmarks";
+import { formatViewCount, formatTimeAgo } from "@/lib/utils";
 
 export default function Home() {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const { isAuthenticated, isLoading } = useUserStore();
+  const {
+    filteredBookmarks,
+    fetchBookmarks,
+    loading: bookmarksLoading,
+  } = useBookmarks();
 
-  // 샘플 콘텐츠 데이터
-  const recentContent = [
-    {
-      id: 1,
-      title: "인공지능의 미래: 2025년 전망",
-      source: "YouTube",
-      date: "4월 10일",
-      summary:
-        "이 영상은 2025년 인공지능 기술의 발전 방향과 산업에 미치는 영향에 대해 분석합니다. 특히 생성형 AI와 자율주행 기술의 발전이 주목됩니다.",
-      tags: ["AI", "기술", "미래", "트렌드"],
-      image: "/placeholder.svg?height=200&width=400",
-    },
-    {
-      id: 2,
-      title: "최신 프론트엔드 기술 트렌드",
-      source: "YouTube",
-      date: "4월 8일",
-      summary:
-        "2024년 프론트엔드 개발의 주요 기술 트렌드를 소개합니다. React 18의 새로운 기능과 Next.js, Svelte 등 최신 프레임워크의 발전 방향을 분석합니다.",
-      tags: ["웹개발", "프론트엔드", "React", "트렌드"],
-      image: "/placeholder.svg?height=200&width=400",
-    },
-    {
-      id: 3,
-      title: "효율적인 코딩 습관과 개발 환경 구성하기",
-      source: "YouTube",
-      date: "4월 5일",
-      summary:
-        "개발 생산성을 높이기 위한 코딩 습관과 최적의 개발 환경 구성에 대해 다룹니다. 유용한 IDE 설정, 단축키, 확장 프로그램 추천을 포함합니다.",
-      tags: ["개발환경", "생산성", "코딩습관"],
-      image: "/placeholder.svg?height=200&width=400",
-    },
-  ];
+  // 컴포넌트 마운트 시 북마크 데이터 불러오기
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchBookmarks();
+    }
+  }, [isAuthenticated]);
+
+  // 가장 최근에 저장된 콘텐츠 5개만 표시
+  const recentContent = filteredBookmarks
+    .slice() // 원본 배열을 변경하지 않기 위해 복사
+    .sort((a, b) => {
+      // 최신순 정렬 (created_at 기준)
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    })
+    .slice(0, 5); // 최대 5개 항목만 표시
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +78,18 @@ export default function Home() {
         stiffness: 100,
       },
     },
+  };
+
+  // 랜덤 재생 시간 생성 (실제 데이터에는 없으므로)
+  const getRandomDuration = () => {
+    const minutes = Math.floor(Math.random() * 30) + 5;
+    const seconds = Math.floor(Math.random() * 60);
+    return `${minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
+  };
+
+  // 랜덤 조회수 생성 (실제 데이터에는 없으므로)
+  const getRandomViewCount = () => {
+    return Math.floor(Math.random() * 100000) + 1000;
   };
 
   return (
@@ -223,61 +224,106 @@ export default function Home() {
           <div className="container px-5">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
-                <Sparkles className="h-5 w-5 text-primary-color mr-2" />
                 <h2 className="text-xl font-bold text-neutral-dark">
-                  최근 추가됨
+                  최근 추가된 콘텐츠
                 </h2>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-primary-color font-medium p-0 hover:bg-transparent"
+                asChild
               >
-                전체보기
+                <Link href="/digest">전체보기</Link>
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {recentContent.slice(0, 4).map((content, index) => (
-                <Link
-                  href={`/digest/${content.id}`}
-                  key={content.id}
-                  className="group"
-                >
-                  <motion.div
-                    className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm h-full flex flex-col group-hover:border-primary-color"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ y: -5 }}
+            {bookmarksLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map((_, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-xl p-3 animate-pulse"
                   >
-                    <div className="relative h-24 w-full">
-                      <Image
-                        src={content.image || "/placeholder.svg"}
-                        alt={content.title}
-                        fill
-                        className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-                      />
-                      <div className="absolute top-2 left-2">
-                        <div className="px-2 py-0.5 bg-white text-neutral-dark rounded-full text-[10px]">
-                          {content.source}
-                        </div>
+                    <div className="flex gap-3">
+                      <div className="relative w-full aspect-video rounded-lg bg-gray-200 flex-shrink-0 h-[180px]"></div>
+                    </div>
+                    <div className="flex gap-3 mt-3">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200"></div>
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                       </div>
                     </div>
-                    <div className="p-3 flex-1 flex flex-col">
-                      <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
-                        {content.title}
-                      </h3>
-                      <div className="mt-auto pt-2">
-                        <div className="text-xs text-neutral-medium">
-                          {content.date}
+                  </div>
+                ))}
+              </div>
+            ) : !isAuthenticated || recentContent.length === 0 ? (
+              <div className="text-center py-6 bg-white rounded-xl">
+                <p className="text-neutral-medium mb-3">
+                  {isAuthenticated
+                    ? "저장된 콘텐츠가 없습니다. 관심 있는 콘텐츠를 북마크해보세요!"
+                    : "로그인하여 콘텐츠를 저장해보세요!"}
+                </p>
+                <Button variant="outline" className="rounded-full px-4" asChild>
+                  <Link
+                    href={isAuthenticated ? "/summarizing" : "/auth/signin"}
+                  >
+                    {isAuthenticated ? "콘텐츠 저장하기" : "로그인하기"}
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentContent.map((content, index) => (
+                  <Link
+                    href={`/digest/${content.digest_id}`}
+                    key={content.id}
+                    className="group block"
+                  >
+                    <motion.div
+                      className="flex flex-col"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      {/* 썸네일 영역 */}
+                      <div className="relative w-full aspect-video rounded-xl overflow-hidden mb-3">
+                        <Image
+                          src={content.digests.image || "/placeholder.svg"}
+                          alt={content.digests.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {/* 영상 길이 표시 */}
+                        <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-xs rounded">
+                          {getRandomDuration()}
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                </Link>
-              ))}
-            </div>
+
+                      {/* 콘텐츠 정보 영역 */}
+                      <div className="flex gap-3 px-2">
+                        {/* 제목 및 정보 */}
+                        <div className="flex-1">
+                          <h3 className="font-medium text-base mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
+                            {content.digests.title}
+                          </h3>
+                          <p className="text-sm text-neutral-medium">
+                            {content?.digests?.video_info?.channelTitle} •{" "}
+                            조회수{" "}
+                            {formatViewCount(
+                              Number(content?.digests?.video_info?.viewCount) ||
+                                0
+                            )}{" "}
+                            • {formatTimeAgo(content.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </main>

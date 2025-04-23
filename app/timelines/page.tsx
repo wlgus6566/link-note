@@ -82,9 +82,11 @@ export default function TimelinesPage() {
 
   // 북마크 데이터 가져오기 (인증 의존성 제거)
   const fetchBookmarks = useCallback(async () => {
-    if (fetchingRef.current || !isAuthenticated) return;
+    // 이미 가져오는 중이거나 이미 데이터가 있는 경우 중복 실행 방지
+    if (fetchingRef.current || bookmarks.length > 0) return;
 
     try {
+      console.log("타임라인 북마크 데이터 요청 시작");
       setFetching(true);
       fetchingRef.current = true;
 
@@ -115,8 +117,9 @@ export default function TimelinesPage() {
     } finally {
       setFetching(false);
       fetchingRef.current = false;
+      console.log("타임라인 북마크 데이터 요청 완료");
     }
-  }, [isAuthenticated]);
+  }, [bookmarks.length]); // bookmarks.length를 의존성에 추가하여 초기에만 실행되도록 함
 
   // 북마크를 digest_id 기준으로 그룹화하는 함수
   const groupBookmarksByDigest = (
@@ -158,13 +161,29 @@ export default function TimelinesPage() {
 
     if (!isAuthenticated) {
       setAuthError("로그인이 필요한 서비스입니다.");
+      // 비인증 상태에서는 로딩 상태 해제
+      setLoading(false);
     } else {
       setAuthError(null);
-      fetchBookmarks();
-    }
 
-    setLoading(false);
-  }, [isAuthenticated, authLoading, fetchBookmarks]);
+      // 데이터가 없고 로딩 중이 아닐 때만 데이터 요청
+      if (bookmarks.length === 0 && !fetching) {
+        console.log("인증 상태 변경으로 북마크 데이터 요청");
+        fetchBookmarks();
+      }
+
+      // 데이터가 이미 있거나 요청 중이면 로딩 상태만 해제
+      if (bookmarks.length > 0 || fetching === false) {
+        setLoading(false);
+      }
+    }
+  }, [
+    isAuthenticated,
+    authLoading,
+    fetchBookmarks,
+    bookmarks.length,
+    fetching,
+  ]);
 
   useEffect(() => {
     if (!groupedBookmarks.length) return;
@@ -667,6 +686,18 @@ export default function TimelinesPage() {
     );
   };
 
+  // 컴포넌트 마운트 시 단 한 번만 실행되는 초기화 로직
+  useEffect(() => {
+    // 컴포넌트 마운트 시 console.log로 렌더링 확인
+    console.log("타임라인 페이지 마운트");
+
+    // 컴포넌트 언마운트 시 실행할 클린업 함수
+    return () => {
+      console.log("타임라인 페이지 언마운트");
+      // 필요한 경우 상태 초기화 등의 클린업 작업 수행
+    };
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen pb-20">
       <Header
@@ -789,18 +820,3 @@ export default function TimelinesPage() {
     </div>
   );
 }
-
-const formatViewCount = (count: string): string => {
-  if (!count) return "0";
-
-  const num = Number.parseInt(count, 10);
-  if (isNaN(num)) return "0";
-
-  if (num >= 10000) {
-    return `${Math.floor(num / 10000)}만회`;
-  } else if (num >= 1000) {
-    return `${Math.floor(num / 1000)}천회`;
-  }
-
-  return `${num}회`;
-};

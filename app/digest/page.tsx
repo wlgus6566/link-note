@@ -7,19 +7,20 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   Search,
-  Filter,
-  Bookmark,
   MoreVertical,
   Share2,
   Trash2,
-  X,
   Folder,
   ChevronDown,
+  Sparkles,
+  Filter,
+  CheckCircle,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BottomNav from "@/components/bottom-nav";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
@@ -89,13 +90,17 @@ export default function LibraryPage() {
   >({});
   const [isLoadingFolderData, setIsLoadingFolderData] = useState(false);
   const [showFolderDropdown, setShowFolderDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
 
-  // 바깥 영역 클릭 시 폴더 드롭다운 닫기 이벤트 추가
+  // 바깥 영역 클릭 시 드롭다운 닫기 이벤트 추가
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       if (showFolderDropdown && !target.closest(".folder-dropdown")) {
         setShowFolderDropdown(false);
+      }
+      if (showSortDropdown && !target.closest(".sort-dropdown")) {
+        setShowSortDropdown(false);
       }
     };
 
@@ -103,7 +108,7 @@ export default function LibraryPage() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showFolderDropdown]);
+  }, [showFolderDropdown, showSortDropdown]);
 
   // 북마크 불러오기 함수 최적화 - 폴더 필터링 관련 코드 제거
   const fetchBookmarks = async () => {
@@ -436,85 +441,150 @@ export default function LibraryPage() {
 
       <main className="flex-1">
         <div className="container px-5 py-4">
-          {/* 폴더 선택 UI 개선 - 커스텀 드롭다운으로 변경 */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-neutral-medium">
-              {filteredBookmarks.length}개 항목
+          {/* 검색 및 필터 영역 */}
+          <div className="mb-6">
+            <div className="relative mb-4">
+              <Input
+                className="pl-10 bg-white border-border-line rounded-xl h-12"
+                placeholder="저장된 콘텐츠 검색"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-medium" />
             </div>
-
-            {/* 폴더 드롭다운 버튼에 클래스 추가 */}
-            <div className="relative folder-dropdown">
+            {/* 가로스크롤 폴더 필터링 추가 */}
+            <div className="flex overflow-x-auto gap-2 pb-2 mb-2 no-scrollbar">
               <button
-                className="flex items-center gap-2 bg-white border border-border-line rounded-full px-4 py-1.5 text-sm text-neutral-dark focus:outline-none focus:border-primary-color hover:border-primary-color transition-colors"
-                onClick={() => setShowFolderDropdown(!showFolderDropdown)}
+                className={`${
+                  !activeFolder
+                    ? "bg-primary-color text-white"
+                    : "bg-white border border-border-line text-neutral-medium"
+                } text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap`}
+                onClick={() => {
+                  setActiveFolder(null);
+                }}
               >
-                <Folder className="h-4 w-4 text-neutral-medium" />
-                <span>
-                  {activeFolder
-                    ? folders.find((f) => f.id === activeFolder)?.name
-                    : "모든 폴더"}
-                </span>
-                <ChevronDown className="h-4 w-4 text-neutral-medium" />
+                전체 폴더
               </button>
-
-              {showFolderDropdown && (
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-border-line z-10 overflow-hidden">
-                  <div className="max-h-60 overflow-y-auto py-1 overscroll-contain">
-                    <button
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color ${
-                        !activeFolder
-                          ? "bg-primary-light text-primary-color"
-                          : "text-neutral-dark"
-                      }`}
-                      onClick={() => {
-                        setActiveFolder(null);
-                        setShowFolderDropdown(false);
-                      }}
-                    >
-                      모든 폴더
-                    </button>
-                    {folders.map((folder) => (
-                      <button
-                        key={folder.id}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color ${
-                          activeFolder === folder.id
-                            ? "bg-primary-light text-primary-color"
-                            : "text-neutral-dark"
-                        }`}
-                        onClick={() => {
-                          setActiveFolder(folder.id);
-                          setShowFolderDropdown(false);
-                        }}
-                      >
-                        {folder.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {folders.map((folder) => (
+                <button
+                  key={folder.id}
+                  className={`${
+                    activeFolder === folder.id
+                      ? "bg-primary-color text-white"
+                      : "bg-white border border-border-line text-neutral-medium"
+                  } text-sm font-medium px-4 py-2 rounded-full whitespace-nowrap`}
+                  onClick={() => {
+                    setActiveFolder(folder.id);
+                  }}
+                >
+                  {folder.name}
+                </button>
+              ))}
             </div>
+
+            {/* 정렬 및 필터 옵션 */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-neutral-medium">
+                {filteredBookmarks.length}개 항목
+              </div>
+              <div className="flex gap-2">
+                {/* 정렬 드롭다운 */}
+                <div className="relative sort-dropdown">
+                  <button
+                    className="flex items-center gap-2 bg-white border border-border-line rounded-full px-4 py-1.5 text-sm text-neutral-dark focus:outline-none focus:border-primary-color hover:border-primary-color transition-colors"
+                    onClick={() => setShowSortDropdown(!showSortDropdown)}
+                  >
+                    <Filter className="h-4 w-4 text-neutral-medium" />
+                    <span>정렬 기준</span>
+                    <ChevronDown className="h-4 w-4 text-neutral-medium" />
+                  </button>
+
+                  {showSortDropdown && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-border-line z-10 overflow-hidden">
+                      <div className="max-h-60 overflow-y-auto py-1 overscroll-contain">
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color flex items-center gap-2"
+                          onClick={() => setShowSortDropdown(false)}
+                        >
+                          <CheckCircle
+                            size={16}
+                            className="text-primary-color"
+                          />
+                          <span>최신순</span>
+                        </button>
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color flex items-center gap-2"
+                          onClick={() => setShowSortDropdown(false)}
+                        >
+                          <span className="w-4"></span>
+                          <span>오래된순</span>
+                        </button>
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color flex items-center gap-2"
+                          onClick={() => setShowSortDropdown(false)}
+                        >
+                          <span className="w-4"></span>
+                          <span>인기순</span>
+                        </button>
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-primary-light hover:text-primary-color flex items-center gap-2"
+                          onClick={() => setShowSortDropdown(false)}
+                        >
+                          <span className="w-4"></span>
+                          <span>길이순</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 태그 필터링 (기존 코드) */}
+            {showTagFilter && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    activeTag === "전체"
+                      ? "bg-primary-color text-white"
+                      : "bg-white border border-border-line text-neutral-medium"
+                  }`}
+                  onClick={() => setActiveTag("전체")}
+                >
+                  전체
+                </button>
+                {popularTags.map((tag) => (
+                  <button
+                    key={tag}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      activeTag === tag
+                        ? "bg-primary-color text-white"
+                        : "bg-white border border-border-line text-neutral-medium"
+                    }`}
+                    onClick={() => setActiveTag(tag)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {loading ? (
-            <div className="space-y-4 grid">
+            <div className="grid grid-cols-2 gap-4">
               {Array(4)
                 .fill(0)
                 .map((_, index) => (
                   <div
                     key={index}
-                    className="bg-white rounded-xl overflow-hidden border border-border-line shadow-sm flex"
+                    className="bg-white rounded-xl overflow-hidden border border-border-line shadow-sm"
                   >
-                    <Skeleton className="h-32 w-1/3 flex-shrink-0" />
-                    <div className="p-3 flex-1">
-                      <Skeleton className="h-4 w-20 mb-1" />
-                      <Skeleton className="h-5 w-full mb-1" />
-                      <Skeleton className="h-5 w-1/2 mb-1" />
+                    <Skeleton className="h-24 w-full" />
+                    <div className="p-3">
                       <Skeleton className="h-4 w-full mb-1" />
-                      <Skeleton className="h-4 w-4/5 mb-2" />
-                      <div className="flex gap-1 mt-auto">
-                        <Skeleton className="h-5 w-12 rounded-full" />
-                        <Skeleton className="h-5 w-12 rounded-full" />
-                      </div>
+                      <Skeleton className="h-4 w-2/3 mb-2" />
+                      <Skeleton className="h-3 w-1/3" />
                     </div>
                   </div>
                 ))}
@@ -544,7 +614,7 @@ export default function LibraryPage() {
             </div>
           ) : (
             <motion.div
-              className="space-y-4 grid"
+              className="grid grid-cols-2 gap-4"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
@@ -553,15 +623,14 @@ export default function LibraryPage() {
                 <motion.div
                   key={bookmark.id}
                   variants={itemVariants}
-                  whileHover={{ y: -5 }}
                   className="group"
                 >
-                  <div className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm group-hover:border-primary-color flex relative">
-                    <Link
-                      href={`/digest/${bookmark.digest_id}`}
-                      className="flex flex-1"
+                  <Link href={`/digest/${bookmark.digest_id}`}>
+                    <motion.div
+                      className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm h-full flex flex-col group-hover:border-primary-color"
+                      whileHover={{ y: -5 }}
                     >
-                      <div className="w-2/5 h-26 relative">
+                      <div className="relative h-24 w-full">
                         <Image
                           src={bookmark.digests.image || "/placeholder.svg"}
                           alt={bookmark.digests.title}
@@ -577,9 +646,16 @@ export default function LibraryPage() {
                               )}
                             </div>
                           )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full absolute top-2 right-2 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
+                          onClick={(e) => handleOpenMenu(e, bookmark)}
+                        >
+                          <MoreVertical className="h-4 w-4 text-neutral-dark" />
+                        </Button>
                       </div>
-
-                      <div className="p-3 pb-2 w-3/5">
+                      <div className="p-3 flex-1 flex flex-col">
                         <h3 className="font-medium text-sm mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
                           {bookmark.digests.title}
                         </h3>
@@ -611,16 +687,8 @@ export default function LibraryPage() {
                               ))}
                         </div>
                       </div>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full absolute top-3 right-3 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
-                      onClick={(e) => handleOpenMenu(e, bookmark)}
-                    >
-                      <MoreVertical className="h-4 w-4 text-neutral-dark" />
-                    </Button>
-                  </div>
+                    </motion.div>
+                  </Link>
                 </motion.div>
               ))}
             </motion.div>

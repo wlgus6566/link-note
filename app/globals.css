@@ -90,7 +90,7 @@
   }
 
   .tag {
-    @apply px-3 py-1.5 text-xs font-medium bg-secondary-color/70 hover:bg-secondary-color/90 text-primary-color rounded-full cursor-pointer transition;
+    @apply px-3 py-1.5 text-xs font-medium bg-secondary-color/70 text-primary-color rounded-full cursor-pointer;
   }
 }
 

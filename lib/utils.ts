@@ -1,3 +1,4 @@
+import { useUserStore } from "@/store/userStore";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -104,4 +105,24 @@ export function formatDate(dateString: string) {
   const month = date.getMonth() + 1;
   const day = date.getDate();
   return `${month}월 ${day}일`;
+}
+export function getUserInitials() {
+  const { user } = useUserStore();
+  if (!user || !user.name) return "게";
+
+  // 한글 이름이면 성만, 영문 이름이면 첫 글자만
+  if (/^[가-힣]+$/.test(user.name)) {
+    // 한글 이름
+    return user.name.charAt(0);
+  } else {
+    // 영문 이름 또는 기타
+    const names = user.name.split(" ");
+    if (names.length > 1) {
+      // 이름이 공백으로 구분되어 있으면 첫 번째와 두 번째 단어의 첫 글자
+      return `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase();
+    } else {
+      // 한 단어 이름이면 첫 글자
+      return names[0].charAt(0).toUpperCase();
+    }
+  }
 }

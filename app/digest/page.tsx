@@ -18,7 +18,7 @@ import { BookmarkCard } from "@/components/bookmark-card";
 import { SortDropdown } from "@/components/sort-dropdown";
 import { FolderFilter } from "@/components/folder-filter";
 import { TagFilter } from "@/components/tag-filter";
-
+import { getUserInitials } from "@/lib/utils";
 export default function DigestPage() {
   const {
     bookmarks,
@@ -111,7 +111,7 @@ export default function DigestPage() {
           <Link href="/profile">
             <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center border border-primary-color/30">
               <span className="text-sm font-medium text-primary-color">
-                김링
+                {getUserInitials()}
               </span>
             </div>
           </Link>

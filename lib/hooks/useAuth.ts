@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useUserStore, User } from "@/store/userStore";
 
 interface UseAuthResult {
   isAuthenticated: boolean;
@@ -16,9 +17,14 @@ interface UseAuthResult {
  * @returns {UseAuthResult} 인증 관련 상태와 함수
  */
 export function useAuth(): UseAuthResult {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<any | null>(null);
+  const {
+    isAuthenticated,
+    isLoading,
+    user,
+    setUser,
+    setIsAuthenticated,
+    setIsLoading,
+  } = useUserStore();
   const [error, setError] = useState<string | null>(null);
   const checkingRef = useRef(false);
 
@@ -52,9 +58,53 @@ export function useAuth(): UseAuthResult {
       setIsAuthenticated(isAuth);
 
       if (isAuth && sessionData.session) {
-        // 추가 사용자 정보 가져오기
+        // Supabase Auth에서 기본 사용자 정보 가져오기
         const { data: userData } = await supabase.auth.getUser();
-        setUser(userData?.user || null);
+
+        if (userData?.user) {
+          try {
+            // 사용자 프로필 정보 API에서 가져오기
+            const response = await fetch("/api/users");
+            const data = await response.json();
+
+            if (response.ok && data.user) {
+              // Zustand 스토어에 사용자 정보 저장
+              setUser({
+                id: userData.user.id,
+                email: userData.user.email || "",
+                name: data.user.name || "사용자",
+                avatar: data.user.avatar || undefined,
+                bio: data.user.bio || undefined,
+              } as User);
+            } else {
+              // API 호출 실패 시 기본 Auth 정보만 저장
+              setUser({
+                id: userData.user.id,
+                email: userData.user.email || "",
+                name:
+                  userData.user.user_metadata?.name ||
+                  userData.user.user_metadata?.full_name ||
+                  "사용자",
+                avatar: userData.user.user_metadata?.avatar_url,
+              } as User);
+            }
+          } catch (apiError) {
+            console.error("사용자 프로필 정보 가져오기 오류:", apiError);
+
+            // API 호출 실패 시 기본 Auth 정보만 저장
+            setUser({
+              id: userData.user.id,
+              email: userData.user.email || "",
+              name:
+                userData.user.user_metadata?.name ||
+                userData.user.user_metadata?.full_name ||
+                "사용자",
+              avatar: userData.user.user_metadata?.avatar_url,
+            } as User);
+          }
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
@@ -92,7 +142,8 @@ export function useAuth(): UseAuthResult {
       if (
         event === "SIGNED_IN" ||
         event === "SIGNED_OUT" ||
-        event === "TOKEN_REFRESHED"
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
       ) {
         checkAuth();
       }

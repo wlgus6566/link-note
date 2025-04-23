@@ -29,6 +29,7 @@ import { YouTubePopup } from "@/components/ui/youtube-popup";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { getUserInitials } from "@/lib/utils";
 
 // 그룹화된 북마크 타입 정의
 interface GroupedBookmarks {
@@ -676,7 +677,7 @@ export default function TimelinesPage() {
           <Link href="/profile">
             <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center border border-primary-color/30">
               <span className="text-sm font-medium text-primary-color">
-                김링
+                {getUserInitials()}
               </span>
             </div>
           </Link>

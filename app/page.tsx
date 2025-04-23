@@ -17,13 +17,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import BottomNav from "@/components/bottom-nav";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
+import { useUserStore } from "@/store/userStore";
+import { getUserInitials } from "@/lib/utils";
 
 export default function Home() {
   const router = useRouter();
   const [url, setUrl] = useState("");
+  const { isAuthenticated, isLoading } = useUserStore();
 
   // 샘플 콘텐츠 데이터
   const recentContent = [
@@ -105,7 +107,7 @@ export default function Home() {
           <Link href="/profile">
             <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center border border-primary-color/30">
               <span className="text-sm font-medium text-primary-color">
-                김링
+                {isLoading ? "..." : isAuthenticated ? getUserInitials() : "게"}
               </span>
             </div>
           </Link>
@@ -279,8 +281,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-
-      <BottomNav />
     </div>
   );
 }

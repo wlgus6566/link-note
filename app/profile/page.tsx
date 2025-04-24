@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BottomNav from "@/components/bottom-nav";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProfilePage() {
@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const calledRef = useRef(false);
 
   // 샘플 저장된 콘텐츠
   const savedContent = [
@@ -44,6 +45,8 @@ export default function ProfilePage() {
 
   // 사용자 정보 가져오기
   useEffect(() => {
+    if (calledRef.current || authLoading || !isAuthenticated) return;
+    calledRef.current = true;
     const fetchUserProfile = async () => {
       if (!isAuthenticated) {
         setLoading(false);
@@ -69,7 +72,7 @@ export default function ProfilePage() {
       }
     };
 
-    if (!authLoading) {
+    if (!authLoading && isAuthenticated) {
       fetchUserProfile();
     }
   }, [isAuthenticated, authLoading]);

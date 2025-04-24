@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Camera, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { DesignToast } from "@/components/ui/toast";
+import Image from "next/image";
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import BottomNav from "@/components/bottom-nav";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/Header";
@@ -31,12 +32,14 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 폼 상태
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
-
+  const [avatar, setAvatar] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get("tab");
@@ -59,6 +62,7 @@ export default function SettingsPage() {
           setName(data.user.name || "");
           setEmail(data.user.email || "");
           setBio(data.user.bio || "");
+          setAvatar(data.user.avatar || "");
           setError(null);
         } else {
           setError(data.error || "사용자 정보를 불러오는데 실패했습니다");
@@ -79,40 +83,88 @@ export default function SettingsPage() {
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
+      let uploadedUrl = avatar; // 기본은 기존 이미지 URL 그대로 유지
+
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+
+        const uploadRes = await fetch("/api/upload/avatar", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+        if (uploadRes.ok) {
+          uploadedUrl = uploadData.url;
+        } else {
+          setToastMessage(uploadData.error || "이미지 업로드 실패");
+          setShowToast(true);
+          return;
+        }
+      }
 
       const response = await fetch("/api/users", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           bio,
+          avatar: uploadedUrl,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        console.log("프로필 업데이트 성공");
         setToastMessage("프로필이 성공적으로 업데이트되었습니다");
         setShowToast(true);
-        setUserData({
-          ...userData,
-          name,
-          bio,
-        });
+        setUserData({ ...userData, name, bio, avatar: uploadedUrl });
+        setSelectedFile(null); // 저장 성공 시 선택된 파일 초기화
       } else {
-        setToastMessage(data.error || "프로필 업데이트에 실패했습니다");
+        setToastMessage(data.error || "프로필 업데이트 실패");
         setShowToast(true);
       }
     } catch (err) {
-      setToastMessage("프로필 업데이트 중 오류가 발생했습니다");
+      setToastMessage("프로필 저장 중 오류 발생");
       setShowToast(true);
-      console.error("프로필 업데이트 오류:", err);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleImageClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setToastMessage("이미지 크기는 5MB 이하여야 합니다");
+      setShowToast(true);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setToastMessage("이미지 파일만 업로드 가능합니다");
+      setShowToast(true);
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // 미리보기를 위해 avatar를 data URL로 임시 설정
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatar(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -271,6 +323,44 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <div className="space-y-2">
+                      <Label htmlFor="name" className="text-xs">
+                        프로필 이미지
+                      </Label>
+                      <div
+                        onClick={handleImageClick}
+                        className="relative w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer group overflow-hidden border-2 border-primary-light"
+                      >
+                        {selectedFile ? (
+                          <Image
+                            src={avatar}
+                            alt="프로필 미리보기"
+                            fill
+                            className="object-cover group-hover:opacity-75 transition-opacity"
+                            unoptimized
+                          />
+                        ) : (
+                          <Image
+                            src={avatar || "/images/profile.png"}
+                            alt="프로필 이미지"
+                            fill
+                            className="object-cover group-hover:opacity-75 transition-opacity"
+                            unoptimized
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <Camera className="h-6 w-6 text-white" />
+                        </div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        클릭하여 이미지 업로드 (5MB 이하)
+                      </p>
                       <Label htmlFor="name" className="text-xs">
                         이름
                       </Label>

@@ -167,7 +167,7 @@
 
 /* 하단 네비게이션 */
 .bottom-nav {
-  @apply fixed bottom-3 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-md h-16 bg-white rounded-full shadow-sm border border-border-line;
+  @apply fixed bottom-3 left-1/2 transform -translate-x-1/2 w-[90%] max-w-md h-16 bg-white rounded-full shadow-sm border border-border-line;
 }
 
 .bottom-nav-item {

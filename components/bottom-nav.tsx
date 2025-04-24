@@ -15,7 +15,7 @@ export default function BottomNav() {
   ];
 
   return (
-    <div className="bottom-nav">
+    <div className="bottom-nav z-50">
       <div className="grid h-full grid-cols-3 max-w-md mx-auto">
         {navItems.map((item) => {
           const isActive =

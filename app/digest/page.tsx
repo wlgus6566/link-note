@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, Share2, Trash2, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import BottomNav from "@/components/bottom-nav";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useRouter } from "next/navigation";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { BottomPopup } from "@/components/bottom-popup";
 import { Header } from "@/components/Header";
@@ -19,6 +17,7 @@ import { SortDropdown } from "@/components/sort-dropdown";
 import { FolderFilter } from "@/components/folder-filter";
 import { TagFilter } from "@/components/tag-filter";
 import { getUserInitials } from "@/lib/utils";
+
 export default function DigestPage() {
   const {
     bookmarks,
@@ -41,13 +40,13 @@ export default function DigestPage() {
     changeBookmarkFolder,
   } = useBookmarks();
 
-  const router = useRouter();
   const [showBottomPopup, setShowBottomPopup] = useState(false);
   const [selectedBookmark, setSelectedBookmark] = useState<BookmarkItem | null>(
     null
   );
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [showTagFilter, setShowTagFilter] = useState(false);
+  const fetchedRef = useRef(false);
 
   // 아이템 메뉴 열기
   const handleOpenMenu = (e: React.MouseEvent, bookmark: BookmarkItem) => {
@@ -96,10 +95,14 @@ export default function DigestPage() {
     setShowFolderModal(true);
   };
 
-  // 컴포넌트 마운트 시 데이터 불러오기
+  // 컴포넌트 마운트 시 데이터 불러오기 (중복 요청 방지)
   useEffect(() => {
-    fetchBookmarks();
-  }, []);
+    if (!fetchedRef.current && bookmarks.length === 0) {
+      console.log("다이제스트 페이지: 북마크 데이터 요청");
+      fetchBookmarks();
+      fetchedRef.current = true;
+    }
+  }, [fetchBookmarks, bookmarks.length]);
 
   return (
     <div className="flex flex-col min-h-screen pb-24">
@@ -226,8 +229,6 @@ export default function DigestPage() {
           )}
         </div>
       </main>
-
-      <BottomNav />
 
       {/* 바텀 팝업 */}
       <BottomPopup

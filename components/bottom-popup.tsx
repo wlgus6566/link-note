@@ -25,7 +25,7 @@ export function BottomPopup({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed bottom-0 left-0 w-full z-50"
+          className="fixed bottom-0 left-0 w-full z-[100]"
           initial={{ y: "100%" }}
           animate={{ y: 0 }}
           exit={{ y: "100%" }}

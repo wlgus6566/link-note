@@ -2,8 +2,8 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -21,8 +21,10 @@ import { useUserStore } from "@/store/userStore";
 import { getUserInitials } from "@/lib/utils";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { formatViewCount, formatTimeAgo } from "@/lib/utils";
+import BottomNav from "@/components/bottom-nav";
 
 export default function Home() {
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [url, setUrl] = useState("");
   const { isAuthenticated, isLoading } = useUserStore();
@@ -30,14 +32,31 @@ export default function Home() {
     filteredBookmarks,
     fetchBookmarks,
     loading: bookmarksLoading,
+    searchQuery,
+    setSearchQuery,
   } = useBookmarks();
+  const fetchedRef = useRef(false);
 
-  // 컴포넌트 마운트 시 북마크 데이터 불러오기
+  // 검색 파라미터가 변경될 때마다 검색어 업데이트
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchBookmarks();
+    const query = searchParams.get("q");
+    if (query) {
+      setSearchQuery(query);
     }
-  }, [isAuthenticated]);
+  }, [searchParams, setSearchQuery]);
+
+  // 컴포넌트 마운트 시 데이터 불러오기 (중복 요청 방지)
+  useEffect(() => {
+    if (
+      isAuthenticated &&
+      !fetchedRef.current &&
+      filteredBookmarks.length === 0
+    ) {
+      console.log("메인 페이지: 북마크 가져오기");
+      fetchBookmarks();
+      fetchedRef.current = true;
+    }
+  }, [isAuthenticated, fetchBookmarks, filteredBookmarks.length]);
 
   // 가장 최근에 저장된 콘텐츠 5개만 표시
   const recentContent = filteredBookmarks
@@ -116,7 +135,7 @@ export default function Home() {
       />
       <main className="flex-1 pb-24">
         <motion.section
-          className="w-full pt-8 pb-14 md:py-20 relative overflow-hidden"
+          className="w-full py-5 md:py-20 relative overflow-hidden"
           initial="hidden"
           animate="visible"
           variants={containerVariants}

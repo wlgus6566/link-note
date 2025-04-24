@@ -149,10 +149,12 @@ export default function ProfilePage() {
                 <div className="flex items-start gap-4 mb-4">
                   <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-primary-color/50">
                     <Image
-                      src={user?.avatar || "/placeholder.svg"}
+                      // src={user?.avatar || user?.auth_metadata?.avatar_url}
+                      src={user?.auth_metadata?.avatar_url}
                       alt={user?.name || "프로필 이미지"}
                       fill
                       className="object-cover"
+                      unoptimized
                     />
                   </div>
                   <div className="flex-1">

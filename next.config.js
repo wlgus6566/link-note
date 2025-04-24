@@ -2,11 +2,35 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: [
-      "i.ytimg.com",
-      "yt3.googleusercontent.com",
-      "lh3.googleusercontent.com",
-      "img.youtube.com",
+    remotePatterns: [
+      // Supabase
+      {
+        protocol: "https",
+        hostname: "urunpeifuloeerxbteve.supabase.co",
+        pathname: "/storage/v1/object/public/users/**",
+      },
+      // YouTube 썸네일 (i.ytimg.com)
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+        pathname: "/**",
+      },
+      // YouTube 채널 썸네일 (yt3)
+      {
+        protocol: "https",
+        hostname: "yt3.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+        pathname: "/**",
+      },
     ],
   },
 

@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, Share2, Trash2, Folder } from "lucide-react";
+import {
+  Search,
+  Share2,
+  Trash2,
+  Folder,
+  Calendar,
+  BookText,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
@@ -193,16 +200,13 @@ export default function DigestPage() {
               </Button>
             </div>
           ) : filteredBookmarks.length === 0 ? (
-            <div className="text-center py-10">
-              <p className="text-neutral-medium mb-1">
-                저장된 콘텐츠가 없습니다.
-              </p>
-              <p className="text-neutral-medium mb-3">
-                관심 있는 콘텐츠를 북마크해보세요!
-              </p>
-              <Button variant="outline" asChild className="rounded-full px-4">
-                <Link href="/">새로운 콘텐츠 둘러보기</Link>
-              </Button>
+            <div className="flex flex-col items-center justify-center h-64 p-8 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <BookText className="w-8 h-8 text-neutral-medium" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">
+                저장된 콘텐츠가 없습니다
+              </h3>
             </div>
           ) : (
             <motion.div

@@ -71,6 +71,7 @@ export default function TimelinesPage() {
     videoId: "",
     startTime: 0,
   });
+  const didFetchOnceRef = useRef(false);
   const [expandedDigests, setExpandedDigests] = useState<
     Record<number, boolean>
   >({});
@@ -93,20 +94,20 @@ export default function TimelinesPage() {
       const response = await getUserTimelineBookmarks();
 
       if (response.success && response.data) {
-        // API 응답을 TimelineBookmark 타입에 맞게 변환
         const bookmarkData = response.data.map((item: any) => ({
           ...item,
-          user_id: 0, // user_id가 응답에 없으므로 기본값 설정
+          user_id: 0,
         }));
 
         setBookmarks(bookmarkData);
-
-        // 북마크를 digest_id 기준으로 그룹화
         const grouped = groupBookmarksByDigest(bookmarkData);
         setGroupedBookmarks(grouped);
         setFilteredGroups(grouped);
       } else {
         console.error("북마크 로드 오류:", response.error);
+        setBookmarks([]);
+        setGroupedBookmarks([]);
+        setFilteredGroups([]);
         setToastMessage("북마크를 불러오는데 실패했습니다.");
         setShowToast(true);
       }
@@ -119,7 +120,7 @@ export default function TimelinesPage() {
       fetchingRef.current = false;
       console.log("타임라인 북마크 데이터 요청 완료");
     }
-  }, [bookmarks.length]); // bookmarks.length를 의존성에 추가하여 초기에만 실행되도록 함
+  }, [bookmarks.length]);
 
   // 북마크를 digest_id 기준으로 그룹화하는 함수
   const groupBookmarksByDigest = (
@@ -161,29 +162,23 @@ export default function TimelinesPage() {
 
     if (!isAuthenticated) {
       setAuthError("로그인이 필요한 서비스입니다.");
-      // 비인증 상태에서는 로딩 상태 해제
       setLoading(false);
     } else {
       setAuthError(null);
 
-      // 데이터가 없고 로딩 중이 아닐 때만 데이터 요청
-      if (bookmarks.length === 0 && !fetching) {
+      // ✅ 이미 요청한 적 있다면 또 하지 마!
+      if (!didFetchOnceRef.current) {
         console.log("인증 상태 변경으로 북마크 데이터 요청");
         fetchBookmarks();
+        didFetchOnceRef.current = true;
       }
 
-      // 데이터가 이미 있거나 요청 중이면 로딩 상태만 해제
+      // 북마크가 있거나 fetching 끝났으면 로딩 꺼줘
       if (bookmarks.length > 0 || fetching === false) {
         setLoading(false);
       }
     }
-  }, [
-    isAuthenticated,
-    authLoading,
-    fetchBookmarks,
-    bookmarks.length,
-    fetching,
-  ]);
+  }, [isAuthenticated, authLoading, bookmarks.length, fetching]);
 
   useEffect(() => {
     if (!groupedBookmarks.length) return;
@@ -761,7 +756,7 @@ export default function TimelinesPage() {
               영상을 시청하는 중 원하는 시점을 저장하면 여기에 보관됩니다.
             </p>
             <Button asChild variant="outline" className="px-4 rounded-full">
-              <Link href="/">콘텐츠 둘러보기</Link>
+              <Link href="/">콘텐츠 만들기</Link>
             </Button>
           </div>
         ) : isAuthenticated === true ? (

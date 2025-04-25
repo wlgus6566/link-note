@@ -33,6 +33,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isLogoutProcessing, setIsLogoutProcessing] = useState(false);
+  const [isDeleteAccountProcessing, setIsDeleteAccountProcessing] =
+    useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 폼 상태
@@ -165,6 +169,77 @@ export default function SettingsPage() {
       setAvatar(reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  // 로그아웃 처리 함수
+  const handleLogout = async () => {
+    try {
+      setIsLogoutProcessing(true);
+
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setToastMessage("로그아웃 되었습니다");
+        setShowToast(true);
+        // 로그아웃 후 로그인 페이지로 이동
+        setTimeout(() => {
+          router.push("/login");
+        }, 1000);
+      } else {
+        setToastMessage(data.error || "로그아웃 중 오류가 발생했습니다");
+        setShowToast(true);
+      }
+    } catch (error) {
+      console.error("로그아웃 오류:", error);
+      setToastMessage("로그아웃 중 오류가 발생했습니다");
+      setShowToast(true);
+    } finally {
+      setIsLogoutProcessing(false);
+    }
+  };
+
+  // 회원 탈퇴 처리 함수
+  const handleDeleteAccount = async () => {
+    try {
+      setIsDeleteAccountProcessing(true);
+
+      // 회원 탈퇴 API 호출
+      const response = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setToastMessage("회원 탈퇴가 완료되었습니다");
+        setShowToast(true);
+
+        // 회원 탈퇴 후 홈페이지로 이동
+        setTimeout(() => {
+          router.push("/");
+        }, 1000);
+      } else {
+        setToastMessage(data.error || "회원 탈퇴 중 오류가 발생했습니다");
+        setShowToast(true);
+      }
+    } catch (error) {
+      console.error("회원 탈퇴 오류:", error);
+      setToastMessage("회원 탈퇴 중 오류가 발생했습니다");
+      setShowToast(true);
+    } finally {
+      setIsDeleteAccountProcessing(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   return (
@@ -417,6 +492,66 @@ export default function SettingsPage() {
                         </>
                       )}
                     </Button>
+
+                    <div className="pt-6 border-t mt-6">
+                      <h3 className="text-sm font-medium mb-3">계정 관리</h3>
+
+                      <Button
+                        onClick={handleLogout}
+                        disabled={isLogoutProcessing}
+                        variant="outline"
+                        className="w-full h-9 text-sm mb-2 border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
+                        {isLogoutProcessing ? (
+                          <span className="flex items-center">
+                            <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent"></span>
+                            로그아웃 중...
+                          </span>
+                        ) : (
+                          "로그아웃"
+                        )}
+                      </Button>
+
+                      {!showDeleteConfirm ? (
+                        <Button
+                          onClick={() => setShowDeleteConfirm(true)}
+                          variant="outline"
+                          className="w-full h-9 text-sm border-red-300 text-red-500 hover:bg-red-50"
+                        >
+                          회원 탈퇴
+                        </Button>
+                      ) : (
+                        <div className="space-y-2 p-3 border border-red-200 bg-red-50 rounded-md">
+                          <p className="text-xs text-red-600 font-medium">
+                            정말 탈퇴하시겠습니까? 모든 데이터가 삭제되며 복구할
+                            수 없습니다.
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => setShowDeleteConfirm(false)}
+                              variant="outline"
+                              className="flex-1 h-8 text-xs border-gray-300"
+                            >
+                              취소
+                            </Button>
+                            <Button
+                              onClick={handleDeleteAccount}
+                              disabled={isDeleteAccountProcessing}
+                              className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600"
+                            >
+                              {isDeleteAccountProcessing ? (
+                                <span className="flex items-center justify-center">
+                                  <span className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                                  처리 중...
+                                </span>
+                              ) : (
+                                "탈퇴 확인"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

@@ -239,112 +239,100 @@ export default function Home() {
           <div className="absolute top-40 right-20 w-24 h-24 bg-primary-light rounded-full blur-3xl"></div>
         </motion.section>
 
-        <section className="w-full py-8">
-          <div className="container px-5">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <h2 className="text-xl font-bold text-neutral-dark">
-                  최근 추가된 콘텐츠
-                </h2>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary-color font-medium p-0 hover:bg-transparent"
-                asChild
-              >
-                <Link href="/digest">전체보기</Link>
-              </Button>
-            </div>
-
-            {bookmarksLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map((_, index) => (
-                  <div
-                    key={index}
-                    className="bg-white rounded-xl p-3 animate-pulse"
-                  >
-                    <div className="flex gap-3">
-                      <div className="relative w-full aspect-video rounded-lg bg-gray-200 flex-shrink-0 h-[180px]"></div>
-                    </div>
-                    <div className="flex gap-3 mt-3">
-                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200"></div>
-                      <div className="flex-1">
-                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : !isAuthenticated || recentContent.length === 0 ? (
-              <div className="text-center py-6 bg-white rounded-xl">
-                <p className="text-neutral-medium mb-3">
-                  {isAuthenticated
-                    ? "저장된 콘텐츠가 없습니다. 관심 있는 콘텐츠를 북마크해보세요!"
-                    : "로그인하여 콘텐츠를 저장해보세요!"}
-                </p>
-                <Button variant="outline" className="rounded-full px-4" asChild>
-                  <Link
-                    href={isAuthenticated ? "/summarizing" : "/auth/signin"}
-                  >
-                    {isAuthenticated ? "콘텐츠 저장하기" : "로그인하기"}
-                  </Link>
+        {recentContent.length > 0 && (
+          <section className="w-full py-8">
+            <div className="container px-5">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <h2 className="text-xl font-bold text-neutral-dark">
+                    최근 추가된 콘텐츠
+                  </h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary-color font-medium p-0 hover:bg-transparent"
+                  asChild
+                >
+                  <Link href="/digest">전체보기</Link>
                 </Button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {recentContent.map((content, index) => (
-                  <Link
-                    href={`/digest/${content.digest_id}`}
-                    key={content.id}
-                    className="group block"
-                  >
-                    <motion.div
-                      className="flex flex-col"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      {/* 썸네일 영역 */}
-                      <div className="relative w-full aspect-video rounded-xl overflow-hidden mb-3">
-                        <Image
-                          src={content.digests.image || "/placeholder.svg"}
-                          alt={content.digests.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        {/* 영상 길이 표시 */}
-                        <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-xs rounded">
-                          {getRandomDuration()}
-                        </div>
-                      </div>
 
-                      {/* 콘텐츠 정보 영역 */}
-                      <div className="flex gap-3 px-2">
-                        {/* 제목 및 정보 */}
+              {bookmarksLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((_, index) => (
+                    <div
+                      key={index}
+                      className="bg-white rounded-xl p-3 animate-pulse"
+                    >
+                      <div className="flex gap-3">
+                        <div className="relative w-full aspect-video rounded-lg bg-gray-200 flex-shrink-0 h-[180px]"></div>
+                      </div>
+                      <div className="flex gap-3 mt-3">
+                        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200"></div>
                         <div className="flex-1">
-                          <h3 className="font-medium text-base mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
-                            {content.digests.title}
-                          </h3>
-                          <p className="text-sm text-neutral-medium">
-                            {content?.digests?.video_info?.channelTitle} •{" "}
-                            조회수{" "}
-                            {formatViewCount(
-                              Number(content?.digests?.video_info?.viewCount) ||
-                                0
-                            )}{" "}
-                            • {formatTimeAgo(content.created_at)}
-                          </p>
+                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                         </div>
                       </div>
-                    </motion.div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentContent.map((content, index) => (
+                    <Link
+                      href={`/digest/${content.digest_id}`}
+                      key={content.id}
+                      className="group block"
+                    >
+                      <motion.div
+                        className="flex flex-col"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        {/* 썸네일 영역 */}
+                        <div className="relative w-full aspect-video rounded-xl overflow-hidden mb-3">
+                          <Image
+                            src={content.digests.image || "/placeholder.svg"}
+                            alt={content.digests.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          {/* 영상 길이 표시 */}
+                          <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/70 text-white text-xs rounded">
+                            {getRandomDuration()}
+                          </div>
+                        </div>
+
+                        {/* 콘텐츠 정보 영역 */}
+                        <div className="flex gap-3 px-2">
+                          {/* 제목 및 정보 */}
+                          <div className="flex-1">
+                            <h3 className="font-medium text-base mb-1 line-clamp-2 text-neutral-dark group-hover:text-primary-color transition-colors">
+                              {content.digests.title}
+                            </h3>
+                            <p className="text-sm text-neutral-medium">
+                              {content?.digests?.video_info?.channelTitle} •{" "}
+                              조회수{" "}
+                              {formatViewCount(
+                                Number(
+                                  content?.digests?.video_info?.viewCount
+                                ) || 0
+                              )}{" "}
+                              • {formatTimeAgo(content.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

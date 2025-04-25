@@ -9,9 +9,23 @@ import {
   decimal,
 } from "drizzle-orm/pg-core";
 
+// 사용자 테이블 정의
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(), // 기본 ID (자동 증가 번호)
+  auth_id: text("auth_id").notNull().unique(), // Supabase Auth ID
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  avatar: text("avatar"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // 다이제스트 테이블 정의
 export const digests = pgTable("digests", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").references(() => users.auth_id, {
+    onDelete: "cascade",
+  }),
   title: text("title").notNull(),
   summary: text("summary").notNull(),
   readTime: varchar("read_time", { length: 50 }).notNull(),
@@ -23,17 +37,6 @@ export const digests = pgTable("digests", {
   image: text("image"),
   author: jsonb("author").default({}),
   videoInfo: jsonb("video_info").default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// 사용자 테이블 정의 (미래에 인증 시스템 추가 시 사용)
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(), // 기본 ID (자동 증가 번호)
-  auth_id: text("auth_id").notNull().unique(), // Supabase Auth ID
-  email: text("email").notNull().unique(),
-  name: text("name"),
-  avatar: text("avatar"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

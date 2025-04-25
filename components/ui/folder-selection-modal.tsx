@@ -201,7 +201,7 @@ export function FolderSelectionModal({
     <>
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -215,7 +215,7 @@ export function FolderSelectionModal({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="relative bg-white rounded-xl shadow-lg w-full max-w-md mx-4 z-50 overflow-hidden"
+              className="relative bg-white rounded-xl shadow-lg w-full max-w-md mx-4 z-[101] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-5">

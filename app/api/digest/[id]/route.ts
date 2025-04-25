@@ -179,8 +179,11 @@ export async function DELETE(
       );
     }
 
-    // 다이제스트 소유자 확인
-    if (existingDigest.userId !== session.user.id) {
+    // 다이제스트 소유자 확인 - 소유자가 지정된 경우에만 체크
+    if (existingDigest.userId && existingDigest.userId !== session.user.id) {
+      console.log(
+        `삭제 권한 없음: 다이제스트 소유자 ${existingDigest.userId}, 요청자 ${session.user.id}`
+      );
       return NextResponse.json(
         {
           success: false,

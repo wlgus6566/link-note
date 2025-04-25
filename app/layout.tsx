@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ClientOnlyThemeProvider } from "@/components/client-theme-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { ToastProvider, GlobalDesignToast } from "@/components/ui/toast";
 import BottomNav from "@/components/bottom-nav";
 export const metadata: Metadata = {
   title: "TubeLink",
@@ -24,9 +25,12 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background">
-        <ClientOnlyThemeProvider>{children}</ClientOnlyThemeProvider>
-        <Toaster />
-        <BottomNav />
+        <ToastProvider>
+          <ClientOnlyThemeProvider>{children}</ClientOnlyThemeProvider>
+          <Toaster />
+          <GlobalDesignToast />
+          <BottomNav />
+        </ToastProvider>
       </body>
     </html>
   );

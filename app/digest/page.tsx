@@ -92,6 +92,7 @@ export default function DigestPage() {
 
   // 바텀 팝업의 '다른 재생목록에 저장' 버튼 클릭 함수
   const handleSaveToFolder = () => {
+    setShowBottomPopup(false);
     setShowFolderModal(true);
   };
 

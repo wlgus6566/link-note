@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, ReactNode, useState } from "react";
+import {
+  useEffect,
+  ReactNode,
+  useState,
+  createContext,
+  useContext,
+  useCallback,
+} from "react";
 import { X, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -78,6 +85,82 @@ export function SimpleToast({
   );
 }
 
+// 토스트 컨텍스트 타입 정의
+interface ToastContextType {
+  isVisible: boolean;
+  message: string;
+  showAddButton: boolean;
+  showToast: (
+    message: string,
+    showAddButton?: boolean,
+    onAddButtonClick?: () => void
+  ) => void;
+  hideToast: () => void;
+  handleAddButtonClick: () => void;
+}
+
+// 토스트 컨텍스트 생성
+const ToastContext = createContext<ToastContextType | undefined>(undefined);
+
+// 토스트 프로바이더 컴포넌트
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [message, setMessage] = useState("");
+  const [showAddButton, setShowAddButton] = useState(false);
+  const [onAddButtonClickCallback, setOnAddButtonClickCallback] = useState<
+    (() => void) | null
+  >(null);
+
+  const showToast = useCallback(
+    (newMessage: string, showAddBtn = false, onAddBtnClick?: () => void) => {
+      setMessage(newMessage);
+      setShowAddButton(showAddBtn);
+      if (onAddBtnClick) {
+        setOnAddButtonClickCallback(() => onAddBtnClick);
+      } else {
+        setOnAddButtonClickCallback(null);
+      }
+      setIsVisible(true);
+    },
+    []
+  );
+
+  const hideToast = useCallback(() => {
+    setIsVisible(false);
+  }, []);
+
+  const handleAddButtonClick = useCallback(() => {
+    if (onAddButtonClickCallback) {
+      onAddButtonClickCallback();
+    }
+    hideToast();
+  }, [onAddButtonClickCallback, hideToast]);
+
+  return (
+    <ToastContext.Provider
+      value={{
+        isVisible,
+        message,
+        showAddButton,
+        showToast,
+        hideToast,
+        handleAddButtonClick,
+      }}
+    >
+      {children}
+    </ToastContext.Provider>
+  );
+}
+
+// 토스트 훅
+export function useToast() {
+  const context = useContext(ToastContext);
+  if (context === undefined) {
+    throw new Error("useToast must be used within a ToastProvider");
+  }
+  return context;
+}
+
 // 디자인 시스템 스타일을 적용한 토스트 컴포넌트
 interface DesignToastProps {
   isVisible: boolean;
@@ -124,7 +207,7 @@ export function DesignToast({
 
   return (
     <div
-      className={`fixed w-[90%] max-w-md bottom-6 left-1/2 transform -translate-x-1/2 bg-neutral-dark text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 ${
+      className={`fixed w-[90%] max-w-md bottom-24 left-1/2 transform -translate-x-1/2 bg-neutral-dark text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 ${
         exit ? "animate-fade-out-down" : "animate-fade-in-up"
       }`}
     >
@@ -139,5 +222,24 @@ export function DesignToast({
         </button>
       )}
     </div>
+  );
+}
+
+// layout.tsx에서 사용하기 위한 전역 토스트 컴포넌트
+export function GlobalDesignToast() {
+  const toast = useToast();
+
+  if (!toast) {
+    return null; // 컨텍스트가 없으면 렌더링하지 않음
+  }
+
+  return (
+    <DesignToast
+      isVisible={toast.isVisible}
+      message={toast.message}
+      onClose={toast.hideToast}
+      showAddButton={toast.showAddButton}
+      onAddButtonClick={toast.handleAddButtonClick}
+    />
   );
 }

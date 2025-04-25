@@ -32,8 +32,8 @@ export function MemoPopup({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="w-full max-w-[calc(100%-2rem)] bg-white rounded-lg shadow-xl p-6 transform transition-all">
+    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-6 transform transition-all">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <Button

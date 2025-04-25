@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/bottom-nav";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { motion, type PanInfo, AnimatePresence } from "framer-motion";
 import { TimelineAccordion } from "@/components/timeline/timeline-accordion";
@@ -24,7 +23,6 @@ import {
   formatTime,
 } from "@/lib/utils/timeline";
 import { saveTimelineData, getTimelineData } from "@/lib/supabase/client";
-import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TimelineBookmarkButton } from "@/components/timeline/timeline-bookmark-button";
 import { TimelineGuideSheet } from "@/components/timeline/timeline-guide-sheet";
@@ -32,8 +30,9 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { Header } from "@/components/Header";
 import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { MemoPopup } from "@/components/ui/memo-popup";
-import { DesignToast } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/toast";
 import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
+import { log } from "console";
 
 // YouTube API 타입 선언
 declare global {
@@ -231,6 +230,7 @@ export default function DigestPage({
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const playerInstanceRef = useRef<any>(null);
+  const { showToast, hideToast } = useToast();
 
   // 상태 관리
   const [digest, setDigest] = useState<any>(null);
@@ -248,7 +248,6 @@ export default function DigestPage({
   >({});
 
   // UI 상태
-  const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [showAddMemoButton, setShowAddMemoButton] = useState(false);
   const [showMemoPopup, setShowMemoPopup] = useState(false);
@@ -656,7 +655,6 @@ export default function DigestPage({
     if (newBookmarkedItems[id]) {
       // 북마크 제거
       delete newBookmarkedItems[id];
-      setToastMessage("타임라인이 삭제되었습니다.");
       setCurrentBookmarkId(null);
       setShowAddMemoButton(false);
       isAdding = false;
@@ -668,7 +666,6 @@ export default function DigestPage({
         text,
         timestamp: Date.now(),
       };
-      setToastMessage("타임라인에 저장되었습니다.");
       setCurrentBookmarkId(id);
       setShowAddMemoButton(true);
       isAdding = true;
@@ -677,13 +674,13 @@ export default function DigestPage({
     // 로컬 스토리지에 저장
     setBookmarkedItems(newBookmarkedItems);
     localStorage.setItem(bookmarkKey, JSON.stringify(newBookmarkedItems));
-    setShowToast(true);
 
-    // 토스트 메시지 자동 숨김 타이머 설정
-    setTimeout(() => {
-      setShowToast(false);
-      setShowAddMemoButton(false);
-    }, 5000);
+    // isAdding이 true일 때만 메모 버튼을 표시하고 handleAddMemo를 콜백으로 전달
+    showToast(
+      isAdding ? "타임라인에 저장되었습니다." : "타임라인이 삭제되었습니다.",
+      isAdding, // 추가할 때만 메모 버튼 표시
+      isAdding ? handleAddMemo : undefined // 추가할 때만 메모 버튼 콜백 전달
+    );
 
     // 로그인한 경우에만 서버에 직접 저장/삭제 API 호출
     if (isAuthenticated === true && digest?.id) {
@@ -766,21 +763,14 @@ export default function DigestPage({
         console.log("로그인하지 않았습니다. 로컬에만 메모가 저장됩니다.");
       }
 
-      setToastMessage("타임라인이 저장되었습니다.");
-      setShowToast(true);
+      showToast("타임라인이 저장되었습니다.");
     }
-  };
-
-  const handleCloseToast = () => {
-    setShowToast(false);
-    setShowAddMemoButton(false);
   };
 
   const handleAddMemo = () => {
-    if (currentBookmarkId) {
-      setShowMemoPopup(true);
-      setShowToast(false);
-    }
+    console.log("handleAddMemo 호출");
+    setShowMemoPopup(true);
+    hideToast();
   };
 
   const handleCloseMemoPopup = () => {
@@ -798,8 +788,7 @@ export default function DigestPage({
     if (newBookmarkedItems[id]) {
       // 북마크 제거
       delete newBookmarkedItems[id];
-      setToastMessage("타임라인이 삭제되었습니다.");
-      setShowToast(true);
+      showToast("타임라인이 삭제되었습니다.");
 
       // 로컬 스토리지에 저장
       setBookmarkedItems(newBookmarkedItems);
@@ -819,11 +808,6 @@ export default function DigestPage({
           console.error("북마크 서버 동기화 오류:", err);
         }
       }
-
-      // 토스트 메시지 자동 숨김 타이머 설정
-      setTimeout(() => {
-        setShowToast(false);
-      }, 3000);
     }
   };
 
@@ -886,7 +870,6 @@ export default function DigestPage({
     console.log("북마크 상태:", { isSaved, activeFolderId });
 
     if (isAuthenticated !== true) {
-      toast.error("북마크를 저장하려면 로그인이 필요합니다");
       router.push("/login");
       return;
     }
@@ -917,16 +900,13 @@ export default function DigestPage({
       const result = await response.json();
       if (result.success) {
         setIsSaved(false);
-        setToastMessage("저장이 취소되었습니다.");
-        setShowToast(true);
+        showToast("저장이 취소되었습니다.");
       } else {
-        setToastMessage("저장 취소 중 오류가 발생했습니다.");
-        setShowToast(true);
+        showToast("저장 취소 중 오류가 발생했습니다.");
       }
     } catch (error) {
       console.error("북마크 삭제 오류:", error);
-      setToastMessage("저장 취소 중 오류가 발생했습니다.");
-      setShowToast(true);
+      showToast("저장 취소 중 오류가 발생했습니다.");
     } finally {
       setShowConfirmDialog(false);
     }
@@ -1178,8 +1158,6 @@ export default function DigestPage({
         </div>
       </main>
 
-      <BottomNav />
-
       {/* 타임라인 북마크 버튼 */}
       <TimelineBookmarkButton
         bookmarkCount={Object.keys(bookmarkedItems).length}
@@ -1244,15 +1222,6 @@ export default function DigestPage({
           (currentBookmarkId && bookmarkedItems[currentBookmarkId]?.memo) || ""
         }
         title="북마크 메모 추가"
-      />
-
-      {/* 토스트 메시지 */}
-      <DesignToast
-        isVisible={showToast}
-        message={toastMessage}
-        onClose={handleCloseToast}
-        showAddButton={showAddMemoButton}
-        onAddButtonClick={handleAddMemo}
       />
     </div>
   );

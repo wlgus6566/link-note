@@ -814,53 +814,44 @@ export default function DigestPage({
   // 타임라인 아이템 클릭 시 해당 시간으로 이동
   const handleSeekTo = (seconds: number) => {
     if (!digest || digest.sourceType !== "YouTube") return;
+    const videoId = getYouTubeVideoId(digest.sourceUrl);
+    if (!videoId) return;
 
-    // 북마크 팝업이 열려있다면 닫기
-    if (showBookmarksPopup) {
-      setShowBookmarksPopup(false);
-    }
+    if (showBookmarksPopup) setShowBookmarksPopup(false);
 
-    // 첫 번째로 전역 플레이어 인스턴스 확인
-    if (window.ytPlayer && typeof window.ytPlayer.seekTo === "function") {
+    const seekAfterReady = () => {
       try {
-        console.log(`${seconds}초로 이동합니다 (전역 참조 사용)`);
-        window.ytPlayer.seekTo(seconds, true);
-        window.ytPlayer.playVideo();
-        return;
-      } catch (error) {
-        console.error("전역 플레이어 참조로 시간 이동 중 오류 발생:", error);
-      }
-    }
-
-    // 다음으로 컴포넌트 플레이어 인스턴스 확인
-    if (playerReady && playerInstanceRef.current) {
-      try {
-        if (typeof playerInstanceRef.current.seekTo !== "function") {
-          console.error(
-            "seekTo 메서드가 존재하지 않습니다. 유효한 플레이어 인스턴스가 아닙니다."
-          );
-          return;
+        const player = window.ytPlayer || playerInstanceRef.current;
+        if (player && typeof player.seekTo === "function") {
+          console.log(`▶️ ${seconds}초로 이동 시도`);
+          player.seekTo(seconds, true);
+          player.playVideo();
+        } else {
+          console.warn("플레이어 없음 또는 seekTo 불가, loadVideoById 시도");
+          player?.loadVideoById({ videoId, startSeconds: seconds });
         }
-
-        console.log(`${seconds}초로 이동합니다 (컴포넌트 참조 사용)`);
-        // seekTo: 첫 번째 인자는 시간(초), 두 번째 인자가 true면 정확한 시간으로 이동
-        playerInstanceRef.current.seekTo(seconds, true);
-
-        // 영상 재생 시작
-        playerInstanceRef.current.playVideo();
-      } catch (error) {
-        console.error("시간 이동 중 오류 발생:", error);
+      } catch (err) {
+        console.error("seek 오류 발생:", err);
       }
-    } else {
-      // 플레이어가 준비되지 않았으면 팝업 사용
-      const videoId = getYouTubeVideoId(digest.sourceUrl);
-      if (!videoId) return;
+    };
 
-      setYoutubePopup({
-        isOpen: true,
-        videoId,
-        startTime: seconds,
-      });
+    if (playerReady) {
+      seekAfterReady();
+    } else {
+      console.log("플레이어 준비 안됨 → 준비될 때까지 대기");
+
+      const checkInterval = setInterval(() => {
+        const ready =
+          window.ytPlayer && typeof window.ytPlayer.seekTo === "function";
+        if (ready) {
+          clearInterval(checkInterval);
+          seekAfterReady();
+        }
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(checkInterval);
+      }, 5000); // 5초 안에도 준비 안 되면 포기
     }
   };
 

@@ -22,6 +22,7 @@ const config = {
     extend: {
       zIndex: {
         "60": "60",
+        "101": "101",
       },
       colors: {
         border: "hsl(var(--border))",

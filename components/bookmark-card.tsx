@@ -68,7 +68,9 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
             bookmark.digests.video_info ? (
               <p className="text-xs text-neutral-medium mb-1">
                 {bookmark.digests.video_info.channelTitle || ""} · 조회수{" "}
-                {formatViewCount(bookmark.digests.video_info.viewCount || "0")}
+                {formatViewCount(
+                  Number(bookmark.digests.video_info.viewCount || "0")
+                )}
               </p>
             ) : (
               <p className="text-xs text-neutral-medium mb-1">

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { folders } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 
 // 새 폴더 생성 스키마
 const createFolderSchema = z.object({

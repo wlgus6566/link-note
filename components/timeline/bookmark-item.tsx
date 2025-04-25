@@ -12,17 +12,22 @@ interface BookmarkItemProps {
     id: string;
     time: number;
     title: string;
+    note?: string;
   };
-  isSelected: boolean;
-  onBookmarkClick: () => void;
-  onBookmarkDelete: () => void;
+  isSelected?: boolean;
+  onBookmarkClick: (time: number) => void;
+  onDeleteBookmark: (id: string) => void;
+  isAuthenticated: boolean;
+  onEditNote: (id: string, content: string) => void;
 }
 
 export function BookmarkItem({
   bookmark,
-  isSelected,
+  isSelected = false,
   onBookmarkClick,
-  onBookmarkDelete,
+  onDeleteBookmark,
+  isAuthenticated,
+  onEditNote,
 }: BookmarkItemProps) {
   return (
     <Card
@@ -37,12 +42,15 @@ export function BookmarkItem({
             variant="ghost"
             size="icon"
             className="h-8 w-8 rounded-full"
-            onClick={onBookmarkClick}
+            onClick={() => onBookmarkClick(bookmark.time)}
           >
             <PlayCircle size={20} />
           </Button>
 
-          <div className="flex-1 min-w-0" onClick={onBookmarkClick}>
+          <div
+            className="flex-1 min-w-0"
+            onClick={() => onBookmarkClick(bookmark.time)}
+          >
             <div className="flex justify-between items-center gap-2">
               <div className="flex items-center gap-1.5">
                 <Bookmark size={14} className="text-primary" />
@@ -56,17 +64,19 @@ export function BookmarkItem({
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 flex-shrink-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              onBookmarkDelete();
-            }}
-          >
-            <Trash2 size={16} />
-          </Button>
+          {isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 flex-shrink-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteBookmark(bookmark.id);
+              }}
+            >
+              <Trash2 size={16} />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

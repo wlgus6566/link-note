@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
 import { BookmarkItem } from "@/types/timeline";
-import { timelineBookmarks } from "@/lib/db/schema";
 
 // 타임라인 북마크를 Supabase에 저장
 export async function saveTimelineBookmark(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactPlayer from "react-player/youtube";
+import ReactPlayer from "react-player";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {

@@ -822,13 +822,15 @@ export default function DigestPage({
     const seekAfterReady = () => {
       try {
         const player = window.ytPlayer || playerInstanceRef.current;
+
         if (player && typeof player.seekTo === "function") {
           console.log(`▶️ ${seconds}초로 이동 시도`);
           player.seekTo(seconds, true);
-          player.playVideo();
+          player.playVideo?.();
         } else {
-          console.warn("플레이어 없음 또는 seekTo 불가, loadVideoById 시도");
-          player?.loadVideoById({ videoId, startSeconds: seconds });
+          console.warn("플레이어 없음 또는 seekTo 불가");
+          // 👇 이 부분 삭제! loadVideoById 사용 안함
+          // player?.loadVideoById({ videoId, startSeconds: seconds });
         }
       } catch (err) {
         console.error("seek 오류 발생:", err);
@@ -851,7 +853,7 @@ export default function DigestPage({
 
       setTimeout(() => {
         clearInterval(checkInterval);
-      }, 5000); // 5초 안에도 준비 안 되면 포기
+      }, 5000); // 5초 후 포기
     }
   };
 

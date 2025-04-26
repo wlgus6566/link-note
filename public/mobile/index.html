@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Link Note 모바일</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      }
+      body {
+        background-color: #f9fafb;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        padding: 16px;
+      }
+      .container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .card {
+        width: 100%;
+        max-width: 400px;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+      .header h1 {
+        color: #2563eb;
+        font-size: 24px;
+        font-weight: bold;
+      }
+      .content {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+      .content p {
+        color: #4b5563;
+        margin-bottom: 16px;
+        line-height: 1.5;
+      }
+      .content p.small {
+        font-size: 14px;
+        color: #6b7280;
+      }
+      .button-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .button {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        font-weight: 500;
+        text-align: center;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        text-decoration: none;
+      }
+      .button.primary {
+        background-color: #2563eb;
+        color: white;
+      }
+      .button.primary:hover {
+        background-color: #1d4ed8;
+      }
+      .button.secondary {
+        background-color: #e5e7eb;
+        color: #374151;
+      }
+      .button.secondary:hover {
+        background-color: #d1d5db;
+      }
+      .footer {
+        text-align: center;
+        color: #9ca3af;
+        font-size: 12px;
+        margin-top: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <div class="header">
+          <h1>Link Note 모바일</h1>
+        </div>
+
+        <div class="content">
+          <p>Link Note 모바일 앱에 오신 것을 환영합니다!</p>
+          <p class="small">
+            모바일 앱 기능은 현재 개발 중입니다. 더 많은 기능을 웹 버전에서
+            이용해보세요.
+          </p>
+        </div>
+
+        <div class="button-container">
+          <a href="https://link-note-jihyeon.vercel.app" class="button primary">
+            웹사이트 방문하기
+          </a>
+          <button
+            onclick="alert('준비 중인 기능입니다.')"
+            class="button secondary"
+          >
+            오프라인으로 저장
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>© 2024 Link Note. All rights reserved.</p>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // 앱이 로드되면 실행되는 스크립트
+        console.log("Link Note 모바일 앱이 로드되었습니다.");
+
+        // Capacitor 앱 실행 감지
+        if (window.Capacitor) {
+          console.log("Capacitor 환경에서 실행 중입니다.");
+        } else {
+          console.log("브라우저 환경에서 실행 중입니다.");
+        }
+      });
+    </script>
+  </body>
+</html>

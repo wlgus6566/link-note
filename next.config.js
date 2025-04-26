@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // output: "export",
+  // mobile 경로만 빌드합니다
+  // distDir: "out",
+  // basePath: "/mobile",
   images: {
+    // unoptimized: true,
     remotePatterns: [
       // Supabase
       {

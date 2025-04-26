@@ -655,13 +655,24 @@ export async function translateAllSubtitlesOnce(
           .map((s, idx) => `<subtitle id="${idx + 1}">${s.text}</subtitle>`)
           .join("\n");
 
-        const prompt = `다음은 기계 번역된 자막입니다. 더 자연스러운 ${targetLanguage} 언어로 개선해주세요.
-자연스럽고 부드러운, 존댓말 스타일로 번역하되, 원래 의미는 그대로 유지해주세요.
-각 문장을 독립적으로 개선하고, 번역 내용에 불필요한 추가 설명이나 말을 넣지 마세요.
-각 자막은 <subtitle id="숫자"> 태그로 묶여 있으며, 결과도 동일한 형식으로 출력해주세요.
-태그 자체는 번역하지 마세요.
-
-${batchWithTags}`;
+        const prompt = `
+              아래는 기계 번역된 유튜브 자막입니다. 각 자막을 자연스럽고 부드러운 한국어로 다듬어주세요.
+              
+              ❗지켜야 할 규칙은 다음과 같습니다:
+              - 존댓말로 정중하고 부드럽게 표현합니다.
+              - 불필요한 추가 문구를 삽입하지 않고, 원래 의미를 유지합니다.
+              - 문장이 어색하거나 부자연스러운 부분은 자연스러운 한국어로 의역합니다.
+              - 각 자막은 서로 독립적으로 존재합니다. 다른 자막과 연결하지 마세요.
+              - 말투는 친근하면서도 자연스럽게 유지합니다. (너무 딱딱한 문어체 금지)
+              - 자막 길이를 지나치게 늘리지 않고, 간결하게 만듭니다.
+              
+              형식:
+              - 각 자막은 <subtitle id="숫자">번역문</subtitle> 형태로 출력합니다.
+             - 태그('<subtitle>', 'id')는 절대 변경하지 않습니다.
+              
+              === 자막 목록 ===
+              ${batchWithTags}
+              `;
 
         const result = await model.generateContent(prompt);
         const refinedText = await result.response.text();

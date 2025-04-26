@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // YouTube URL 구성
     const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-    // 타임라인 및 비디오 정보 가져오기x
+    // 타임라인 및 비디오 정보 가져오기
     const result = await getYoutubeVideoData(youtubeUrl);
     console.log("타임라인", result);
 

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate:run": "ts-node lib/migrations/run_migration.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rds-data": "latest",
@@ -17,6 +18,7 @@
     "@cloudflare/workers-types": "latest",
     "@electric-sql/pglite": "latest",
     "@emotion/is-prop-valid": "latest",
+    "@google-cloud/translate": "^9.0.1",
     "@google/generative-ai": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@libsql/client": "latest",
@@ -87,6 +89,7 @@
     "next": "15.2.4",
     "next-themes": "latest",
     "openai": "latest",
+    "p-map": "^7.0.3",
     "pg": "latest",
     "postgres": "latest",
     "puppeteer": "^24.6.1",

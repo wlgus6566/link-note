@@ -1,12 +1,9 @@
 import { google } from "googleapis";
-// 기존 import 방식 제거
-// import { YoutubeTranscript } from "youtube-transcript-api";
-// CommonJS 방식으로 불러오기
-// import * as YoutubeTranscriptApi from "youtube-transcript-api";
-// youtube-captions-scraper 사용
 import { getSubtitles } from "youtube-captions-scraper";
 import { z } from "zod";
+import pMap from "p-map";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { TranslationServiceClient } from "@google-cloud/translate";
 
 // 시간(초)를 mm:ss 형식으로 변환하는 함수
 export function secondsToTimestamp(seconds: number): string {
@@ -30,6 +27,7 @@ export interface SubtitleItem {
 export interface TimelineGroup {
   range: string;
   subtitles: SubtitleItem[]; // 신구조
+  translatedSubtitles?: SubtitleItem[]; // 번역된 자막 추가
   items?: {
     // 구구조 호환
     id: string;
@@ -416,4 +414,400 @@ export function convertToTimelineGroups(
       const bStart = b.range.split(" - ")[0];
       return aStart.localeCompare(bStart);
     });
+}
+
+// 문장 쪼개기 함수
+function splitIntoSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.?!])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0);
+}
+
+function splitIntoBatches<T>(array: T[], batchSize: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < array.length; i += batchSize) {
+    batches.push(array.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+// 1. 자막을 최대 글자 수 기준으로 나누는 함수
+function splitSubtitlesByLength(
+  subtitles: SubtitleItem[],
+  maxChars: number = 10000 // 🔥 여기가 "한번에 보낼 최대 글자 수"야
+): SubtitleItem[][] {
+  const batches: SubtitleItem[][] = [];
+  let currentBatch: SubtitleItem[] = [];
+  let currentLength = 0;
+
+  for (const subtitle of subtitles) {
+    const subtitleLength = subtitle.text.length;
+
+    if (currentLength + subtitleLength > maxChars && currentBatch.length > 0) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentLength = 0;
+    }
+
+    currentBatch.push(subtitle);
+    currentLength += subtitleLength;
+  }
+
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch);
+  }
+
+  return batches;
+}
+
+export async function translateAllSubtitlesSmart(
+  subtitles: SubtitleItem[],
+  targetLanguage: string = "ko"
+): Promise<SubtitleItem[]> {
+  if (!subtitles || subtitles.length === 0) return [];
+
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  // Smaller batch size for better reliability
+  const batches = splitSubtitlesByLength(subtitles, 5000);
+  console.log(`📦 배치 수: ${batches.length}개`);
+
+  const translatedBatches = await pMap(
+    batches,
+    async (batch, batchIndex) => {
+      // Prepare the input with clear XML tags
+      const allTextsWithTags = batch
+        .map((s, idx) => `<subtitle id="${idx + 1}">${s.text || ""}</subtitle>`)
+        .join("\n");
+
+      const prompt = `다음 자막을 '${targetLanguage}' 언어로 자연스럽고 존댓말 스타일로 번역해주세요.
+각 자막은 <subtitle id="숫자"> 태그로 묶여 있습니다.
+번역 결과도 동일한 형식으로 출력해주세요. 태그 자체는 번역하지 마세요.
+빈 자막이 있다면 빈 상태로 유지해주세요.
+모든 자막을 번역해야 합니다. 하나도 빠짐없이 번역해주세요.
+
+${allTextsWithTags}`;
+
+      try {
+        console.log(
+          `🚀 배치 ${batchIndex + 1}번 번역 시작 (${batch.length}개 자막)`
+        );
+        const result = await model.generateContent(prompt);
+        const translatedText = await result.response.text();
+        console.log(`✅ 배치 ${batchIndex + 1}번 번역 완료`);
+
+        // Create a map to store translations
+        const translatedSubtitles: SubtitleItem[] = [];
+        let missingTranslations = 0;
+
+        for (let i = 0; i < batch.length; i++) {
+          const original = batch[i];
+          const idPattern = new RegExp(
+            `<subtitle id="${i + 1}">(.*?)</subtitle>`,
+            "s"
+          );
+          const match = translatedText.match(idPattern);
+
+          if (match && match[1] !== undefined) {
+            translatedSubtitles.push({
+              ...original,
+              text: match[1].trim(),
+            });
+          } else {
+            // If we can't find the translated subtitle, use original but log it
+            translatedSubtitles.push(original);
+            missingTranslations++;
+          }
+        }
+
+        // Log missing translations if any
+        if (missingTranslations > 0) {
+          console.warn(
+            `⚠️ 배치 ${batchIndex + 1}번: ${missingTranslations}/${
+              batch.length
+            } 자막 번역 누락`
+          );
+        }
+
+        return translatedSubtitles;
+      } catch (error) {
+        console.error(`❌ 배치 ${batchIndex + 1}번 번역 실패`, error);
+
+        // Try once more with a smaller batch if this batch fails
+        if (batch.length > 5) {
+          console.log(`🔄 배치 ${batchIndex + 1}번 재시도 (분할)`);
+          const halfPoint = Math.ceil(batch.length / 2);
+          const firstHalf = batch.slice(0, halfPoint);
+          const secondHalf = batch.slice(halfPoint);
+
+          try {
+            const firstTranslated = await translateAllSubtitlesSmart(
+              firstHalf,
+              targetLanguage
+            );
+            const secondTranslated = await translateAllSubtitlesSmart(
+              secondHalf,
+              targetLanguage
+            );
+            return [...firstTranslated, ...secondTranslated];
+          } catch (retryError) {
+            console.error(`❌ 재시도 실패:`, retryError);
+            return batch; // Fall back to original if retry also fails
+          }
+        }
+
+        return batch; // Return original batch if can't translate
+      }
+    },
+    { concurrency: 3 } // Reduced concurrency for better reliability
+  );
+
+  // Flatten all batches into one array
+  const result = translatedBatches.flat();
+
+  // Final check for translation coverage
+  const translatedCount = result.filter(
+    (item) => item.text !== subtitles.find((s) => s.start === item.start)?.text
+  ).length;
+
+  console.log(
+    `📊 번역 통계: ${translatedCount}/${
+      result.length
+    } 자막 번역됨 (${Math.round((translatedCount / result.length) * 100)}%)`
+  );
+
+  return result;
+}
+
+export async function translateAllSubtitlesOnce(
+  subtitles: SubtitleItem[],
+  targetLanguage: string = "ko"
+): Promise<SubtitleItem[]> {
+  if (!subtitles || subtitles.length === 0) return [];
+
+  // Google Cloud Translation API 클라이언트 초기화
+  const translationClient = new TranslationServiceClient();
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || "";
+  const location = "global";
+
+  // Gemini AI 초기화
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  console.log(
+    `🔄 총 ${subtitles.length}개 자막 번역 시작 (2단계 번역 프로세스)`
+  );
+
+  try {
+    // 1단계: Google Cloud Translation API를 통한 기계 번역
+    console.log(`🔄 1단계: Google Cloud Translation API를 통한 번역 시작`);
+
+    // 번역할 텍스트 배열 준비
+    const textsToTranslate = subtitles.map((s) => s.text || "");
+
+    console.log(
+      `🔠 Google Cloud Translation API 요청 시작 (총 ${textsToTranslate.length}개 자막)`
+    );
+
+    // 한 번의 API 호출로 모든 자막 번역
+    const [response] = await translationClient.translateText({
+      parent: `projects/${projectId}/locations/${location}`,
+      contents: textsToTranslate,
+      mimeType: "text/plain",
+      sourceLanguageCode: "en", // 원본 언어 (자동 감지도 가능)
+      targetLanguageCode: targetLanguage,
+    });
+
+    console.log(`✅ Translation API 1차 번역 완료`);
+
+    // 1차 번역 결과 매핑
+    const firstTranslated: SubtitleItem[] = subtitles.map((original, index) => {
+      const translatedText =
+        response.translations?.[index]?.translatedText || original.text;
+      return {
+        ...original,
+        text: translatedText,
+      };
+    });
+
+    // 2단계: Gemini를 통한 번역 정제
+    console.log(`🔄 2단계: Gemini AI를 통한 번역 개선 시작`);
+
+    // 배치 단위로 처리 (최대 50개)
+    const BATCH_SIZE = 200;
+    const batches = splitIntoBatches(firstTranslated, BATCH_SIZE);
+
+    const refinedBatches: SubtitleItem[][] = [];
+
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(
+        `🔍 배치 ${i + 1}/${batches.length} 번역 개선 중 (${
+          batch.length
+        }개 자막)`
+      );
+
+      try {
+        // 각 자막에 태그 부여
+        const batchWithTags = batch
+          .map((s, idx) => `<subtitle id="${idx + 1}">${s.text}</subtitle>`)
+          .join("\n");
+
+        const prompt = `다음은 기계 번역된 자막입니다. 더 자연스러운 ${targetLanguage} 언어로 개선해주세요.
+자연스럽고 부드러운, 존댓말 스타일로 번역하되, 원래 의미는 그대로 유지해주세요.
+각 문장을 독립적으로 개선하고, 번역 내용에 불필요한 추가 설명이나 말을 넣지 마세요.
+각 자막은 <subtitle id="숫자"> 태그로 묶여 있으며, 결과도 동일한 형식으로 출력해주세요.
+태그 자체는 번역하지 마세요.
+
+${batchWithTags}`;
+
+        const result = await model.generateContent(prompt);
+        const refinedText = await result.response.text();
+
+        // 개선된 번역 결과 파싱
+        const refinedSubtitles: SubtitleItem[] = [];
+
+        for (let j = 0; j < batch.length; j++) {
+          const original = batch[j];
+          const tagPattern = new RegExp(
+            `<subtitle id="${j + 1}">(.*?)</subtitle>`,
+            "s"
+          );
+          const match = refinedText.match(tagPattern);
+
+          if (match && match[1] !== undefined) {
+            refinedSubtitles.push({
+              ...original,
+              text: match[1].trim(),
+            });
+          } else {
+            // 태그를 찾지 못했다면 1차 번역 결과 유지
+            console.log(
+              `⚠️ 배치 ${i + 1}, 자막 ${j + 1} 태그 못찾음, 1차 번역 유지`
+            );
+            refinedSubtitles.push(original);
+          }
+        }
+
+        refinedBatches.push(refinedSubtitles);
+        console.log(`✅ 배치 ${i + 1} 번역 개선 완료`);
+
+        // API 요청 사이에 짧은 지연
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      } catch (error) {
+        console.error(`❌ 배치 ${i + 1} 번역 개선 실패:`, error);
+        // 실패하면 1차 번역 결과 사용
+        refinedBatches.push(batch);
+      }
+    }
+
+    // 모든 배치 합치기
+    const allRefinedSubtitles = refinedBatches.flat();
+    console.log(`🎉 총 ${allRefinedSubtitles.length}개 자막 2단계 번역 완료`);
+
+    // 번역 성공률 계산
+    const emptyTranslated = allRefinedSubtitles.filter(
+      (s) => !s.text || !s.text.trim()
+    ).length;
+    const translationSuccessRate =
+      ((allRefinedSubtitles.length - emptyTranslated) /
+        allRefinedSubtitles.length) *
+      100;
+    console.log(
+      `📊 번역 성공률: ${translationSuccessRate.toFixed(
+        2
+      )}% (빈 자막: ${emptyTranslated}개)`
+    );
+
+    return allRefinedSubtitles;
+  } catch (error) {
+    console.error(`❌ 번역 프로세스 실패:`, error);
+    // 오류 발생 시 원본 자막 사용
+    console.log(`⚠️ 오류 발생으로 원본 자막 반환`);
+    return subtitles;
+  }
+}
+
+/**
+ * 번역된 자막을 10자막 단위로 묶어서 반환하는 함수
+ * @param translatedSubtitles 번역된 자막 배열
+ * @param options 옵션 (filterEmpty: 빈 자막 필터링 여부)
+ * @returns 10자막 단위로 묶인 배열 - { index, start, text } 형태
+ */
+export function groupSubtitlesIntoParagraphs(
+  translatedSubtitles: SubtitleItem[],
+  options: { filterEmpty?: boolean } = {}
+): { index: number; start: string; text: string }[] {
+  if (!translatedSubtitles || translatedSubtitles.length === 0) {
+    return [];
+  }
+
+  const { filterEmpty = false } = options;
+
+  // 필터링 여부에 따라 자막 선택
+  let subtitlesToProcess = translatedSubtitles;
+  if (filterEmpty) {
+    subtitlesToProcess = translatedSubtitles.filter(
+      (s) => s.text && s.text.trim().length > 0
+    );
+    console.log(
+      `🧹 문단화 전 빈 자막 필터링: ${translatedSubtitles.length}개 → ${subtitlesToProcess.length}개`
+    );
+  }
+
+  // 시간 순서대로 정렬
+  const sortedSubtitles = [...subtitlesToProcess].sort(
+    (a, b) => Number(a.startSeconds) - Number(b.startSeconds)
+  );
+
+  console.log(`📊 자막 정렬 완료: 총 ${sortedSubtitles.length}개 자막`);
+  console.log(
+    `🕒 첫 자막 시간: ${sortedSubtitles[0]?.start}, 마지막 자막 시간: ${
+      sortedSubtitles[sortedSubtitles.length - 1]?.start
+    }`
+  );
+
+  // 10개씩 자막 묶기
+  const batches = splitIntoBatches(sortedSubtitles, 10);
+  console.log(`📦 생성된 배치 수: ${batches.length}개`);
+
+  // 각 배치를 한 문단으로 처리
+  const paragraphs = batches.map((batch, index) => {
+    // 배치의 첫 번째 자막의 시작 시간 사용
+    const firstSubtitle = batch[0];
+    const startTime = firstSubtitle ? firstSubtitle.start : "00:00";
+
+    // 각 자막의 텍스트 합치기 (비어있지 않은 경우만)
+    const nonEmptyTexts = batch
+      .filter((subtitle) => subtitle.text && subtitle.text.trim().length > 0)
+      .map((subtitle) => subtitle.text.trim());
+
+    const batchText = nonEmptyTexts.join(" ");
+
+    // 해당 배치의 자막 수와 내용 있는 자막 수 로깅 (첫 배치와 마지막 배치만)
+    if (index === 0 || index === batches.length - 1) {
+      console.log(
+        `📝 배치 ${index + 1}: 총 ${batch.length}개 자막 중 내용 있는 자막 ${
+          nonEmptyTexts.length
+        }개`
+      );
+    }
+
+    return {
+      index: index + 1,
+      start: startTime,
+      text: batchText || "(자막 없음)", // 빈 문단이면 기본 텍스트 제공
+    };
+  });
+
+  console.log(`✅ 문단 생성 완료: ${paragraphs.length}개 문단`);
+  console.log(
+    `🕒 첫 문단 시간: ${paragraphs[0]?.start}, 마지막 문단 시간: ${
+      paragraphs[paragraphs.length - 1]?.start
+    }`
+  );
+
+  return paragraphs;
 }

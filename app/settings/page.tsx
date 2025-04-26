@@ -44,6 +44,13 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
   const [avatar, setAvatar] = useState("");
+
+  // 설정 상태
+  const [language, setLanguage] = useState("ko");
+  const [theme, setTheme] = useState("light");
+  const [autoTranslate, setAutoTranslate] = useState(false);
+  const [notification, setNotification] = useState(true);
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get("tab");
@@ -68,6 +75,9 @@ export default function SettingsPage() {
           setBio(data.user.bio || "");
           setAvatar(data.user.avatar || "");
           setError(null);
+
+          // 사용자 설정 가져오기
+          await fetchUserSettings();
         } else {
           setError(data.error || "사용자 정보를 불러오는데 실패했습니다");
         }
@@ -83,6 +93,26 @@ export default function SettingsPage() {
       fetchUserData();
     }
   }, [isAuthenticated, authLoading]);
+
+  // 사용자 설정 가져오기
+  const fetchUserSettings = async () => {
+    try {
+      const response = await fetch("/api/settings");
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const settings = data.settings;
+        setLanguage(settings.language || "ko");
+        setTheme(settings.theme || "light");
+        setAutoTranslate(settings.auto_translate || false);
+        setNotification(
+          settings.notification !== undefined ? settings.notification : true
+        );
+      }
+    } catch (err) {
+      console.error("설정 정보 조회 오류:", err);
+    }
+  };
 
   const handleSaveProfile = async () => {
     try {
@@ -242,6 +272,40 @@ export default function SettingsPage() {
     }
   };
 
+  // 설정 저장 함수
+  const handleSaveSettings = async () => {
+    try {
+      setSaving(true);
+
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language,
+          theme,
+          auto_translate: autoTranslate,
+          notification,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setToastMessage("설정이 성공적으로 저장되었습니다");
+        setShowToast(true);
+      } else {
+        setToastMessage(data.error || "설정 저장에 실패했습니다");
+        setShowToast(true);
+      }
+    } catch (err) {
+      setToastMessage("설정 저장 중 오류가 발생했습니다");
+      setShowToast(true);
+      console.error("설정 저장 오류:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-16">
       <Header title="설정" backUrl="/profile" showBackButton={true} />
@@ -266,7 +330,7 @@ export default function SettingsPage() {
                   <Label htmlFor="language" className="text-xs">
                     언어
                   </Label>
-                  <Select defaultValue="ko">
+                  <Select value={language} onValueChange={setLanguage}>
                     <SelectTrigger id="language" className="h-9 text-sm">
                       <SelectValue placeholder="언어 선택" />
                     </SelectTrigger>
@@ -282,7 +346,7 @@ export default function SettingsPage() {
                   <Label htmlFor="theme" className="text-xs">
                     테마
                   </Label>
-                  <Select defaultValue="light">
+                  <Select value={theme} onValueChange={setTheme}>
                     <SelectTrigger id="theme" className="h-9 text-sm">
                       <SelectValue placeholder="테마 선택" />
                     </SelectTrigger>
@@ -302,8 +366,30 @@ export default function SettingsPage() {
                       새로운 기능 및 업데이트 알림 받기
                     </p>
                   </div>
-                  <Switch id="notifications" />
+                  <Switch
+                    id="notifications"
+                    checked={notification}
+                    onCheckedChange={setNotification}
+                  />
                 </div>
+
+                <Button
+                  onClick={handleSaveSettings}
+                  disabled={saving || !isAuthenticated}
+                  className="w-full h-9 bg-blue-500 hover:bg-blue-600 text-sm"
+                >
+                  {saving ? (
+                    <span className="flex items-center">
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                      저장 중...
+                    </span>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      설정 저장하기
+                    </>
+                  )}
+                </Button>
               </div>
             </TabsContent>
             <TabsContent value="digest" className="space-y-4">
@@ -349,7 +435,11 @@ export default function SettingsPage() {
                       외국어 콘텐츠 자동 번역
                     </p>
                   </div>
-                  <Switch id="auto-translate" />
+                  <Switch
+                    id="auto-translate"
+                    checked={autoTranslate}
+                    onCheckedChange={setAutoTranslate}
+                  />
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <div className="space-y-0.5">
@@ -362,6 +452,24 @@ export default function SettingsPage() {
                   </div>
                   <Switch id="extract-images" defaultChecked />
                 </div>
+
+                <Button
+                  onClick={handleSaveSettings}
+                  disabled={saving || !isAuthenticated}
+                  className="w-full h-9 bg-blue-500 hover:bg-blue-600 text-sm mt-4"
+                >
+                  {saving ? (
+                    <span className="flex items-center">
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                      저장 중...
+                    </span>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      설정 저장하기
+                    </>
+                  )}
+                </Button>
               </div>
             </TabsContent>
             <TabsContent value="account" className="space-y-4">

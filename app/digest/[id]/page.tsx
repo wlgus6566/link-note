@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -9,6 +9,7 @@ import {
   Share2,
   Info,
   MapPinIcon as MapPinCheckInside,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/bottom-nav";
@@ -150,11 +151,13 @@ function TimelinePlayerSection({
       },
       events: {
         onReady: () => {
-          setPlayerReady(true);
-          onPlayerReady();
-
-          // 외부에서 참조할 수 있도록 전역 변수에 저장
-          window.ytPlayer = playerRef.current;
+          if (playerRef.current) {
+            window.ytPlayer = playerRef.current;
+            setPlayerReady(true);
+            onPlayerReady();
+          } else {
+            console.error("플레이어 초기화 실패: playerRef 없음");
+          }
         },
         onError: (e) => console.error("YouTube Player 오류:", e),
       },
@@ -209,7 +212,9 @@ function TimelinePlayerSection({
   return (
     <div
       className={`w-full ${
-        activeTab === "transcript" ? "sticky top-16 z-20" : "mb-4"
+        activeTab === "transcript" || activeTab === "translated"
+          ? "sticky top-16 z-20"
+          : "mb-4"
       }`}
     >
       <div className="relative w-full aspect-video">
@@ -220,6 +225,13 @@ function TimelinePlayerSection({
       </div>
     </div>
   );
+}
+
+// 번역 문단 타입 정의
+interface TranslatedParagraph {
+  start: string;
+  text: string;
+  index?: number;
 }
 
 export default function DigestPage({
@@ -276,6 +288,19 @@ export default function DigestPage({
 
   // 플레이어 준비 상태
   const [playerReady, setPlayerReady] = useState(false);
+
+  // 번역 관련 상태
+  const [userLanguage, setUserLanguage] = useState<string>("ko");
+  const [translatedTimelineData, setTranslatedTimelineData] = useState<
+    TimelineGroup[]
+  >([]);
+  const [translatedParagraphs, setTranslatedParagraphs] = useState<
+    TranslatedParagraph[]
+  >([]);
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  const [showTranslateTab, setShowTranslateTab] = useState<boolean>(true);
+  const [autoTranslate, setAutoTranslate] = useState<boolean>(false);
 
   // 플레이어 준비 완료 핸들러
   const handlePlayerReady = () => {
@@ -810,50 +835,25 @@ export default function DigestPage({
       }
     }
   };
-
+  const isPlayerReady = () => {
+    const player = window.ytPlayer || playerInstanceRef.current;
+    return player && typeof player.seekTo === "function";
+  };
   // 타임라인 아이템 클릭 시 해당 시간으로 이동
   const handleSeekTo = (seconds: number) => {
-    if (!digest || digest.sourceType !== "YouTube") return;
-    const videoId = getYouTubeVideoId(digest.sourceUrl);
-    if (!videoId) return;
+    if (!isPlayerReady()) {
+      console.warn("❗ 아직 플레이어 준비 안 됨, seekTo 시도 안 함");
+      return;
+    }
 
-    if (showBookmarksPopup) setShowBookmarksPopup(false);
-
-    const seekAfterReady = () => {
-      try {
-        const player = window.ytPlayer || playerInstanceRef.current;
-
-        if (player && typeof player.seekTo === "function") {
-          console.log(`▶️ ${seconds}초로 이동 시도`);
-          player.seekTo(seconds, true);
-          player.playVideo?.();
-        } else {
-          console.warn("플레이어 없음 또는 seekTo 불가");
-          // 👇 이 부분 삭제! loadVideoById 사용 안함
-          // player?.loadVideoById({ videoId, startSeconds: seconds });
-        }
-      } catch (err) {
-        console.error("seek 오류 발생:", err);
-      }
-    };
-
-    if (playerReady) {
-      seekAfterReady();
-    } else {
-      console.log("플레이어 준비 안됨 → 준비될 때까지 대기");
-
-      const checkInterval = setInterval(() => {
-        const ready =
-          window.ytPlayer && typeof window.ytPlayer.seekTo === "function";
-        if (ready) {
-          clearInterval(checkInterval);
-          seekAfterReady();
-        }
-      }, 100);
-
-      setTimeout(() => {
-        clearInterval(checkInterval);
-      }, 5000); // 5초 후 포기
+    // 바로 seekTo 실행
+    try {
+      const player = window.ytPlayer || playerInstanceRef.current;
+      console.log(`▶️ ${seconds}초로 이동`);
+      player.seekTo(seconds, true);
+      player.playVideo?.();
+    } catch (err) {
+      console.error("❗ seekTo 호출 중 오류:", err);
     }
   };
 
@@ -904,6 +904,91 @@ export default function DigestPage({
       setShowConfirmDialog(false);
     }
   };
+
+  // 사용자 설정 가져오기
+  const fetchUserSettings = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await fetch("/api/settings");
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const settings = data.settings;
+        setUserLanguage(settings.language || "ko");
+        setAutoTranslate(settings.auto_translate || false);
+
+        // 자동 번역이 켜져 있고 언어가 한국어가 아닌 경우 번역 탭 표시
+        if (settings.auto_translate && settings.language !== "ko") {
+          setShowTranslateTab(true);
+
+          // 자동 번역 켜진 상태에서 타임라인 데이터가 있으면 번역 시작
+          if (timelineData.length > 0 && pageId) {
+            fetchTranslatedTimeline(pageId);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("설정 정보 조회 오류:", err);
+    }
+  }, [isAuthenticated]);
+
+  // 번역된 타임라인 가져오기
+  const fetchTranslatedTimeline = async (id: string) => {
+    console.log("fetchTranslatedTimeline 호출");
+    console.log("id:", id);
+    console.log("userLanguage:", userLanguage);
+    if (!id || !userLanguage) return;
+
+    try {
+      setIsTranslating(true);
+      setTranslationError(null);
+      console.log("fetchTranslatedTimeline 호출 2");
+      const response = await fetch(
+        `/api/digest/${id}/translate?lang=${userLanguage}`
+      );
+      console.log("response:", response);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // 새로운 번역 API 응답 처리
+        if (data.translatedParagraphs) {
+          setTranslatedParagraphs(data.translatedParagraphs);
+          setShowTranslateTab(true);
+        } else if (data.translatedTimeline) {
+          // 이전 버전 호환성 유지
+          setTranslatedTimelineData(data.translatedTimeline);
+          setShowTranslateTab(true);
+        }
+      } else {
+        setTranslationError(data.error || "번역을 불러오는데 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("번역 가져오기 오류:", error);
+      setTranslationError("번역을 불러오는데 실패했습니다.");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // 인증 상태 변경 후 사용자 설정 가져오기
+  useEffect(() => {
+    if (isAuthenticated !== true) return;
+
+    fetchUserSettings();
+  }, [isAuthenticated, fetchUserSettings]);
+
+  // 타임라인 데이터 로드 후 자동 번역 처리
+  useEffect(() => {
+    if (
+      timelineData.length > 0 &&
+      pageId &&
+      autoTranslate &&
+      userLanguage !== "ko"
+    ) {
+      fetchTranslatedTimeline(pageId);
+    }
+  }, [timelineData, pageId, autoTranslate, userLanguage]);
 
   if (error) {
     return (
@@ -1019,12 +1104,16 @@ export default function DigestPage({
           >
             <div
               className={`sticky ${
-                activeTab === "transcript"
+                activeTab === "transcript" || activeTab === "translated"
                   ? "top-[calc(56.25vw+64px)]"
                   : "top-16"
               } z-10 bg-white border-b border-border-line`}
             >
-              <TabsList className="grid w-full grid-cols-2 p-0 h-12">
+              <TabsList
+                className={`grid w-full ${
+                  showTranslateTab ? "grid-cols-3" : "grid-cols-2"
+                } p-0 h-12`}
+              >
                 <TabsTrigger
                   value="summary"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
@@ -1035,8 +1124,17 @@ export default function DigestPage({
                   value="transcript"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
                 >
-                  스크립트
+                  타임라인
                 </TabsTrigger>
+                {showTranslateTab && (
+                  <TabsTrigger
+                    value="translated"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
+                  >
+                    <Globe className="h-4 w-4 mr-1" />
+                    번역 <span className="ml-1 text-xs">({userLanguage})</span>
+                  </TabsTrigger>
+                )}
               </TabsList>
             </div>
 
@@ -1145,6 +1243,193 @@ export default function DigestPage({
                     </Button>
                   </TabsContent>
                 </div>
+
+                {/* 번역된 타임라인 탭 */}
+                {showTranslateTab && (
+                  <div
+                    className={`w-full flex-shrink-0 ${
+                      activeTab === "translated" ? "block" : "hidden md:block"
+                    }`}
+                  >
+                    <TabsContent value="translated" className="mt-0 p-5">
+                      {/* 번역된 스크립트 콘텐츠 */}
+                      {isTranslating ? (
+                        <div className="flex flex-col items-center justify-center py-10">
+                          <div className="w-12 h-12 rounded-full border-4 border-primary-color border-t-transparent animate-spin"></div>
+                          <p className="mt-4 text-sm text-neutral-dark">
+                            타임라인 번역 중...
+                          </p>
+                        </div>
+                      ) : translationError ? (
+                        <div className="p-6 text-center">
+                          <div className="w-16 h-16 mx-auto bg-red-50 rounded-full flex items-center justify-center">
+                            <span className="text-red-500 text-2xl">!</span>
+                          </div>
+                          <h3 className="mt-4 text-lg font-medium text-neutral-dark">
+                            번역 오류
+                          </h3>
+                          <p className="mt-2 text-neutral-medium">
+                            {translationError}
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              fetchTranslatedTimeline(pageId || "")
+                            }
+                            className="mt-4"
+                          >
+                            다시 시도
+                          </Button>
+                        </div>
+                      ) : translatedParagraphs &&
+                        translatedParagraphs.length > 0 ? (
+                        <motion.div
+                          className="mb-10"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.45 }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1">
+                              <h2 className="text-lg font-bold text-neutral-dark">
+                                번역된 문단{" "}
+                                <span className="ml-1 text-sm font-normal">
+                                  ({userLanguage})
+                                </span>
+                              </h2>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-sm text-neutral-medium rounded-full px-3"
+                              onClick={() =>
+                                fetchTranslatedTimeline(pageId || "")
+                              }
+                            >
+                              <Globe className="h-4 w-4 mr-1" />
+                              새로고침
+                            </Button>
+                          </div>
+
+                          <div className="space-y-4">
+                            {translatedParagraphs.map((paragraph, index) => (
+                              <div
+                                key={`par-${index}`}
+                                className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-primary-color transition-colors"
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <button
+                                    onClick={() =>
+                                      handleSeekTo(
+                                        // 시작 시간을 mm:ss 형식에서 초로 변환
+                                        paragraph.start
+                                          .split(":")
+                                          .reduce(
+                                            (acc, time) =>
+                                              60 * acc + parseInt(time),
+                                            0
+                                          )
+                                      )
+                                    }
+                                    className="text-xs font-semibold text-primary-color bg-primary-light px-2 py-1 rounded hover:bg-primary-color hover:text-white transition-colors"
+                                  >
+                                    {paragraph.start}
+                                  </button>
+                                  <span className="text-sm text-neutral-medium">
+                                    문단 {paragraph.index || index + 1}
+                                  </span>
+                                </div>
+                                <p className="text-base text-neutral-dark whitespace-pre-wrap">
+                                  {paragraph.text}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      ) : translatedTimelineData.length > 0 ? (
+                        <motion.div
+                          className="mb-10"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.45 }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1">
+                              <h2 className="text-lg font-bold text-neutral-dark">
+                                번역된 타임라인{" "}
+                                <span className="ml-1 text-sm font-normal">
+                                  ({userLanguage})
+                                </span>
+                              </h2>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-sm text-neutral-medium rounded-full px-3"
+                              onClick={() =>
+                                fetchTranslatedTimeline(pageId || "")
+                              }
+                            >
+                              <Globe className="h-4 w-4 mr-1" />
+                              새로고침
+                            </Button>
+                          </div>
+
+                          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <TimelineAccordion
+                              timelineGroups={translatedTimelineData}
+                              onSeek={handleSeekTo}
+                              currentSegmentId={currentSegmentId || undefined}
+                              bookmarkedItems={Object.keys(
+                                bookmarkedItems
+                              ).reduce(
+                                (acc, key) => ({
+                                  ...acc,
+                                  [key]: true,
+                                }),
+                                {}
+                              )}
+                              onBookmark={handleBookmark}
+                              useTranslated={true}
+                            />
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <div className="p-6 text-center">
+                          <div className="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center">
+                            <Globe className="h-8 w-8 text-blue-500" />
+                          </div>
+                          <h3 className="mt-4 text-lg font-medium text-neutral-dark">
+                            번역된 콘텐츠 없음
+                          </h3>
+                          <p className="mt-2 text-neutral-medium">
+                            자막을 {userLanguage} 언어로 번역하시겠습니까?
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              fetchTranslatedTimeline(pageId || "")
+                            }
+                            className="mt-4"
+                          >
+                            번역하기
+                          </Button>
+                        </div>
+                      )}
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveBookmark}
+                        className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
+                      >
+                        콘텐츠 저장하기
+                      </Button>
+                    </TabsContent>
+                  </div>
+                )}
               </motion.div>
             </div>
           </Tabs>

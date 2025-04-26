@@ -12,8 +12,10 @@ import {
   Edit,
   Calendar,
   LogIn,
+  MoreVertical,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,12 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getUserInitials } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // 그룹화된 북마크 타입 정의
 interface GroupedBookmarks {
@@ -77,6 +85,7 @@ export default function TimelinesPage() {
   >({});
   const [authError, setAuthError] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+  const [showDeleteToast, setShowDeleteToast] = useState(false);
 
   // useAuth 훅 사용
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -399,6 +408,59 @@ export default function TimelinesPage() {
       ));
   };
 
+  // 북마크 삭제 함수
+  const handleDeleteBookmark = async (
+    bookmarkId: number,
+    e?: React.MouseEvent
+  ) => {
+    if (e) {
+      e.stopPropagation();
+    }
+
+    try {
+      console.log(`북마크 ID ${bookmarkId} 삭제 요청 시작`);
+
+      const response = await fetch(`/api/timelines/${bookmarkId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("북마크 삭제 오류 응답:", response.status, errorText);
+        throw new Error(`API 오류: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.error) {
+        console.error("북마크 삭제 결과 오류:", result.error);
+        throw new Error(result.error);
+      }
+
+      console.log("북마크 삭제 성공:", result);
+
+      // 북마크 목록에서 삭제된 북마크 제거
+      const updatedBookmarks = bookmarks.filter(
+        (bookmark) => bookmark.id !== bookmarkId
+      );
+      setBookmarks(updatedBookmarks);
+
+      // 그룹화된 북마크 업데이트
+      const updatedGroups = groupBookmarksByDigest(updatedBookmarks);
+      setGroupedBookmarks(updatedGroups);
+      setFilteredGroups(updatedGroups);
+
+      // 삭제 성공 토스트 표시
+      setToastMessage("타임라인이 삭제되었습니다");
+      setShowToast(true);
+    } catch (error) {
+      console.error("북마크 삭제 오류:", error);
+      setToastMessage("타임라인 삭제에 실패했습니다");
+      setShowToast(true);
+    }
+  };
+
   // 단일 북마크 렌더링 함수
   const renderSingleBookmark = (bookmark: TimelineBookmark) => {
     return (
@@ -443,17 +505,30 @@ export default function TimelinesPage() {
             </div>
           </div>
 
-          <div className="flex-1 min-w-0">
-            {/* <div className="flex items-center text-xs">
-              <Calendar className="h-3 w-3 mr-1" />
-              <span>
-                {new Date(bookmark.created_at).toLocaleDateString("ko-KR", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </span>
-            </div> */}
+          <div className="flex-1 min-w-0 relative">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full absolute top-2 right-2 p-0 bg-white/80 hover:bg-white border border-border-line group-hover:opacity-100 opacity-60"
+                >
+                  <MoreVertical className="h-4 w-4 text-neutral-dark" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-32">
+                <DropdownMenuItem
+                  className="text-red-500 focus:text-red-500 cursor-pointer"
+                  onClick={(e) =>
+                    handleDeleteBookmark(bookmark.id, e as React.MouseEvent)
+                  }
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  삭제하기
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <button
               onClick={() => handlePlayClick(bookmark)}
               className="text-sm font-medium text-neutral-dark hover:text-primary-color line-clamp-1 mb-1 transition-colors"
@@ -470,10 +545,6 @@ export default function TimelinesPage() {
                 {formatTime(bookmark.seconds)}
               </Badge>
             </div>
-
-            {/* <p className="text-sm text-neutral-dark line-clamp-2 mb-1.5">
-              {bookmark.text}
-            </p> */}
 
             {/* 메모가 있는 경우 */}
             {bookmark.memo && (
@@ -502,11 +573,7 @@ export default function TimelinesPage() {
               </button>
             )}
             <p className="text-xs text-neutral-medium mt-1">
-              {bookmark.digests?.video_info?.channelTitle || ""}{" "}
-              {/* {bookmark.digests?.video_info?.viewCount &&
-                `· 조회수 ${formatViewCount(
-                  bookmark.digests?.video_info?.viewCount
-                )}`} */}
+              {bookmark.digests?.video_info?.channelTitle || ""}
             </p>
           </div>
         </div>
@@ -570,8 +637,6 @@ export default function TimelinesPage() {
               </Badge>
               <p className="text-xs text-neutral-medium flex-1">
                 {group.videoInfo?.channelTitle || ""}
-                {/* {group.videoInfo?.viewCount &&
-                  ` · 조회수 ${formatViewCount(group.videoInfo.viewCount)}`} */}
               </p>
             </div>
 
@@ -609,7 +674,34 @@ export default function TimelinesPage() {
             >
               <ul className="divide-y divide-border-line">
                 {group.bookmarks.map((bookmark) => (
-                  <li key={bookmark.id} className="p-4">
+                  <li key={bookmark.id} className="p-4 relative">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full absolute top-2 right-2 p-0 bg-white/80 hover:bg-white border border-border-line opacity-60 hover:opacity-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="h-4 w-4 text-neutral-dark" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-32">
+                        <DropdownMenuItem
+                          className="text-red-500 focus:text-red-500 cursor-pointer"
+                          onClick={(e) =>
+                            handleDeleteBookmark(
+                              bookmark.id,
+                              e as React.MouseEvent
+                            )
+                          }
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          삭제하기
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
                     <div className="flex items-start gap-3">
                       <button
                         onClick={() => handlePlayClick(bookmark)}
@@ -627,16 +719,6 @@ export default function TimelinesPage() {
                           >
                             {formatTime(bookmark.seconds)}
                           </Badge>
-                          {/* <span className="text-xs text-neutral-medium">
-                            {new Date(bookmark.created_at).toLocaleDateString(
-                              "ko-KR",
-                              {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              }
-                            )}
-                          </span> */}
                         </div>
 
                         <p className="text-sm text-neutral-dark mb-2">

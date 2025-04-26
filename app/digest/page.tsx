@@ -133,16 +133,18 @@ export default function DigestPage() {
         <div className="container px-5 py-4">
           {/* 검색 및 필터 영역 */}
           <div className="mb-6">
-            <div className="relative mb-4">
-              <Input
-                className="pl-10 bg-white border-border-line rounded-xl h-12"
-                placeholder="저장된 콘텐츠 검색"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-medium" />
+            <div className="flex items-center gap-2 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-medium" />
+                <Input
+                  type="text"
+                  placeholder="저장된 콘텐츠 검색"
+                  className="pl-9 bg-gray-50 border-gray-200"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
             </div>
-
             {/* 폴더 필터 */}
             <FolderFilter
               folders={folders}

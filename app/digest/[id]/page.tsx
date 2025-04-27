@@ -1075,185 +1075,100 @@ export default function DigestPage({
       />
 
       <main className="flex-1">
-        <div className="container px-0 sm:px-5">
-          {/* 비디오 섹션 */}
+        <div className="container px-0 sm:px-5 md:flex md:gap-6 md:px-5">
+          {/* 비디오 섹션 - 768px 이상에서는 왼쪽에 고정 */}
           {digest.sourceType === "YouTube" && digest.sourceUrl && (
-            <TimelinePlayerSection
-              sourceType={digest.sourceType}
-              sourceUrl={digest.sourceUrl}
-              activeTab={activeTab}
-              onPlayerReady={handlePlayerReady}
-              onTimeUpdate={handleTimeUpdate}
-            />
+            <div className="md:sticky md:top-20 md:w-[45%] md:h-fit">
+              <TimelinePlayerSection
+                sourceType={digest.sourceType}
+                sourceUrl={digest.sourceUrl}
+                activeTab={activeTab}
+                onPlayerReady={handlePlayerReady}
+                onTimeUpdate={handleTimeUpdate}
+              />
+            </div>
           )}
 
-          {/* 탭 네비게이션 */}
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <div
-              className={`sticky ${
-                activeTab === "transcript" || activeTab === "translated"
-                  ? "top-[calc(56.25vw+64px)]"
-                  : "top-16"
-              } z-10 bg-white border-b border-border-line`}
+          {/* 탭 콘텐츠 영역 - 768px 이상에서는 오른쪽에 배치 */}
+          <div className="md:w-[55%]">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
             >
-              <TabsList
-                className={`grid w-full ${
-                  showTranslateTab ? "grid-cols-3" : "grid-cols-2"
-                } p-0 h-12`}
+              <div
+                className={`sticky ${
+                  activeTab === "transcript" || activeTab === "translated"
+                    ? "top-[calc(56.25vw+64px)] md:top-16"
+                    : "top-16"
+                } z-10 bg-white border-b border-border-line`}
               >
-                <TabsTrigger
-                  value="summary"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
+                <TabsList
+                  className={`grid w-full ${
+                    showTranslateTab ? "grid-cols-3" : "grid-cols-2"
+                  } p-0 h-12`}
                 >
-                  AI 요약 정리
-                </TabsTrigger>
-                <TabsTrigger
-                  value="transcript"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
-                >
-                  타임라인
-                </TabsTrigger>
-                {showTranslateTab && (
                   <TabsTrigger
-                    value="translated"
+                    value="summary"
                     className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
                   >
-                    <Globe className="h-4 w-4 mr-1" />
-                    번역 <span className="ml-1 text-xs">({userLanguage})</span>
+                    AI 요약 정리
                   </TabsTrigger>
-                )}
-              </TabsList>
-            </div>
-
-            {/* 스와이프 가능한 콘텐츠 영역 */}
-            <div ref={contentRef} className="overflow-hidden">
-              <motion.div
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.2}
-                onDragEnd={handleDragEnd}
-                animate={{
-                  x: swipeDirection * window.innerWidth,
-                  transition: { duration: 0.3 },
-                }}
-                className="flex w-full"
-              >
-                <div
-                  className={`w-full flex-shrink-0 ${
-                    activeTab === "summary" ? "block" : "hidden md:block"
-                  }`}
-                >
-                  <TabsContent value="summary" className="mt-0 p-5">
-                    {/* AI 요약 정리 콘텐츠 */}
-                    <div className="mb-4 p-5 bg-primary-light rounded-lg border-l-4 border-primary-color">
-                      <p className="text-base italic text-neutral-dark">
-                        {digest.summary}
-                      </p>
-                    </div>
-
-                    <motion.div
-                      className="prose prose-blue prose-lg max-w-none mb-10"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      dangerouslySetInnerHTML={{ __html: digest.content }}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSaveBookmark}
-                      className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
+                  <TabsTrigger
+                    value="transcript"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
+                  >
+                    타임라인
+                  </TabsTrigger>
+                  {showTranslateTab && (
+                    <TabsTrigger
+                      value="translated"
+                      className="data-[state=active]:border-b-2 data-[state=active]:border-primary-color data-[state=active]:text-primary-color rounded-none h-full"
                     >
-                      콘텐츠 저장하기
-                    </Button>
-                  </TabsContent>
-                </div>
+                      <Globe className="h-4 w-4 mr-1" />
+                      번역{" "}
+                      <span className="ml-1 text-xs">({userLanguage})</span>
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+              </div>
 
-                <div
-                  className={`w-full flex-shrink-0 ${
-                    activeTab === "transcript" ? "block" : "hidden md:block"
-                  }`}
+              {/* 모바일에서는 스와이프 기능 유지, 데스크톱에서는 일반 탭 사용 */}
+              <div className="md:hidden overflow-hidden" ref={contentRef}>
+                <motion.div
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.2}
+                  onDragEnd={handleDragEnd}
+                  animate={{
+                    x: swipeDirection * window.innerWidth,
+                    transition: { duration: 0.3 },
+                  }}
+                  className="flex w-full"
                 >
-                  <TabsContent value="transcript" className="mt-0 p-5">
-                    {/* 스크립트 콘텐츠 */}
-                    {digest.sourceType === "YouTube" &&
-                      timelineData.length > 0 && (
-                        <motion.div
-                          className="mb-10"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.45 }}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1">
-                              <h2 className="text-lg font-bold text-neutral-dark">
-                                타임라인
-                              </h2>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-sm text-neutral-medium rounded-full px-3"
-                              onClick={() => setShowGuidePopup(true)}
-                            >
-                              <Info className="h-4 w-4 bg-[#1976D2] text-white rounded-full p-0.5" />
-                              이용가이드
-                            </Button>
-                          </div>
-
-                          <TimelineAccordion
-                            timelineGroups={timelineData}
-                            onSeek={handleSeekTo}
-                            currentSegmentId={currentSegmentId || undefined}
-                            bookmarkedItems={Object.keys(
-                              bookmarkedItems
-                            ).reduce(
-                              (acc, key) => ({
-                                ...acc,
-                                [key]: true,
-                              }),
-                              {}
-                            )}
-                            onBookmark={handleBookmark}
-                          />
-                        </motion.div>
-                      )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSaveBookmark}
-                      className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
-                    >
-                      콘텐츠 저장하기
-                    </Button>
-                  </TabsContent>
-                </div>
-
-                {/* 번역된 타임라인 탭 */}
-                {showTranslateTab && (
                   <div
                     className={`w-full flex-shrink-0 ${
-                      activeTab === "translated" ? "block" : "hidden md:block"
+                      activeTab === "summary" ? "block" : "hidden"
                     }`}
                   >
-                    <TabsContent value="translated" className="mt-0 p-5">
-                      {/* 번역된 스크립트 콘텐츠 */}
-                      <TranslatedContent
-                        isTranslating={isTranslating}
-                        translationError={translationError}
-                        translatedParagraphs={translatedParagraphs}
-                        userLanguage={userLanguage}
-                        bookmarkedItems={bookmarkedItems}
-                        handleSeekTo={handleSeekTo}
-                        handleBookmark={handleBookmark}
-                        fetchTranslatedTimeline={fetchTranslatedTimeline}
-                        pageId={pageId}
-                      />
+                    <TabsContent
+                      forceMount
+                      value="summary"
+                      className="mt-0 p-5"
+                    >
+                      <div className="mb-4 p-5 bg-primary-light rounded-lg border-l-4 border-primary-color">
+                        <p className="text-base italic text-neutral-dark">
+                          {digest.summary}
+                        </p>
+                      </div>
 
+                      <motion.div
+                        className="prose prose-blue prose-lg max-w-none mb-10"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        dangerouslySetInnerHTML={{ __html: digest.content }}
+                      />
                       <Button
                         variant="outline"
                         size="sm"
@@ -1264,10 +1179,211 @@ export default function DigestPage({
                       </Button>
                     </TabsContent>
                   </div>
+
+                  <div
+                    className={`w-full flex-shrink-0 ${
+                      activeTab === "transcript" ? "block" : "hidden"
+                    }`}
+                  >
+                    <TabsContent
+                      forceMount
+                      value="transcript"
+                      className="mt-0 p-5"
+                    >
+                      {digest.sourceType === "YouTube" &&
+                        timelineData.length > 0 && (
+                          <motion.div
+                            className="mb-10"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.45 }}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-1">
+                                <h2 className="text-lg font-bold text-neutral-dark">
+                                  타임라인
+                                </h2>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-sm text-neutral-medium rounded-full px-3"
+                                onClick={() => setShowGuidePopup(true)}
+                              >
+                                <Info className="h-4 w-4 bg-[#1976D2] text-white rounded-full p-0.5" />
+                                이용가이드
+                              </Button>
+                            </div>
+
+                            <TimelineAccordion
+                              timelineGroups={timelineData}
+                              onSeek={handleSeekTo}
+                              currentSegmentId={currentSegmentId || undefined}
+                              bookmarkedItems={Object.keys(
+                                bookmarkedItems
+                              ).reduce(
+                                (acc, key) => ({
+                                  ...acc,
+                                  [key]: true,
+                                }),
+                                {}
+                              )}
+                              onBookmark={handleBookmark}
+                            />
+                          </motion.div>
+                        )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveBookmark}
+                        className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
+                      >
+                        콘텐츠 저장하기
+                      </Button>
+                    </TabsContent>
+                  </div>
+
+                  {showTranslateTab && (
+                    <div
+                      className={`w-full flex-shrink-0 ${
+                        activeTab === "translated" ? "block" : "hidden"
+                      }`}
+                    >
+                      <TabsContent
+                        forceMount
+                        value="translated"
+                        className="mt-0 p-5"
+                      >
+                        <TranslatedContent
+                          isTranslating={isTranslating}
+                          translationError={translationError}
+                          translatedParagraphs={translatedParagraphs}
+                          userLanguage={userLanguage}
+                          bookmarkedItems={bookmarkedItems}
+                          handleSeekTo={handleSeekTo}
+                          handleBookmark={handleBookmark}
+                          fetchTranslatedTimeline={fetchTranslatedTimeline}
+                          pageId={pageId}
+                        />
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSaveBookmark}
+                          className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
+                        >
+                          콘텐츠 저장하기
+                        </Button>
+                      </TabsContent>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+
+              {/* 데스크톱에서만 보이는 탭 콘텐츠 */}
+              <div className="hidden md:block">
+                <TabsContent value="summary" className="mt-0 p-5">
+                  <div className="mb-4 p-5 bg-primary-light rounded-lg border-l-4 border-primary-color">
+                    <p className="text-base italic text-neutral-dark">
+                      {digest.summary}
+                    </p>
+                  </div>
+
+                  <motion.div
+                    className="prose prose-blue prose-lg max-w-none mb-10"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    dangerouslySetInnerHTML={{ __html: digest.content }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveBookmark}
+                    className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
+                  >
+                    콘텐츠 저장하기
+                  </Button>
+                </TabsContent>
+
+                <TabsContent value="transcript" className="mt-0 p-5">
+                  {digest.sourceType === "YouTube" &&
+                    timelineData.length > 0 && (
+                      <motion.div
+                        className="mb-10"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.45 }}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1">
+                            <h2 className="text-lg font-bold text-neutral-dark">
+                              타임라인
+                            </h2>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-sm text-neutral-medium rounded-full px-3"
+                            onClick={() => setShowGuidePopup(true)}
+                          >
+                            <Info className="h-4 w-4 bg-[#1976D2] text-white rounded-full p-0.5" />
+                            이용가이드
+                          </Button>
+                        </div>
+
+                        <TimelineAccordion
+                          timelineGroups={timelineData}
+                          onSeek={handleSeekTo}
+                          currentSegmentId={currentSegmentId || undefined}
+                          bookmarkedItems={Object.keys(bookmarkedItems).reduce(
+                            (acc, key) => ({
+                              ...acc,
+                              [key]: true,
+                            }),
+                            {}
+                          )}
+                          onBookmark={handleBookmark}
+                        />
+                      </motion.div>
+                    )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveBookmark}
+                    className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
+                  >
+                    콘텐츠 저장하기
+                  </Button>
+                </TabsContent>
+
+                {showTranslateTab && (
+                  <TabsContent value="translated" className="mt-0 p-5">
+                    <TranslatedContent
+                      isTranslating={isTranslating}
+                      translationError={translationError}
+                      translatedParagraphs={translatedParagraphs}
+                      userLanguage={userLanguage}
+                      bookmarkedItems={bookmarkedItems}
+                      handleSeekTo={handleSeekTo}
+                      handleBookmark={handleBookmark}
+                      fetchTranslatedTimeline={fetchTranslatedTimeline}
+                      pageId={pageId}
+                    />
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSaveBookmark}
+                      className="mt-4 bg-primary hover:bg-primary-color/90 text-white font-semibold py-3 px-6 rounded-lg w-full"
+                    >
+                      콘텐츠 저장하기
+                    </Button>
+                  </TabsContent>
                 )}
-              </motion.div>
-            </div>
-          </Tabs>
+              </div>
+            </Tabs>
+          </div>
         </div>
       </main>
 

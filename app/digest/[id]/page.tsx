@@ -8,7 +8,6 @@ import {
   BookmarkCheck,
   Share2,
   Info,
-  MapPinIcon as MapPinCheckInside,
   Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,8 @@ import BottomNav from "@/components/bottom-nav";
 import { useRouter } from "next/navigation";
 import { motion, type PanInfo, AnimatePresence } from "framer-motion";
 import { TimelineAccordion } from "@/components/timeline/timeline-accordion";
+import { TimelinePlayerSection } from "@/components/timeline/timeline-player";
+import { TranslatedContent } from "@/components/timeline/translated-content";
 import type { TimelineGroup } from "@/lib/utils/youtube";
 import {
   syncLocalTimelineBookmarks,
@@ -23,7 +24,12 @@ import {
   deleteTimelineBookmark,
   formatTime,
 } from "@/lib/utils/timeline";
-import { saveTimelineData, getTimelineData } from "@/lib/supabase/client";
+import {
+  saveTimelineData,
+  getTimelineData,
+  saveTranslatedData,
+  getTranslatedData,
+} from "@/lib/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TimelineBookmarkButton } from "@/components/timeline/timeline-bookmark-button";
 import { TimelineGuideSheet } from "@/components/timeline/timeline-guide-sheet";
@@ -33,205 +39,22 @@ import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { MemoPopup } from "@/components/ui/memo-popup";
 import { useToast } from "@/components/ui/toast";
 import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
-import { log } from "console";
+import {
+  ExtendedWindow,
+  TimelineBookmarkItem,
+  YouTubePopupState,
+  TranslatedParagraph,
+  YouTubeAPI,
+} from "@/types/digest";
 
-// YouTube API 타입 선언
+// 전역 속성 선언
 declare global {
   interface Window {
-    YT: {
-      Player: new (
-        elementId: string | HTMLElement,
-        options: {
-          videoId: string;
-          playerVars?: {
-            playsinline?: number;
-            rel?: number;
-            modestbranding?: number;
-            [key: string]: any;
-          };
-          events?: {
-            onReady?: (event: any) => void;
-            onError?: (event: any) => void;
-            onStateChange?: (event: any) => void;
-            [key: string]: any;
-          };
-        }
-      ) => {
-        seekTo: (seconds: number, allowSeekAhead: boolean) => void;
-        playVideo: () => void;
-        pauseVideo: () => void;
-        getCurrentTime: () => number;
-      };
-      ready: (callback: () => void) => void;
-    };
-    onYouTubeIframeAPIReady: (() => void) | null;
+    YT?: YouTubeAPI;
+    onYouTubeIframeAPIReady?: (() => void) | null;
     syncTimer?: NodeJS.Timeout;
-    ytPlayer?: any; // YouTube 플레이어 전역 참조
+    ytPlayer?: any;
   }
-}
-
-interface BookmarkItem {
-  id: string;
-  seconds: number;
-  text: string;
-  memo?: string;
-  timestamp: number;
-}
-
-interface YouTubePopupState {
-  isOpen: boolean;
-  videoId: string;
-  startTime: number;
-}
-
-// YouTube 플레이어 컴포넌트
-interface TimelinePlayerSectionProps {
-  sourceType: string;
-  sourceUrl: string;
-  activeTab: string;
-  onPlayerReady: () => void;
-  onTimeUpdate: (currentTime: number) => void;
-}
-
-function TimelinePlayerSection({
-  sourceType,
-  sourceUrl,
-  activeTab,
-  onPlayerReady,
-  onTimeUpdate,
-}: TimelinePlayerSectionProps) {
-  const playerRef = useRef<any>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
-  const [playerReady, setPlayerReady] = useState(false);
-
-  // YouTube IFrame API 로드 및 초기화
-  useEffect(() => {
-    if (sourceType !== "YouTube" || !sourceUrl) return;
-
-    // YouTube IFrame API가 이미 로드되었는지 확인
-    if (window.YT && window.YT.Player) {
-      initializePlayer();
-      return;
-    }
-
-    // API 로드
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName("script")[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-
-    // API 로드 완료 이벤트 처리
-    window.onYouTubeIframeAPIReady = initializePlayer;
-
-    return () => {
-      // 컴포넌트 언마운트 시 이벤트 핸들러 제거
-      window.onYouTubeIframeAPIReady = null;
-    };
-  }, [sourceType, sourceUrl]);
-
-  // 플레이어 초기화
-  const initializePlayer = () => {
-    if (!playerContainerRef.current || !sourceUrl) return;
-
-    const videoId = getYouTubeVideoId(sourceUrl);
-    if (!videoId) return;
-
-    // Player 객체 생성
-    playerRef.current = new window.YT.Player(playerContainerRef.current, {
-      videoId,
-      playerVars: {
-        playsinline: 1,
-        rel: 0,
-        modestbranding: 1,
-        iv_load_policy: 3,
-        fs: 0,
-        controls: 1,
-        cc_load_policy: 0,
-        disablekb: 0,
-      },
-      events: {
-        onReady: () => {
-          if (playerRef.current) {
-            window.ytPlayer = playerRef.current;
-            setPlayerReady(true);
-            onPlayerReady();
-          } else {
-            console.error("플레이어 초기화 실패: playerRef 없음");
-          }
-        },
-        onError: (e) => console.error("YouTube Player 오류:", e),
-      },
-    });
-  };
-
-  // 현재 시간 업데이트를 위한 인터벌
-  useEffect(() => {
-    if (!playerReady) return;
-
-    const id = setInterval(() => {
-      const time = playerRef.current?.getCurrentTime?.() ?? 0;
-      onTimeUpdate(time);
-    }, 500);
-
-    return () => clearInterval(id);
-  }, [playerReady, onTimeUpdate]);
-
-  // 탭 변경 시 스크롤 위치 조정
-  useEffect(() => {
-    if (activeTab === "transcript" && playerContainerRef.current) {
-      // 탭 전환 시 스크롤 위치를 영상 위로 조정
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }
-  }, [activeTab]);
-
-  // 비디오 재생 위치 이동
-  const seekTo = (seconds: number) => {
-    if (playerReady && playerRef.current) {
-      playerRef.current.seekTo(seconds, true);
-      playerRef.current.playVideo();
-      return true;
-    }
-    return false;
-  };
-
-  // 컴포넌트 외부에서 메서드 사용 가능하게 함
-  useEffect(() => {
-    // playerRef를 외부에서 참조할 수 있도록 모듈화
-    if (playerRef.current) {
-      playerRef.current.seekToTime = seekTo;
-    }
-  }, [playerReady]);
-
-  if (sourceType !== "YouTube" || !sourceUrl) {
-    return null;
-  }
-
-  return (
-    <div
-      className={`w-full ${
-        activeTab === "transcript" || activeTab === "translated"
-          ? "sticky top-16 z-20"
-          : "mb-4"
-      }`}
-    >
-      <div className="relative w-full aspect-video">
-        <div
-          ref={playerContainerRef}
-          className="absolute top-0 left-0 w-full h-full border-0"
-        ></div>
-      </div>
-    </div>
-  );
-}
-
-// 번역 문단 타입 정의
-interface TranslatedParagraph {
-  start: string;
-  text: string;
-  index?: number;
 }
 
 export default function DigestPage({
@@ -252,15 +75,16 @@ export default function DigestPage({
   const [isSaved, setIsSaved] = useState(false);
   const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [bookmarksInfo, setBookmarksInfo] = useState<BookmarkItem[]>([]);
+  const [bookmarksInfo, setBookmarksInfo] = useState<TimelineBookmarkItem[]>(
+    []
+  );
   const [activeFolderId, setActiveFolderId] = useState<string>("");
   const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
   const [bookmarkedItems, setBookmarkedItems] = useState<
-    Record<string, BookmarkItem>
+    Record<string, TimelineBookmarkItem>
   >({});
 
   // UI 상태
-  const [toastMessage, setToastMessage] = useState("");
   const [showAddMemoButton, setShowAddMemoButton] = useState(false);
   const [showMemoPopup, setShowMemoPopup] = useState(false);
   const [currentBookmarkId, setCurrentBookmarkId] = useState<string | null>(
@@ -933,34 +757,214 @@ export default function DigestPage({
     }
   }, [isAuthenticated]);
 
+  // 페이지 로드 시 저장된 번역 데이터 확인 추가
+  useEffect(() => {
+    const checkForTranslatedData = async () => {
+      if (!pageId || !userLanguage) return;
+
+      console.log("페이지 로드 시 번역 데이터 확인 중...");
+
+      // 로컬 스토리지에서 번역 데이터 확인
+      const localTranslationKey = `translated_data_${pageId}_${userLanguage}`;
+      const storedLocalTranslation = localStorage.getItem(localTranslationKey);
+
+      if (storedLocalTranslation) {
+        try {
+          const parsedLocalTranslation = JSON.parse(storedLocalTranslation);
+          if (
+            Array.isArray(parsedLocalTranslation) &&
+            parsedLocalTranslation.length > 0
+          ) {
+            console.log("로컬 스토리지에서 번역 데이터를 찾았습니다.");
+            setTranslatedParagraphs(parsedLocalTranslation);
+            setShowTranslateTab(true);
+
+            // 로그인 상태라면 서버에도 저장
+            if (isAuthenticated === true && !syncNeeded) {
+              try {
+                await saveTranslatedData(
+                  Number(pageId),
+                  userLanguage,
+                  parsedLocalTranslation
+                );
+                console.log("로컬 번역 데이터를 서버에 동기화했습니다.");
+              } catch (syncError) {
+                console.error("번역 데이터 서버 동기화 오류:", syncError);
+              }
+            }
+
+            return true; // 데이터 찾음
+          }
+        } catch (parseError) {
+          console.error("로컬 번역 데이터 파싱 오류:", parseError);
+        }
+      }
+
+      // 로그인 상태인 경우 서버에서 데이터 확인
+      if (isAuthenticated === true) {
+        try {
+          const storedTranslationResult = await getTranslatedData(
+            Number(pageId),
+            userLanguage
+          );
+
+          if (
+            storedTranslationResult.success &&
+            storedTranslationResult.translatedParagraphs?.length > 0
+          ) {
+            console.log("서버에서 번역 데이터를 찾았습니다.");
+            setTranslatedParagraphs(
+              storedTranslationResult.translatedParagraphs
+            );
+            setShowTranslateTab(true);
+
+            // 로컬 스토리지에도 저장
+            localStorage.setItem(
+              localTranslationKey,
+              JSON.stringify(storedTranslationResult.translatedParagraphs)
+            );
+
+            return true; // 데이터 찾음
+          } else {
+            console.log(
+              "서버에 저장된 번역 데이터가 없습니다:",
+              storedTranslationResult
+            );
+          }
+        } catch (error) {
+          console.error("서버 번역 데이터 확인 중 오류:", error);
+        }
+      }
+
+      return false; // 데이터 못 찾음
+    };
+
+    checkForTranslatedData().then((dataFound) => {
+      // 자동 번역 설정이 켜져 있고 데이터를 찾지 못한 경우에만 번역 시작
+      if (
+        !dataFound &&
+        autoTranslate &&
+        userLanguage !== "ko" &&
+        timelineData.length > 0 &&
+        pageId
+      ) {
+        fetchTranslatedTimeline(pageId);
+      }
+    });
+  }, [
+    pageId,
+    userLanguage,
+    isAuthenticated,
+    timelineData.length,
+    autoTranslate,
+  ]);
+
   // 번역된 타임라인 가져오기
   const fetchTranslatedTimeline = async (id: string) => {
-    console.log("fetchTranslatedTimeline 호출");
-    console.log("id:", id);
-    console.log("userLanguage:", userLanguage);
     if (!id || !userLanguage) return;
 
     try {
       setIsTranslating(true);
       setTranslationError(null);
-      console.log("fetchTranslatedTimeline 호출 2");
+
+      // 로컬 스토리지 키
+      const localTranslationKey = `translated_data_${id}_${userLanguage}`;
+
+      // 우선 로컬 스토리지에서 번역 데이터 확인
+      const storedLocalTranslation = localStorage.getItem(localTranslationKey);
+      if (storedLocalTranslation) {
+        try {
+          const parsedLocalTranslation = JSON.parse(storedLocalTranslation);
+          if (
+            Array.isArray(parsedLocalTranslation) &&
+            parsedLocalTranslation.length > 0
+          ) {
+            setTranslatedParagraphs(parsedLocalTranslation);
+            setShowTranslateTab(true);
+            setIsTranslating(false);
+            return;
+          }
+        } catch (parseError) {
+          console.error("로컬 번역 데이터 파싱 오류:", parseError);
+        }
+      }
+
+      // 로그인 상태인 경우 서버에서 데이터 확인
+      if (isAuthenticated === true) {
+        try {
+          const storedTranslationResult = await getTranslatedData(
+            Number(id),
+            userLanguage
+          );
+
+          if (
+            storedTranslationResult.success &&
+            storedTranslationResult.translatedParagraphs?.length > 0
+          ) {
+            setTranslatedParagraphs(
+              storedTranslationResult.translatedParagraphs
+            );
+            setShowTranslateTab(true);
+            setIsTranslating(false);
+
+            // 로컬 스토리지에도 저장
+            localStorage.setItem(
+              localTranslationKey,
+              JSON.stringify(storedTranslationResult.translatedParagraphs)
+            );
+
+            return;
+          }
+        } catch (error) {
+          console.error("서버 번역 데이터 확인 중 오류:", error);
+          // 서버 데이터 확인 중 오류가 발생해도 진행 (새로 번역 시도)
+        }
+      }
+
+      // 저장된 번역 데이터가 없으면 새로 번역
       const response = await fetch(
         `/api/digest/${id}/translate?lang=${userLanguage}`
       );
-      console.log("response:", response);
+
       const data = await response.json();
 
       if (response.ok && data.success) {
         // 새로운 번역 API 응답 처리
-        if (data.translatedParagraphs) {
+        if (data.translatedParagraphs && data.translatedParagraphs.length > 0) {
           setTranslatedParagraphs(data.translatedParagraphs);
           setShowTranslateTab(true);
+
+          // 번역 결과를 로컬 스토리지에 저장
+          localStorage.setItem(
+            localTranslationKey,
+            JSON.stringify(data.translatedParagraphs)
+          );
+
+          // 로그인 상태이면서 번역이 성공적으로 이루어졌다면 번역 데이터 서버에도 저장
+          if (isAuthenticated === true) {
+            try {
+              const saveResult = await saveTranslatedData(
+                Number(id),
+                userLanguage,
+                data.translatedParagraphs
+              );
+
+              if (!saveResult.success) {
+                console.error("번역 데이터 저장 실패:", saveResult.error);
+              }
+            } catch (saveError) {
+              console.error("번역 데이터 저장 중 예외 발생:", saveError);
+            }
+          }
         } else if (data.translatedTimeline) {
           // 이전 버전 호환성 유지
           setTranslatedTimelineData(data.translatedTimeline);
           setShowTranslateTab(true);
+        } else {
+          setTranslationError("번역 데이터가 없습니다. 다시 시도해 주세요.");
         }
       } else {
+        console.error("번역 API 오류:", data.error, data.details);
         setTranslationError(data.error || "번역을 불러오는데 실패했습니다.");
       }
     } catch (error) {
@@ -977,18 +981,6 @@ export default function DigestPage({
 
     fetchUserSettings();
   }, [isAuthenticated, fetchUserSettings]);
-
-  // 타임라인 데이터 로드 후 자동 번역 처리
-  useEffect(() => {
-    if (
-      timelineData.length > 0 &&
-      pageId &&
-      autoTranslate &&
-      userLanguage !== "ko"
-    ) {
-      fetchTranslatedTimeline(pageId);
-    }
-  }, [timelineData, pageId, autoTranslate, userLanguage]);
 
   if (error) {
     return (
@@ -1253,171 +1245,17 @@ export default function DigestPage({
                   >
                     <TabsContent value="translated" className="mt-0 p-5">
                       {/* 번역된 스크립트 콘텐츠 */}
-                      {isTranslating ? (
-                        <div className="flex flex-col items-center justify-center py-10">
-                          <div className="w-12 h-12 rounded-full border-4 border-primary-color border-t-transparent animate-spin"></div>
-                          <p className="mt-4 text-sm text-neutral-dark">
-                            타임라인 번역 중...
-                          </p>
-                        </div>
-                      ) : translationError ? (
-                        <div className="p-6 text-center">
-                          <div className="w-16 h-16 mx-auto bg-red-50 rounded-full flex items-center justify-center">
-                            <span className="text-red-500 text-2xl">!</span>
-                          </div>
-                          <h3 className="mt-4 text-lg font-medium text-neutral-dark">
-                            번역 오류
-                          </h3>
-                          <p className="mt-2 text-neutral-medium">
-                            {translationError}
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              fetchTranslatedTimeline(pageId || "")
-                            }
-                            className="mt-4"
-                          >
-                            다시 시도
-                          </Button>
-                        </div>
-                      ) : translatedParagraphs &&
-                        translatedParagraphs.length > 0 ? (
-                        <motion.div
-                          className="mb-10"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.45 }}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1">
-                              <h2 className="text-lg font-bold text-neutral-dark">
-                                번역된 문단{" "}
-                                <span className="ml-1 text-sm font-normal">
-                                  ({userLanguage})
-                                </span>
-                              </h2>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-sm text-neutral-medium rounded-full px-3"
-                              onClick={() =>
-                                fetchTranslatedTimeline(pageId || "")
-                              }
-                            >
-                              <Globe className="h-4 w-4 mr-1" />
-                              새로고침
-                            </Button>
-                          </div>
-
-                          <div className="space-y-4">
-                            {translatedParagraphs.map((paragraph, index) => (
-                              <div
-                                key={`par-${index}`}
-                                className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-primary-color transition-colors"
-                              >
-                                <div className="flex items-center gap-2 mb-2">
-                                  <button
-                                    onClick={() =>
-                                      handleSeekTo(
-                                        // 시작 시간을 mm:ss 형식에서 초로 변환
-                                        paragraph.start
-                                          .split(":")
-                                          .reduce(
-                                            (acc, time) =>
-                                              60 * acc + parseInt(time),
-                                            0
-                                          )
-                                      )
-                                    }
-                                    className="text-xs font-semibold text-primary-color bg-primary-light px-2 py-1 rounded hover:bg-primary-color hover:text-white transition-colors"
-                                  >
-                                    {paragraph.start}
-                                  </button>
-                                  <span className="text-sm text-neutral-medium">
-                                    문단 {paragraph.index || index + 1}
-                                  </span>
-                                </div>
-                                <p className="text-base text-neutral-dark whitespace-pre-wrap">
-                                  {paragraph.text}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      ) : translatedTimelineData.length > 0 ? (
-                        <motion.div
-                          className="mb-10"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.45 }}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1">
-                              <h2 className="text-lg font-bold text-neutral-dark">
-                                번역된 타임라인{" "}
-                                <span className="ml-1 text-sm font-normal">
-                                  ({userLanguage})
-                                </span>
-                              </h2>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-sm text-neutral-medium rounded-full px-3"
-                              onClick={() =>
-                                fetchTranslatedTimeline(pageId || "")
-                              }
-                            >
-                              <Globe className="h-4 w-4 mr-1" />
-                              새로고침
-                            </Button>
-                          </div>
-
-                          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <TimelineAccordion
-                              timelineGroups={translatedTimelineData}
-                              onSeek={handleSeekTo}
-                              currentSegmentId={currentSegmentId || undefined}
-                              bookmarkedItems={Object.keys(
-                                bookmarkedItems
-                              ).reduce(
-                                (acc, key) => ({
-                                  ...acc,
-                                  [key]: true,
-                                }),
-                                {}
-                              )}
-                              onBookmark={handleBookmark}
-                              useTranslated={true}
-                            />
-                          </div>
-                        </motion.div>
-                      ) : (
-                        <div className="p-6 text-center">
-                          <div className="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center">
-                            <Globe className="h-8 w-8 text-blue-500" />
-                          </div>
-                          <h3 className="mt-4 text-lg font-medium text-neutral-dark">
-                            번역된 콘텐츠 없음
-                          </h3>
-                          <p className="mt-2 text-neutral-medium">
-                            자막을 {userLanguage} 언어로 번역하시겠습니까?
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              fetchTranslatedTimeline(pageId || "")
-                            }
-                            className="mt-4"
-                          >
-                            번역하기
-                          </Button>
-                        </div>
-                      )}
+                      <TranslatedContent
+                        isTranslating={isTranslating}
+                        translationError={translationError}
+                        translatedParagraphs={translatedParagraphs}
+                        userLanguage={userLanguage}
+                        bookmarkedItems={bookmarkedItems}
+                        handleSeekTo={handleSeekTo}
+                        handleBookmark={handleBookmark}
+                        fetchTranslatedTimeline={fetchTranslatedTimeline}
+                        pageId={pageId}
+                      />
 
                       <Button
                         variant="outline"
@@ -1503,22 +1341,4 @@ export default function DigestPage({
       />
     </div>
   );
-}
-
-function getYouTubeVideoId(url: string): string {
-  if (!url) return "";
-
-  const watchRegex = /youtube\.com\/watch\?v=([^&]+)/;
-  const watchMatch = url.match(watchRegex);
-  if (watchMatch) return watchMatch[1];
-
-  const shortRegex = /youtu\.be\/([^?&]+)/;
-  const shortMatch = url.match(shortRegex);
-  if (shortMatch) return shortMatch[1];
-
-  const embedRegex = /youtube\.com\/embed\/([^?&]+)/;
-  const embedMatch = url.match(embedRegex);
-  if (embedMatch) return embedMatch[1];
-
-  return "";
 }

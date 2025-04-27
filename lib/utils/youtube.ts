@@ -632,107 +632,85 @@ export async function translateAllSubtitlesOnce(
       };
     });
 
-    // 2단계: Gemini를 통한 번역 정제
-    console.log(`🔄 2단계: Gemini AI를 통한 번역 개선 시작`);
+    // 2단계: Gemini를 통한 번역 정제 - 모든 자막을 한 번에 처리
+    console.log(`🔄 2단계: Gemini AI를 통한 번역 개선 시작 (단일 요청)`);
 
-    // 배치 단위로 처리 (최대 50개)
-    const BATCH_SIZE = 200;
-    const batches = splitIntoBatches(firstTranslated, BATCH_SIZE);
+    try {
+      // 모든 자막에 태그 부여
+      const allSubtitlesWithTags = firstTranslated
+        .map((s, idx) => `<subtitle id="${idx + 1}">${s.text}</subtitle>`)
+        .join("\n");
 
-    const refinedBatches: SubtitleItem[][] = [];
+      const prompt = `
+        아래는 기계 번역된 유튜브 자막입니다. 각 자막을 자연스럽고 부드러운 한국어로 다듬어주세요.
+        
+        ❗지켜야 할 규칙은 다음과 같습니다:
+        - 존댓말로 정중하고 부드럽게 표현합니다.
+        - 불필요한 추가 문구를 삽입하지 않고, 원래 의미를 유지합니다.
+        - 문장이 어색하거나 부자연스러운 부분은 자연스러운 한국어로 의역합니다.
+        - 각 자막은 서로 독립적으로 존재합니다. 다른 자막과 연결하지 마세요.
+        - 말투는 친근하면서도 자연스럽게 유지합니다. (너무 딱딱한 문어체 금지)
+        - 자막 길이를 지나치게 늘리지 않고, 간결하게 만듭니다.
+        
+        형식:
+        - 각 자막은 <subtitle id="숫자">번역문</subtitle> 형태로 출력합니다.
+        - 태그('<subtitle>', 'id')는 절대 변경하지 않습니다.
+        - 모든 자막을 처리해주세요.
+        
+        === 자막 목록 ===
+        ${allSubtitlesWithTags}
+      `;
 
-    for (let i = 0; i < batches.length; i++) {
-      const batch = batches[i];
+      const result = await model.generateContent(prompt);
+      const refinedText = await result.response.text();
+      console.log(`✅ Gemini AI 번역 개선 완료 (단일 요청)`);
+
+      // 개선된 번역 결과 파싱
+      const refinedSubtitles: SubtitleItem[] = [];
+
+      for (let i = 0; i < firstTranslated.length; i++) {
+        const original = firstTranslated[i];
+        const tagPattern = new RegExp(
+          `<subtitle id="${i + 1}">(.*?)</subtitle>`,
+          "s"
+        );
+        const match = refinedText.match(tagPattern);
+
+        if (match && match[1] !== undefined) {
+          refinedSubtitles.push({
+            ...original,
+            text: match[1].trim(),
+          });
+        } else {
+          // 태그를 찾지 못했다면 1차 번역 결과 유지
+          console.log(`⚠️ 자막 ${i + 1} 태그 못찾음, 1차 번역 유지`);
+          refinedSubtitles.push(original);
+        }
+      }
+
+      console.log(`🎉 총 ${refinedSubtitles.length}개 자막 2단계 번역 완료`);
+
+      // 번역 성공률 계산
+      const emptyTranslated = refinedSubtitles.filter(
+        (s) => !s.text || !s.text.trim()
+      ).length;
+      const translationSuccessRate =
+        ((refinedSubtitles.length - emptyTranslated) /
+          refinedSubtitles.length) *
+        100;
       console.log(
-        `🔍 배치 ${i + 1}/${batches.length} 번역 개선 중 (${
-          batch.length
-        }개 자막)`
+        `📊 번역 성공률: ${translationSuccessRate.toFixed(
+          2
+        )}% (빈 자막: ${emptyTranslated}개)`
       );
 
-      try {
-        // 각 자막에 태그 부여
-        const batchWithTags = batch
-          .map((s, idx) => `<subtitle id="${idx + 1}">${s.text}</subtitle>`)
-          .join("\n");
-
-        const prompt = `
-              아래는 기계 번역된 유튜브 자막입니다. 각 자막을 자연스럽고 부드러운 한국어로 다듬어주세요.
-              
-              ❗지켜야 할 규칙은 다음과 같습니다:
-              - 존댓말로 정중하고 부드럽게 표현합니다.
-              - 불필요한 추가 문구를 삽입하지 않고, 원래 의미를 유지합니다.
-              - 문장이 어색하거나 부자연스러운 부분은 자연스러운 한국어로 의역합니다.
-              - 각 자막은 서로 독립적으로 존재합니다. 다른 자막과 연결하지 마세요.
-              - 말투는 친근하면서도 자연스럽게 유지합니다. (너무 딱딱한 문어체 금지)
-              - 자막 길이를 지나치게 늘리지 않고, 간결하게 만듭니다.
-              
-              형식:
-              - 각 자막은 <subtitle id="숫자">번역문</subtitle> 형태로 출력합니다.
-             - 태그('<subtitle>', 'id')는 절대 변경하지 않습니다.
-              
-              === 자막 목록 ===
-              ${batchWithTags}
-              `;
-
-        const result = await model.generateContent(prompt);
-        const refinedText = await result.response.text();
-
-        // 개선된 번역 결과 파싱
-        const refinedSubtitles: SubtitleItem[] = [];
-
-        for (let j = 0; j < batch.length; j++) {
-          const original = batch[j];
-          const tagPattern = new RegExp(
-            `<subtitle id="${j + 1}">(.*?)</subtitle>`,
-            "s"
-          );
-          const match = refinedText.match(tagPattern);
-
-          if (match && match[1] !== undefined) {
-            refinedSubtitles.push({
-              ...original,
-              text: match[1].trim(),
-            });
-          } else {
-            // 태그를 찾지 못했다면 1차 번역 결과 유지
-            console.log(
-              `⚠️ 배치 ${i + 1}, 자막 ${j + 1} 태그 못찾음, 1차 번역 유지`
-            );
-            refinedSubtitles.push(original);
-          }
-        }
-
-        refinedBatches.push(refinedSubtitles);
-        console.log(`✅ 배치 ${i + 1} 번역 개선 완료`);
-
-        // API 요청 사이에 짧은 지연
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      } catch (error) {
-        console.error(`❌ 배치 ${i + 1} 번역 개선 실패:`, error);
-        // 실패하면 1차 번역 결과 사용
-        refinedBatches.push(batch);
-      }
+      return refinedSubtitles;
+    } catch (error) {
+      console.error(`❌ Gemini 번역 개선 실패:`, error);
+      // Gemini 실패 시 1차 번역 결과 사용
+      console.log(`⚠️ Gemini 실패로 1차 번역 결과 반환`);
+      return firstTranslated;
     }
-
-    // 모든 배치 합치기
-    const allRefinedSubtitles = refinedBatches.flat();
-    console.log(`🎉 총 ${allRefinedSubtitles.length}개 자막 2단계 번역 완료`);
-
-    // 번역 성공률 계산
-    const emptyTranslated = allRefinedSubtitles.filter(
-      (s) => !s.text || !s.text.trim()
-    ).length;
-    const translationSuccessRate =
-      ((allRefinedSubtitles.length - emptyTranslated) /
-        allRefinedSubtitles.length) *
-      100;
-    console.log(
-      `📊 번역 성공률: ${translationSuccessRate.toFixed(
-        2
-      )}% (빈 자막: ${emptyTranslated}개)`
-    );
-
-    return allRefinedSubtitles;
   } catch (error) {
     console.error(`❌ 번역 프로세스 실패:`, error);
     // 오류 발생 시 원본 자막 사용

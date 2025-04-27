@@ -18,6 +18,28 @@ export async function GET(
     const digestId = context.params.id;
     const targetLanguage = url.searchParams.get("lang") || "ko";
 
+    // 이미 번역된 데이터가 있는지 확인
+    const { data: existingTranslation, error: translationCheckError } =
+      await supabase
+        .from("translated_paragraphs")
+        .select("data")
+        .eq("digest_id", digestId)
+        .eq("language", targetLanguage)
+        .single();
+
+    // 이미 번역된 데이터가 있으면 바로 반환
+    if (
+      !translationCheckError &&
+      existingTranslation &&
+      existingTranslation.data
+    ) {
+      console.log(`✅ 기존 번역 데이터를 찾았습니다. 바로 반환합니다.`);
+      return NextResponse.json({
+        success: true,
+        translatedParagraphs: existingTranslation.data,
+      });
+    }
+
     // URL 우선순위:
     // 1. URL 매개변수로 전달된 YouTube URL
     // 2. 다이제스트 ID를 통해 Supabase에서 가져온 URL
@@ -152,6 +174,52 @@ export async function GET(
         translatedParagraphs[translatedParagraphs.length - 1]?.start
       }`
     );
+
+    // 번역 결과를 데이터베이스에 저장
+    try {
+      // 기존 번역 데이터 확인
+      const { data: existingData } = await supabase
+        .from("translated_paragraphs")
+        .select("id")
+        .eq("digest_id", digestId)
+        .eq("language", targetLanguage)
+        .single();
+
+      if (existingData) {
+        // 기존 데이터 업데이트
+        await supabase
+          .from("translated_paragraphs")
+          .update({
+            data: translatedParagraphs,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingData.id);
+
+        console.log(
+          `✅ 기존 번역 데이터 업데이트 완료 (ID: ${existingData.id})`
+        );
+      } else {
+        // 새 데이터 삽입
+        const { data: insertedData, error: insertError } = await supabase
+          .from("translated_paragraphs")
+          .insert({
+            digest_id: digestId,
+            language: targetLanguage,
+            data: translatedParagraphs,
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          console.error("❌ 번역 데이터 저장 오류:", insertError);
+        } else {
+          console.log(`✅ 새 번역 데이터 저장 완료 (ID: ${insertedData.id})`);
+        }
+      }
+    } catch (dbError) {
+      console.error("❌ 번역 데이터 DB 저장 오류:", dbError);
+      // DB 저장 실패해도 사용자에게는 번역 결과 반환
+    }
 
     // 응답 반환
     return NextResponse.json({

@@ -178,7 +178,7 @@ export function TimelineAccordion({
                       })}
 
                     {/* 구구조 호환 (items) */}
-                    {!subtitles &&
+                    {/* {!subtitles &&
                       group.items &&
                       group.items.map((item, idx) => {
                         const itemId = String(item.id);
@@ -229,7 +229,7 @@ export function TimelineAccordion({
                             )}
                           </div>
                         );
-                      })}
+                      })} */}
                   </div>
                 </motion.div>
               )}

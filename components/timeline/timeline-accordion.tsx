@@ -134,13 +134,13 @@ export function TimelineAccordion({
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="flex-shrink-0 h-8 w-8 rounded-full mr-2 p-0 hover:bg-primary-light hover:text-primary-color"
+                              className="flex-shrink-0 h-6 w-6 rounded-full mr-2 p-0 hover:bg-primary-light hover:text-primary-color"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onSeek(subtitle.startSeconds);
                               }}
                             >
-                              <Play className="h-4 w-4" />
+                              <Play className="h-3 w-3" />
                             </Button>
                             <div className="flex-1 min-w-0">
                               <div className="flex gap-1 mb-0.5">
@@ -148,9 +148,15 @@ export function TimelineAccordion({
                                   {subtitle.start}
                                 </span>
                               </div>
-                              <p className="text-sm text-neutral-dark break-words whitespace-pre-wrap">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSeek(subtitle.startSeconds);
+                                }}
+                                className="text-sm text-left text-neutral-dark break-words whitespace-pre-wrap"
+                              >
                                 {subtitle.text}
-                              </p>
+                              </button>
                             </div>
                             {onBookmark && (
                               <Button

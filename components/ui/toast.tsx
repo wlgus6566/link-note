@@ -55,7 +55,10 @@ export function SimpleToast({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-md">
+    <div
+      className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-md"
+      style={{ zIndex: 200 }}
+    >
       <div className="bg-gray-800 text-white rounded-lg shadow-lg p-4 flex items-center justify-between">
         <div className="flex-1 mr-2">
           <p className="text-sm">{message}</p>
@@ -210,6 +213,7 @@ export function DesignToast({
       className={`fixed w-[90%] max-w-md bottom-24 left-1/2 transform -translate-x-1/2 bg-neutral-dark text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 ${
         exit ? "animate-fade-out-down" : "animate-fade-in-up"
       }`}
+      style={{ zIndex: 200 }}
     >
       <CheckCircle size={20} className="text-[#2BA640]" />
       <span>{message}</span>

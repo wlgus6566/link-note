@@ -66,8 +66,8 @@ export function TimelineGuideSheet({
                   타임라인 북마크하기
                 </h4>
                 <p className="text-sm text-neutral-medium">
-                  스크립트 탭에서 타임라인 항목 옆의 북마크 아이콘을 클릭하여
-                  중요한 순간을 저장하세요.
+                  스크립트 탭, 번역 탭에서 타임라인 항목 옆의 북마크 아이콘을
+                  클릭하여 중요한 순간을 저장하세요.
                 </p>
               </div>
             </div>

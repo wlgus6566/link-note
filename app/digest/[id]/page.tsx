@@ -1206,23 +1206,21 @@ export default function DigestPage({
                             </Button>
                           </div>
 
-                          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <TimelineAccordion
-                              timelineGroups={timelineData}
-                              onSeek={handleSeekTo}
-                              currentSegmentId={currentSegmentId || undefined}
-                              bookmarkedItems={Object.keys(
-                                bookmarkedItems
-                              ).reduce(
-                                (acc, key) => ({
-                                  ...acc,
-                                  [key]: true,
-                                }),
-                                {}
-                              )}
-                              onBookmark={handleBookmark}
-                            />
-                          </div>
+                          <TimelineAccordion
+                            timelineGroups={timelineData}
+                            onSeek={handleSeekTo}
+                            currentSegmentId={currentSegmentId || undefined}
+                            bookmarkedItems={Object.keys(
+                              bookmarkedItems
+                            ).reduce(
+                              (acc, key) => ({
+                                ...acc,
+                                [key]: true,
+                              }),
+                              {}
+                            )}
+                            onBookmark={handleBookmark}
+                          />
                         </motion.div>
                       )}
                     <Button

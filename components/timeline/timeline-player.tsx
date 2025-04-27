@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { TimelinePlayerSectionProps } from "@/types/digest-page";
+import { TimelinePlayerSectionProps } from "@/types/digest";
 
 /**
  * YouTube 비디오 ID를 추출하는 함수
@@ -145,7 +145,7 @@ export function TimelinePlayerSection({
 
   return (
     <div
-      className={`w-full ${
+      className={`w-full md:sticky md:top-20 md:w-[45%] md:h-fit ${
         activeTab === "transcript" || activeTab === "translated"
           ? "sticky top-16 z-20"
           : "mb-4"

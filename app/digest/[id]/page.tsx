@@ -1075,18 +1075,16 @@ export default function DigestPage({
       />
 
       <main className="flex-1">
-        <div className="container px-0 sm:px-5 md:flex md:gap-6 md:px-5">
+        <div className="container px-0 sm:px-5 md:flex md:gap-6 md:px-5 overflow-visible">
           {/* 비디오 섹션 - 768px 이상에서는 왼쪽에 고정 */}
           {digest.sourceType === "YouTube" && digest.sourceUrl && (
-            <div className="md:sticky md:top-20 md:w-[45%] md:h-fit">
-              <TimelinePlayerSection
-                sourceType={digest.sourceType}
-                sourceUrl={digest.sourceUrl}
-                activeTab={activeTab}
-                onPlayerReady={handlePlayerReady}
-                onTimeUpdate={handleTimeUpdate}
-              />
-            </div>
+            <TimelinePlayerSection
+              sourceType={digest.sourceType}
+              sourceUrl={digest.sourceUrl}
+              activeTab={activeTab}
+              onPlayerReady={handlePlayerReady}
+              onTimeUpdate={handleTimeUpdate}
+            />
           )}
 
           {/* 탭 콘텐츠 영역 - 768px 이상에서는 오른쪽에 배치 */}

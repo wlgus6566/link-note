@@ -165,8 +165,12 @@ export function TranslatedContent({
             className="group"
           >
             <div
-              className={`bg-gray-50 border border-border-line rounded-lg p-4 hover:shadow-md transition-shadow ${
-                activeParagraph === paragraph.start ? "bg-primary-light" : ""
+              className={` border border-border-line rounded-lg p-4 hover:shadow-md transition-shadow ${
+                activeParagraph === paragraph.start
+                  ? "bg-primary-light"
+                  : isBookmarked
+                  ? "bg-blue-50"
+                  : "bg-gray-50"
               }`}
             >
               <div className="flex justify-between items-start mb-2">

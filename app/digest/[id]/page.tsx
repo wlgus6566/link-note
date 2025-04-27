@@ -39,8 +39,7 @@ import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { MemoPopup } from "@/components/ui/memo-popup";
 import { useToast } from "@/components/ui/toast";
 import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
-import {
-  ExtendedWindow,
+import type {
   TimelineBookmarkItem,
   YouTubePopupState,
   TranslatedParagraph,

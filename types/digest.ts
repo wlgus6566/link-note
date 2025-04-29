@@ -97,7 +97,7 @@ export interface TimelinePlayerSectionProps {
   sourceType: string;
   sourceUrl: string;
   activeTab: string;
-  onPlayerReady: () => void;
+  onPlayerReady: (player: YouTubePlayer) => void;
   onTimeUpdate: (currentTime: number) => void;
 }
 

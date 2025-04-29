@@ -83,12 +83,11 @@ export function TimelinePlayerSection({
           disablekb: 0,
         },
         events: {
-          onReady: () => {
-            if (playerRef.current) {
-              window.ytPlayer = playerRef.current;
-              setPlayerReady(true);
-              onPlayerReady();
-            }
+          onReady: (event) => {
+            playerRef.current = event.target;
+            window.ytPlayer = event.target;
+            setPlayerReady(true);
+            onPlayerReady?.(event.target);
           },
           onError: (e) => console.error("YouTube Player 오류:", e),
         },

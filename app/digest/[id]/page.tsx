@@ -1,5 +1,5 @@
 "use client";
-
+import { YouTubePlayer } from "@/types/digest";
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
@@ -63,7 +63,7 @@ export default function DigestPage({
 }) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-  const playerInstanceRef = useRef<any>(null);
+
   const { showToast, hideToast } = useToast();
 
   // 상태 관리
@@ -124,17 +124,6 @@ export default function DigestPage({
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [showTranslateTab, setShowTranslateTab] = useState<boolean>(true);
   const [autoTranslate, setAutoTranslate] = useState<boolean>(false);
-
-  // 플레이어 준비 완료 핸들러
-  const handlePlayerReady = () => {
-    setPlayerReady(true);
-
-    // 전역 참조에서 플레이어 인스턴스를 가져옴
-    if (!playerInstanceRef.current && window.ytPlayer) {
-      playerInstanceRef.current = window.ytPlayer;
-      console.log("전역 YouTube 플레이어 참조 성공");
-    }
-  };
 
   // 플레이어 시간 업데이트 핸들러
   const handleTimeUpdate = (time: number) => {
@@ -658,28 +647,47 @@ export default function DigestPage({
       }
     }
   };
-  const isPlayerReady = () => {
-    const player = window.ytPlayer || playerInstanceRef.current;
-    return player && typeof player.seekTo === "function";
-  };
-  // 타임라인 아이템 클릭 시 해당 시간으로 이동
+  const playerInstanceRef = useRef<YouTubePlayer | null>(null);
+  const pendingSeekRef = useRef<number | null>(null);
+
+  const isPlayerReady = () =>
+    !!(
+      playerInstanceRef.current &&
+      typeof playerInstanceRef.current.seekTo === "function"
+    );
+
+  const handlePlayerReady = useCallback((player: YouTubePlayer) => {
+    playerInstanceRef.current = player;
+    console.log("✅ [parent] Player received!", player);
+    // 준비 기다리던 seek 한 번에 처리
+    if (pendingSeekRef.current !== null) {
+      const sec = pendingSeekRef.current;
+      pendingSeekRef.current = null;
+      player.seekTo(sec, true);
+      player.playVideo?.();
+    }
+  }, []);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (!playerInstanceRef.current) {
+        console.error("🚨 1초 경과 – 부모 ref 아직 null!");
+      }
+    }, 1000);
+    return () => clearTimeout(id);
+  }, []);
   const handleSeekTo = (seconds: number) => {
     if (!isPlayerReady()) {
-      console.warn("❗ 아직 플레이어 준비 안 됨, seekTo 시도 안 함");
+      pendingSeekRef.current = seconds;
       return;
     }
-
-    // 바로 seekTo 실행
     try {
-      const player = window.ytPlayer || playerInstanceRef.current;
       console.log(`▶️ ${seconds}초로 이동`);
-      player.seekTo(seconds, true);
-      player.playVideo?.();
+      playerInstanceRef.current!.seekTo(seconds, true);
+      playerInstanceRef.current!.playVideo?.();
     } catch (err) {
       console.error("❗ seekTo 호출 중 오류:", err);
     }
   };
-
   const handleSaveBookmark = () => {
     console.log("북마크 저장 시도");
     console.log("인증 상태:", isAuthenticated);

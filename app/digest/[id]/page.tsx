@@ -667,14 +667,6 @@ export default function DigestPage({
       player.playVideo?.();
     }
   }, []);
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (!playerInstanceRef.current) {
-        console.error("🚨 1초 경과 – 부모 ref 아직 null!");
-      }
-    }, 1000);
-    return () => clearTimeout(id);
-  }, []);
   const handleSeekTo = (seconds: number) => {
     if (!isPlayerReady()) {
       pendingSeekRef.current = seconds;

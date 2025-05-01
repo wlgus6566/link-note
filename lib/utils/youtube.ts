@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { getSubtitles } from "youtube-captions-scraper";
 import { z } from "zod";
 import pMap from "p-map";
+import { log } from "console";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { TranslationServiceClient } from "@google-cloud/translate";
 
@@ -166,9 +167,25 @@ export async function getVideoTranscript(videoId: string) {
     // 자막 텍스트만 추출하여 문자열로 결합
     const transcriptText = captions.map((item) => item.text).join(" ");
 
+    const allSubtitles: SubtitleItem[] = captions.map((caption) => {
+      const startSeconds = parseFloat(caption.start.toString());
+      const duration = parseFloat(caption.dur.toString() || "2");
+      return {
+        start: secondsToTimestamp(startSeconds),
+        end: secondsToTimestamp(startSeconds + duration),
+        startSeconds,
+        text: caption.text,
+      };
+    });
+
+    // 자막을 15개씩 묶어서 문단으로 만드는 함수 호출
+    const groupedParagraphs = groupSubtitlesIntoParagraphs(allSubtitles, {
+      filterEmpty: true,
+    });
     return {
       transcriptText,
       captions,
+      groupedParagraphs,
     };
   } catch (error) {
     console.error("자막 추출 에러:", error);
@@ -435,23 +452,24 @@ function splitIntoBatches<T>(array: T[], batchSize: number): T[][] {
 // 1. 자막을 최대 글자 수 기준으로 나누는 함수
 function splitSubtitlesByLength(
   subtitles: SubtitleItem[],
-  maxChars: number = 10000 // 🔥 여기가 "한번에 보낼 최대 글자 수"야
+  maxChars: number = 5000
 ): SubtitleItem[][] {
   const batches: SubtitleItem[][] = [];
   let currentBatch: SubtitleItem[] = [];
   let currentLength = 0;
 
   for (const subtitle of subtitles) {
-    const subtitleLength = subtitle.text.length;
+    const line = subtitle.text || "";
+    const lineLength = line.length + 1; // 줄바꿈 포함
 
-    if (currentLength + subtitleLength > maxChars && currentBatch.length > 0) {
+    if (currentLength + lineLength > maxChars && currentBatch.length > 0) {
       batches.push(currentBatch);
       currentBatch = [];
       currentLength = 0;
     }
 
     currentBatch.push(subtitle);
-    currentLength += subtitleLength;
+    currentLength += lineLength;
   }
 
   if (currentBatch.length > 0) {
@@ -463,119 +481,86 @@ function splitSubtitlesByLength(
 
 export async function translateAllSubtitlesSmart(
   subtitles: SubtitleItem[],
-  targetLanguage: string = "ko"
+  targetLanguage: string = "ko",
+  depth: number = 0
 ): Promise<SubtitleItem[]> {
   if (!subtitles || subtitles.length === 0) return [];
+
+  if (depth > 3) {
+    console.warn("❗ 최대 재시도 횟수 초과로 원본 반환");
+    return subtitles;
+  }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-  // Smaller batch size for better reliability
+  // 태그 포함 길이 기준으로 자막 분할
   const batches = splitSubtitlesByLength(subtitles, 5000);
-  console.log(`📦 배치 수: ${batches.length}개`);
+  console.log(`📦 총 ${batches.length}개 배치로 분할 (depth: ${depth})`);
 
   const translatedBatches = await pMap(
     batches,
     async (batch, batchIndex) => {
-      // Prepare the input with clear XML tags
-      const allTextsWithTags = batch
-        .map((s, idx) => `<subtitle id="${idx + 1}">${s.text || ""}</subtitle>`)
-        .join("\n");
+      const inputText = batch.map((s) => s.text || "").join("\n");
 
-      const prompt = `다음 자막을 '${targetLanguage}' 언어로 자연스럽고 존댓말 스타일로 번역해주세요.
-각 자막은 <subtitle id="숫자"> 태그로 묶여 있습니다.
-번역 결과도 동일한 형식으로 출력해주세요. 태그 자체는 번역하지 마세요.
-빈 자막이 있다면 빈 상태로 유지해주세요.
-모든 자막을 번역해야 합니다. 하나도 빠짐없이 번역해주세요.
+      const prompt = `다음 자막들을 '${targetLanguage}' 언어로 자연스럽고 존댓말 스타일로 번역해주세요.
+한 줄에 하나의 자막이 있으며, 출력도 동일하게 줄바꿈 기준으로 맞춰주세요.
+자막 순서는 변경하지 마세요.
+빈 줄이 있다면 그대로 비워두세요.
 
-${allTextsWithTags}`;
+${inputText}`;
 
       try {
-        console.log(
-          `🚀 배치 ${batchIndex + 1}번 번역 시작 (${batch.length}개 자막)`
-        );
+        console.log(`🚀 배치 ${batchIndex + 1}번 번역 시작`);
         const result = await model.generateContent(prompt);
         const translatedText = await result.response.text();
         console.log(`✅ 배치 ${batchIndex + 1}번 번역 완료`);
 
-        // Create a map to store translations
-        const translatedSubtitles: SubtitleItem[] = [];
-        let missingTranslations = 0;
+        const translatedLines = translatedText.split("\n");
 
-        for (let i = 0; i < batch.length; i++) {
-          const original = batch[i];
-          const idPattern = new RegExp(
-            `<subtitle id="${i + 1}">(.*?)</subtitle>`,
-            "s"
-          );
-          const match = translatedText.match(idPattern);
-
-          if (match && match[1] !== undefined) {
-            translatedSubtitles.push({
-              ...original,
-              text: match[1].trim(),
-            });
-          } else {
-            // If we can't find the translated subtitle, use original but log it
-            translatedSubtitles.push(original);
-            missingTranslations++;
-          }
-        }
-
-        // Log missing translations if any
-        if (missingTranslations > 0) {
-          console.warn(
-            `⚠️ 배치 ${batchIndex + 1}번: ${missingTranslations}/${
-              batch.length
-            } 자막 번역 누락`
-          );
-        }
+        const translatedSubtitles: SubtitleItem[] = batch.map(
+          (original, idx) => ({
+            ...original,
+            text: (translatedLines[idx] || "").trim(),
+          })
+        );
 
         return translatedSubtitles;
       } catch (error) {
         console.error(`❌ 배치 ${batchIndex + 1}번 번역 실패`, error);
 
-        // Try once more with a smaller batch if this batch fails
         if (batch.length > 5) {
-          console.log(`🔄 배치 ${batchIndex + 1}번 재시도 (분할)`);
-          const halfPoint = Math.ceil(batch.length / 2);
-          const firstHalf = batch.slice(0, halfPoint);
-          const secondHalf = batch.slice(halfPoint);
-
-          try {
-            const firstTranslated = await translateAllSubtitlesSmart(
-              firstHalf,
-              targetLanguage
-            );
-            const secondTranslated = await translateAllSubtitlesSmart(
-              secondHalf,
-              targetLanguage
-            );
-            return [...firstTranslated, ...secondTranslated];
-          } catch (retryError) {
-            console.error(`❌ 재시도 실패:`, retryError);
-            return batch; // Fall back to original if retry also fails
-          }
+          console.log(`🔁 재시도: 배치 ${batchIndex + 1}을 분할`);
+          const half = Math.ceil(batch.length / 2);
+          const first = await translateAllSubtitlesSmart(
+            batch.slice(0, half),
+            targetLanguage,
+            depth + 1
+          );
+          const second = await translateAllSubtitlesSmart(
+            batch.slice(half),
+            targetLanguage,
+            depth + 1
+          );
+          return [...first, ...second];
         }
 
-        return batch; // Return original batch if can't translate
+        return batch;
       }
     },
-    { concurrency: 3 } // Reduced concurrency for better reliability
+    { concurrency: 3 }
   );
 
-  // Flatten all batches into one array
   const result = translatedBatches.flat();
 
-  // Final check for translation coverage
   const translatedCount = result.filter(
     (item) => item.text !== subtitles.find((s) => s.start === item.start)?.text
   ).length;
 
   console.log(
-    `📊 번역 통계: ${translatedCount}/${
-      result.length
-    } 자막 번역됨 (${Math.round((translatedCount / result.length) * 100)}%)`
+    `📊 번역 완료: ${translatedCount}/${result.length}개 자막 (${Math.round(
+      (translatedCount / result.length) * 100
+    )}%)`
   );
 
   return result;
@@ -758,8 +743,8 @@ export function groupSubtitlesIntoParagraphs(
     }`
   );
 
-  // 10개씩 자막 묶기
-  const batches = splitIntoBatches(sortedSubtitles, 10);
+  // 15개씩 자막 묶기
+  const batches = splitIntoBatches(sortedSubtitles, 15);
   console.log(`📦 생성된 배치 수: ${batches.length}개`);
 
   // 각 배치를 한 문단으로 처리
@@ -799,4 +784,184 @@ export function groupSubtitlesIntoParagraphs(
   );
 
   return paragraphs;
+}
+
+export async function translateParagraphs(
+  paragraphs: string[],
+  targetLanguage: string = "ko",
+  maxRetries: number = 1 // 재시도 횟수 줄이기 (비용 절감)
+): Promise<string[]> {
+  if (!paragraphs || paragraphs.length === 0) {
+    return [];
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // 비용 효율적인 모델 유지
+
+  const batchSize = 15; // 배치 크기 늘리기 (15개)
+  const results = Array(paragraphs.length).fill(null); // 초기 상태 null로 설정 (원본 구분 위함)
+  let remainingIndices = Array.from(paragraphs.keys()); // 번역해야 할 인덱스 목록
+  let apiCallCount = 0; // API 호출 횟수 카운터 추가
+
+  console.log(
+    `🚀 총 ${paragraphs.length}개 문단 번역 시작 (${batchSize}개씩 처리, 최대 재시도 ${maxRetries}회)`
+  );
+
+  let currentAttempt = 0; // 현재 시도 횟수 (0부터 시작)
+
+  while (remainingIndices.length > 0 && currentAttempt <= maxRetries) {
+    console.log(
+      `\n🔄 번역 시도 #${currentAttempt + 1} / ${maxRetries + 1} (남은 문단: ${
+        remainingIndices.length
+      }개)`
+    );
+    const currentBatchIndices = remainingIndices.slice(0, batchSize); // 현재 처리할 배치 인덱스
+
+    const batchParagraphs = currentBatchIndices.map((idx) => paragraphs[idx]);
+
+    // 각 문단에 고유 ID 태그 추가
+    const taggedBatch = batchParagraphs
+      .map(
+        (text, index) =>
+          `<p id="${currentBatchIndices[index]}">${text || ""}</p>`
+      )
+      .join("\\n");
+
+    const prompt = `다음 문단들을 '${targetLanguage}' 언어로 자연스럽고 존댓말 스타일로 번역해주세요.
+각 문단은 <p id="숫자">내용</p> 형식으로 제공됩니다.
+번역 결과도 반드시 동일한 <p id="숫자">번역된 내용</p> 형식을 유지해야 합니다. 각 번역된 문단은 줄바꿈으로 구분해주세요.
+원래 문단의 순서를 절대 변경하지 마세요.
+만약 특정 문단을 번역할 수 없다면, 해당 태그는 그대로 두되 내용은 비워주세요. (예: <p id="3"></p>)
+모든 요청된 ID에 대한 태그를 반드시 포함하여 응답해주세요.
+
+${taggedBatch}`;
+
+    try {
+      console.log(
+        `  ➡️ 배치 처리 시작 (인덱스: ${currentBatchIndices[0]}-${
+          currentBatchIndices[currentBatchIndices.length - 1]
+        }, 크기: ${currentBatchIndices.length})`
+      );
+      apiCallCount++; // API 호출 카운터 증가
+      const result = await model.generateContent(prompt);
+      const translatedText = await result.response.text();
+
+      // 정규 표현식을 사용하여 번역된 내용 추출 및 매핑
+      const translatedInBatch = new Map<number, string>();
+      // 슬래시(/)를 이스케이프 처리: <\/p> -> <\/p>
+      const regex = /<p id="(\d+?)">(.*?)<\/p>/gs;
+      let match;
+      while ((match = regex.exec(translatedText)) !== null) {
+        const id = parseInt(match[1], 10);
+        // 태그는 찾았으나 내용이 없는 경우도 처리 (빈 문자열로)
+        const text = match[2] !== undefined ? match[2].trim() : "";
+        if (currentBatchIndices.includes(id)) {
+          // 현재 배치에 요청한 ID인지 확인
+          translatedInBatch.set(id, text);
+        } else {
+          console.warn(
+            `  ⚠️ API 응답에 요청하지 않은 ID(${id}) 포함됨. 무시합니다.`
+          );
+        }
+      }
+
+      // 결과 업데이트 및 성공/실패 처리
+      const newlyTranslatedIndices: number[] = [];
+      for (const index of currentBatchIndices) {
+        const translatedText = translatedInBatch.get(index);
+        const originalText = paragraphs[index]; // 원본 텍스트
+
+        // 1. 번역된 텍스트가 존재하고 (undefined 아님)
+        if (translatedText !== undefined) {
+          const trimmedTranslated = translatedText.trim();
+          const trimmedOriginal = originalText.trim();
+
+          // 2. 번역된 텍스트가 비어있지 않고
+          if (trimmedTranslated !== "") {
+            // 3. 번역된 텍스트가 원본과 다를 때만 성공으로 간주
+            if (trimmedTranslated !== trimmedOriginal) {
+              results[index] = translatedText; // 원본 translatedText 저장 (trim 안된 것)
+              newlyTranslatedIndices.push(index);
+            } else {
+              console.warn(
+                `  ⚠️ 인덱스 ${index} 번역 결과가 원본과 동일합니다. 원본 유지.`
+              );
+              // 원본과 동일하면 실패로 간주 -> results[index]는 null 유지
+            }
+          } else {
+            console.warn(
+              `  ⚠️ 인덱스 ${index} 번역 결과가 비어 있습니다. 원본 유지.`
+            );
+            // 빈 문자열도 실패로 간주 -> results[index]는 null 유지
+          }
+        }
+        // translatedText가 undefined인 경우 (맵에 없음) => 실패, results[index]는 null 유지
+      }
+
+      console.log(
+        `  ✅ 배치 처리 완료: ${newlyTranslatedIndices.length} / ${currentBatchIndices.length}개 번역 성공`
+      );
+
+      // 다음 처리를 위해 remainingIndices 업데이트 (성공한 것만 제거)
+      remainingIndices = remainingIndices.filter(
+        (idx) => !newlyTranslatedIndices.includes(idx)
+      );
+
+      // 현재 배치가 모두 성공했고, 아직 남은 문단이 있다면 다음 배치로 바로 진행 (시도 횟수 증가 없이)
+      if (
+        newlyTranslatedIndices.length === currentBatchIndices.length &&
+        remainingIndices.length > 0
+      ) {
+        console.log(`  🎉 현재 배치 완전 성공. 다음 배치 진행...`);
+        // 시도 횟수를 증가시키지 않음
+        continue; // 다음 배치를 같은 시도 횟수 내에서 처리
+      }
+    } catch (e: any) {
+      console.error(
+        `  ❌ 배치 처리 중 API 오류 발생 (시도 #${currentAttempt + 1}):`,
+        e.message || e
+      );
+      // API 오류 시, 이 배치의 항목들은 다음 재시도 대상으로 남음
+    }
+
+    // 현재 배치가 완전히 성공하지 못했거나 API 오류가 발생한 경우, 다음 시도로 넘어감
+    currentAttempt++;
+    if (remainingIndices.length > 0 && currentAttempt <= maxRetries) {
+      console.log(
+        `  ⏳ 다음 재시도 준비... (${remainingIndices.length}개 남음)`
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 * currentAttempt)
+      ); // 간단한 백오프
+    }
+  } // while loop 끝
+
+  // 최종 결과 처리: null로 남은 항목은 원본으로 채우기
+  const finalResults = results.map((res, idx) =>
+    res === null ? paragraphs[idx] : res
+  );
+
+  // 번역 성공률 로깅
+  const successfulTranslations = finalResults.filter(
+    (r, idx) => r !== paragraphs[idx] && results[idx] !== null // 원본과 다르고, 번역 시도가 있었던 것(null이 아닌 것)
+  ).length;
+  const failedTranslations = finalResults.filter(
+    (r, idx) => results[idx] === null
+  ).length;
+
+  const successRate =
+    paragraphs.length > 0
+      ? (successfulTranslations / paragraphs.length) * 100
+      : 0;
+  console.log(`
+📞 총 Gemini API 호출 횟수: ${apiCallCount}회`); // 총 API 호출 횟수 로깅 추가
+  console.log(
+    `📊 최종 번역 완료: ${successfulTranslations} / ${
+      paragraphs.length
+    }개 문단 성공 (${successRate.toFixed(
+      1
+    )}%), ${failedTranslations}개 실패 (원본 유지)`
+  );
+
+  return finalResults;
 }

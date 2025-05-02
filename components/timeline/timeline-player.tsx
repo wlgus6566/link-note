@@ -147,7 +147,7 @@ export function TimelinePlayerSection({
       className={`w-full md:sticky md:top-20 md:w-[45%] md:h-fit ${
         activeTab === "transcript" || activeTab === "translated"
           ? "sticky top-16 z-20"
-          : "mb-4"
+          : ""
       }`}
     >
       <div className="relative w-full aspect-video">

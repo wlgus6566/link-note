@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // 타임라인이 없거나 충분하지 않은 경우 Gemini로 생성
     let timelineData = videoData.timeline || [];
 
-    if (!timelineData || timelineData.length < 3) {
+    if (!timelineData) {
       console.log("타임라인이 없거나 불충분하여 Gemini로 생성 시도...");
 
       if (videoData.transcript && videoData.transcript.length > 100) {

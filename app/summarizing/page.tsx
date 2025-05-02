@@ -302,7 +302,7 @@ export default function SummarizingPage() {
 
         // 페이지 이동
         console.log(`다이제스트 페이지로 이동: /digest/${digestId}`);
-        router.push(`/digest/${digestId}`);
+        router.replace(`/digest/${digestId}`);
       } else {
         throw new Error(extractData.error || "YouTube 데이터 추출 실패");
       }

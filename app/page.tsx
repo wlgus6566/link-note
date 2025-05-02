@@ -6,13 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ArrowRight,
-  FileText,
-  Sparkles,
-  Clock,
-  PlayCircle,
-} from "lucide-react";
+import { ArrowRight, FileText, Clock, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
@@ -21,7 +15,6 @@ import { useUserStore } from "@/store/userStore";
 import { getUserInitials } from "@/lib/utils";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { formatViewCount, formatTimeAgo } from "@/lib/utils";
-import BottomNav from "@/components/bottom-nav";
 
 export default function Home() {
   const searchParams = useSearchParams();
@@ -175,8 +168,8 @@ export default function Home() {
                   className="!mt-5 text-base text-neutral-medium md:text-lg max-w-[500px] mx-auto"
                   variants={itemVariants}
                 >
-                  영상 속 핵심, 요약 <br />
-                  타임라인으로 다시 꺼내보세요.
+                  중요한 순간을 담아두고, 핵심만 빠르게 요약하세요. AI가 어색함
+                  없이, 당신의 언어로 완벽하게 전해드립니다.
                 </motion.p>
 
                 <motion.div
@@ -201,10 +194,10 @@ export default function Home() {
                   </div>
                   <div className="flex flex-col items-center">
                     <div className="w-12 h-12 rounded-full bg-primary-light flex items-center justify-center mb-2 border border-primary-color/30">
-                      <PlayCircle className="h-5 w-5 text-primary-color" />
+                      <Globe className="h-5 w-5 text-primary-color" />
                     </div>
                     <span className="text-xs text-neutral-medium">
-                      구간 복습
+                      AI 다국어 번역
                     </span>
                   </div>
                 </motion.div>
@@ -314,7 +307,7 @@ export default function Home() {
                               {content.digests.title}
                             </h3>
                             <p className="text-sm text-neutral-medium">
-                              {content?.digests?.video_info?.channelTitle} •{" "}
+                              {content?.digests?.video_info?.channelTitle} •
                               조회수{" "}
                               {formatViewCount(
                                 Number(

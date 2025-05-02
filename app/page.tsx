@@ -168,8 +168,9 @@ export default function Home() {
                   className="!mt-5 text-base text-neutral-medium md:text-lg max-w-[500px] mx-auto"
                   variants={itemVariants}
                 >
-                  중요한 순간을 담아두고, 핵심만 빠르게 요약하세요. AI가 어색함
-                  없이, 당신의 언어로 완벽하게 전해드립니다.
+                  영상의 핵심을 AI로 요약하고, 중요한 순간은 타임라인으로
+                  저장하세요. AI가 전 세계 언어로 자연스럽고 매끄럽게
+                  번역해드립니다.
                 </motion.p>
 
                 <motion.div

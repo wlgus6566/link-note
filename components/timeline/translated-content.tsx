@@ -165,8 +165,8 @@ export function TranslatedContent({
             </TooltipTrigger>
             <TooltipContent className="max-w-xs bg-neutral-dark text-neutral-light">
               <p>
-                AI가 원본 내용을 바탕으로 어색함 없이 자연스럽게, 완벽하게
-                번역합니다. 번역된 내용을 확인하고 필요한 부분을 북마크해보세요.
+                AI가 원본 내용을 바탕으로 자연스럽게, 완벽하게 번역합니다.
+                번역된 내용을 확인하고 필요한 부분을 북마크해보세요.
               </p>
             </TooltipContent>
           </Tooltip>

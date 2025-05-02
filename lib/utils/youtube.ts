@@ -432,14 +432,6 @@ export function convertToTimelineGroups(
     });
 }
 
-// 문장 쪼개기 함수
-function splitIntoSentences(text: string): string[] {
-  return text
-    .split(/(?<=[.?!])\s+/)
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length > 0);
-}
-
 function splitIntoBatches<T>(array: T[], batchSize: number): T[][] {
   const batches: T[][] = [];
   for (let i = 0; i < array.length; i += batchSize) {
@@ -626,15 +618,7 @@ export async function translateAllSubtitlesOnce(
         .join("\n");
 
       const prompt = `
-        아래는 기계 번역된 유튜브 자막입니다. 각 자막을 자연스럽고 부드러운 한국어로 다듬어주세요.
-        
-        ❗지켜야 할 규칙은 다음과 같습니다:
-        - 존댓말로 정중하고 부드럽게 표현합니다.
-        - 불필요한 추가 문구를 삽입하지 않고, 원래 의미를 유지합니다.
-        - 문장이 어색하거나 부자연스러운 부분은 자연스러운 한국어로 의역합니다.
-        - 각 자막은 서로 독립적으로 존재합니다. 다른 자막과 연결하지 마세요.
-        - 말투는 친근하면서도 자연스럽게 유지합니다. (너무 딱딱한 문어체 금지)
-        - 자막 길이를 지나치게 늘리지 않고, 간결하게 만듭니다.
+ 
         
         형식:
         - 각 자막은 <subtitle id="숫자">번역문</subtitle> 형태로 출력합니다.
@@ -832,7 +816,7 @@ export async function translateParagraphs(
   let apiCallCount = 0;
 
   console.log(
-    `🚀 총 ${paragraphs.length}개 문단 → ${batches.length}개 배치로 분할`
+    `🚀 총 ${paragraphs.length}개 문단 → ${batches.length}개 배치로 분할 (목표 언어: ${targetLanguage})`
   );
 
   for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
@@ -849,13 +833,53 @@ export async function translateParagraphs(
         .map((text, i) => `<p id="${currentBatchIndices[i]}">${text || ""}</p>`)
         .join("\n");
 
-      const prompt = `다음 문단들을 '${targetLanguage}' 언어로 자연스럽고 존댓말 스타일로 번역해주세요.
+      // --- 프롬프트 분기 처리 시작 ---
+      let prompt = "";
+      // 지원 언어 목록 정의 (ai.ts와 동일하게 확장)
+      const supportedLanguages: { [key: string]: string } = {
+        ko: "한국어", // 한국어는 프롬프트가 다르므로 여기에선 이름만 정의
+        en: "English",
+        ja: "Japanese",
+        zh: "Chinese",
+        es: "Spanish",
+        fr: "French",
+        de: "German",
+        pt: "Portuguese",
+        ru: "Russian",
+        hi: "Hindi",
+        ar: "Arabic",
+        it: "Italian",
+        tr: "Turkish",
+        vi: "Vietnamese",
+        th: "Thai",
+        id: "Indonesian",
+        nl: "Dutch",
+        pl: "Polish",
+        sv: "Swedish",
+        el: "Greek",
+        // 필요에 따라 더 많은 언어 추가 가능
+      };
+
+      if (targetLanguage === "ko") {
+        prompt = `다음 문단들을 한국어(ko)로 자연스럽고 존댓말 스타일로 번역해주세요.
 각 문단은 <p id="숫자">내용</p> 형식입니다.
 번역 결과도 동일한 형식 <p id="숫자">번역된 내용</p> 으로 반환해주세요. 순서는 바꾸지 마세요.
 
 ${taggedBatch}`;
+      } else {
+        const languageName =
+          supportedLanguages[targetLanguage] || targetLanguage;
+        prompt = `Translate the following paragraphs into ${languageName} (${targetLanguage}).
+Each paragraph is tagged like <p id="number">content</p>.
+Return the translation in the exact same format, preserving the tags and order: <p id="number">translated content</p>.
+Do not add any extra explanations or text outside the <p> tags.
+
+${taggedBatch}`;
+      }
+      // --- 프롬프트 분기 처리 끝 ---
 
       try {
+        // console.log("Prompt being sent:\n", prompt); // 필요시 프롬프트 로깅 활성화
         console.log(
           `📦 배치 ${batchIndex + 1}/${
             batches.length
@@ -866,13 +890,16 @@ ${taggedBatch}`;
         const result = await model.generateContent(prompt);
         const translatedText = await result.response.text();
 
-        const regex = /<p id="(\d+?)">(.*?)<\/p>/gs;
+        // console.log("Raw API response:\n", translatedText); // 필요시 응답 로깅 활성화
+
+        const regex = /<p id="(\d+?)">(.*?)<\/p>/gs; // 슬래시 이스케이프 확인
         let match;
         const translatedInBatch = new Map<number, string>();
 
         while ((match = regex.exec(translatedText)) !== null) {
           const id = parseInt(match[1], 10);
-          const text = match[2]?.trim() || "";
+          // API 응답에서 추출된 텍스트
+          const text = match[2] || "";
           translatedInBatch.set(id, text);
         }
 
@@ -880,11 +907,23 @@ ${taggedBatch}`;
 
         for (const idx of currentBatchIndices) {
           const translated = translatedInBatch.get(idx);
-          if (translated && translated !== paragraphs[idx]) {
+          const original = paragraphs[idx];
+
+          // 번역 결과가 존재하고, 원문과 다를 때 성공 (공백만 다른 경우는?) -> 비교 시 trim() 사용
+          if (
+            translated !== undefined &&
+            translated.trim() !== original.trim() // 비교 시에는 trim 사용
+          ) {
+            // 저장 시에는 원본 API 응답(trim 안 된)을 저장할 수 있음
             results[idx] = translated;
             successCount++;
           } else {
-            console.warn(`⚠️ 인덱스 ${idx} 번역 실패 또는 원문과 동일`);
+            // 번역 실패 또는 원문과 동일한 경우 (빈 문자열 포함)
+            if (translated === undefined) {
+              console.warn(`⚠️ 인덱스 ${idx} 번역 누락 (API 응답에 없음)`);
+            } else {
+              console.warn(`⚠️ 인덱스 ${idx} 번역 실패 또는 원문과 동일`);
+            }
           }
         }
 
@@ -900,19 +939,29 @@ ${taggedBatch}`;
       }
     }
 
+    // 마지막까지 실패 → 원문 사용
     if (!success) {
-      // 마지막까지 실패 → 원문 사용
       for (const idx of currentBatchIndices) {
-        results[idx] = paragraphs[idx];
+        // results[idx]가 여전히 null일 때만 원문으로 채움
+        if (results[idx] === null) {
+          results[idx] = paragraphs[idx];
+        }
       }
       console.warn(`🚫 배치 ${batchIndex + 1} 번역 완전히 실패. 원문 유지.`);
     }
   }
 
-  // 최종 통계
-  const successful = results.filter((r, i) => r !== paragraphs[i]).length;
+  // 최종 결과에서 null 채우기 및 통계
+  const finalResults = results.map((res, idx) =>
+    res === null ? paragraphs[idx] : res
+  );
+
+  const successful = finalResults.filter(
+    (r, idx) => r !== paragraphs[idx]
+  ).length;
   const failed = paragraphs.length - successful;
-  const successRate = (successful / paragraphs.length) * 100;
+  const successRate =
+    paragraphs.length > 0 ? (successful / paragraphs.length) * 100 : 0;
 
   console.table({
     전체: paragraphs.length,
@@ -922,5 +971,5 @@ ${taggedBatch}`;
     호출횟수: apiCallCount,
   });
 
-  return results;
+  return finalResults; // 최종적으로 null이 없는 배열 반환
 }

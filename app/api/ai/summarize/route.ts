@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { generateBlogSummary } from "@/lib/utils/ai";
+import { createClient } from "@/lib/supabase/server";
 
 // 요청 스키마 정의
 const requestSchema = z.object({
@@ -46,13 +47,38 @@ export async function POST(request: NextRequest) {
     // 요청 검증
     const { videoInfo, transcript, sourceUrl } = requestSchema.parse(body);
 
-    // AI를 사용하여 블로그 요약 생성
+    // --- 사용자 설정 언어 가져오기 시작 ---
+    const supabase = await createClient();
+    let targetLanguage = "ko"; // 기본 언어
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      try {
+        const { data: settings, error: settingsError } = await supabase
+          .from("user_settings")
+          .select("language")
+          .eq("user_id", user.id)
+          .single();
+        if (!settingsError && settings?.language) {
+          targetLanguage = settings.language;
+        }
+      } catch (e) {
+        console.error("Summarize API: 사용자 설정 조회 오류", e);
+      }
+    }
+    console.log(`Summarize API: 목표 언어 설정됨 - ${targetLanguage}`);
+    // --- 사용자 설정 언어 가져오기 끝 ---
+
+    // AI를 사용하여 블로그 요약 생성 (언어 전달)
     let blogSummary = await generateBlogSummary({
       title: videoInfo.title,
       description: videoInfo.description || "",
       channelTitle: videoInfo.channelTitle,
       publishedAt: videoInfo.publishedAt,
       transcript: transcript,
+      targetLanguage: targetLanguage, // 가져온 언어 전달
     });
 
     // "내용..." 패턴 대체

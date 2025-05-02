@@ -24,6 +24,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/Header";
 
+// 지원 언어 목록 정의
+const languages = [
+  { code: "ko", name: "한국어" },
+  { code: "en", name: "English" },
+  { code: "ja", name: "日本語" },
+  { code: "zh", name: "中文 (简体)" },
+  { code: "es", name: "Español" },
+  { code: "fr", name: "Français" },
+  { code: "de", name: "Deutsch" },
+  { code: "pt", name: "Português" },
+  { code: "ru", name: "Русский" },
+  { code: "hi", name: "हिन्दी" },
+  { code: "ar", name: "العربية" },
+  { code: "it", name: "Italiano" },
+  { code: "tr", name: "Türkçe" },
+  { code: "vi", name: "Tiếng Việt" },
+  { code: "th", name: "ไทย" },
+  { code: "id", name: "Bahasa Indonesia" },
+  { code: "nl", name: "Nederlands" },
+  { code: "pl", name: "Polski" },
+  { code: "sv", name: "Svenska" },
+  { code: "el", name: "Ελληνικά" },
+];
+
 export default function SettingsPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -290,9 +314,22 @@ export default function SettingsPage() {
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok && data.success && data.settings) {
+        // API 성공 및 반환된 설정 데이터가 있을 경우
         setToastMessage("설정이 성공적으로 저장되었습니다");
         setShowToast(true);
+
+        // --- 상태 업데이트 로직 추가 시작 ---
+        const updatedSettings = data.settings;
+        setLanguage(updatedSettings.language || "ko");
+        setTheme(updatedSettings.theme || "light");
+        setAutoTranslate(updatedSettings.auto_translate || false);
+        setNotification(
+          updatedSettings.notification !== undefined
+            ? updatedSettings.notification
+            : true
+        );
+        // --- 상태 업데이트 로직 추가 끝 ---
       } else {
         setToastMessage(data.error || "설정 저장에 실패했습니다");
         setShowToast(true);
@@ -335,10 +372,11 @@ export default function SettingsPage() {
                       <SelectValue placeholder="언어 선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ko">한국어</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="ja">日本語</SelectItem>
-                      <SelectItem value="zh">中文</SelectItem>
+                      {languages.map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          {lang.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

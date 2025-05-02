@@ -117,8 +117,10 @@ export async function PUT(req: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", userId)
-        .select();
-
+        .select("*")
+        .single();
+      console.log("userId:", userId);
+      console.log("existingSettings:", existingSettings);
       if (error) {
         throw new Error(error.message);
       }
@@ -135,18 +137,20 @@ export async function PUT(req: NextRequest) {
           auto_translate,
           notification,
         })
-        .select();
+        .select("*")
+        .single();
 
       if (error) {
+        console.error("🔥 Supabase 업데이트 오류:", error); // 추가
         throw new Error(error.message);
       }
-
+      console.log("업데이트 or 생성 데이터:", data);
       result = data;
     }
 
     return NextResponse.json({
       success: true,
-      settings: result[0],
+      settings: result,
     });
   } catch (error: any) {
     console.error("설정 업데이트 오류:", error);

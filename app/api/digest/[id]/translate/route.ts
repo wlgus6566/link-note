@@ -16,10 +16,44 @@ export async function GET(
 ) {
   try {
     const supabase = await createClient();
-    const url = new URL(req.url);
     const resolvedParams = await params;
     const digestId = resolvedParams.id;
-    const targetLanguage = url.searchParams.get("lang") || "ko";
+
+    // --- 사용자 설정에서 targetLanguage 가져오기 시작 ---
+    let targetLanguage = "ko"; // 기본 언어 설정
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      try {
+        // user_settings 테이블에서 language 컬럼 조회 (user_id로 필터링)
+        const { data: settings, error: settingsError } = await supabase
+          .from("user_settings") // 테이블 이름 확인 필요
+          .select("language")
+          .eq("user_id", user.id) // 컬럼 이름 확인 필요
+          .single();
+
+        if (settingsError) {
+          console.error("❌ 사용자 설정 조회 오류:", settingsError.message);
+          // 오류 발생 시 기본 언어 사용
+        } else if (settings && settings.language) {
+          targetLanguage = settings.language;
+          console.log(`✅ 사용자 설정 언어 적용: ${targetLanguage}`);
+        } else {
+          console.log(
+            `🤔 사용자 설정에 언어가 없습니다. 기본 언어(${targetLanguage}) 사용.`
+          );
+        }
+      } catch (e) {
+        console.error("❌ 사용자 설정 조회 중 예외 발생:", e);
+      }
+    } else {
+      console.log(
+        "👤 사용자가 로그인하지 않았습니다. 기본 언어(${targetLanguage}) 사용."
+      );
+    }
+    // --- 사용자 설정에서 targetLanguage 가져오기 끝 ---
 
     // 1. 기존 번역 데이터가 있는지 확인
     const { data: existingTranslation, error: translationCheckError } =
@@ -39,6 +73,7 @@ export async function GET(
     }
 
     // 2. YouTube URL 가져오기
+    const url = new URL(req.url);
     let youtubeUrl = url.searchParams.get("youtube_url");
     if (!youtubeUrl) {
       const { data: digest } = await supabase

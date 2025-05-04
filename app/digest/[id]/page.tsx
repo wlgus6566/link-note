@@ -97,7 +97,6 @@ export default function DigestPage({
   const [showGuidePopup, setShowGuidePopup] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>("summary");
-  const [swipeDirection, setSwipeDirection] = useState<number>(0);
   const contentRef = useRef<HTMLDivElement>(null);
   const [youtubePopup, setYoutubePopup] = useState<YouTubePopupState>({
     isOpen: false,
@@ -129,28 +128,6 @@ export default function DigestPage({
   const handleTimeUpdate = (time: number) => {
     setCurrentTime(time);
   };
-
-  // 스와이프 핸들러
-  const handleDragEnd = (
-    event: MouseEvent | TouchEvent | PointerEvent,
-    info: PanInfo
-  ) => {
-    const threshold = 50;
-    if (info.offset.x > threshold) {
-      setActiveTab("summary");
-      setSwipeDirection(1);
-    } else if (info.offset.x < -threshold) {
-      setActiveTab("transcript");
-      setSwipeDirection(-1);
-    }
-  };
-
-  // 탭 변경 시 스와이프 방향 설정
-  useEffect(() => {
-    if (activeTab === "summary" || activeTab === "transcript") {
-      setSwipeDirection(0);
-    }
-  }, [activeTab]);
 
   // URL 파라미터에서 다이제스트 ID 추출
   useEffect(() => {
@@ -1131,19 +1108,8 @@ export default function DigestPage({
                 </TabsList>
               </div>
 
-              {/* 모바일에서는 스와이프 기능 유지, 데스크톱에서는 일반 탭 사용 */}
               <div className="md:hidden overflow-hidden" ref={contentRef}>
-                <motion.div
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={0.2}
-                  onDragEnd={handleDragEnd}
-                  animate={{
-                    x: swipeDirection * window.innerWidth,
-                    transition: { duration: 0.3 },
-                  }}
-                  className="flex w-full"
-                >
+                <div className="flex w-full">
                   <div
                     className={`w-full flex-shrink-0 ${
                       activeTab === "summary" ? "block" : "hidden"
@@ -1275,7 +1241,7 @@ export default function DigestPage({
                       </TabsContent>
                     </div>
                   )}
-                </motion.div>
+                </div>
               </div>
 
               {/* 데스크톱에서만 보이는 탭 콘텐츠 */}

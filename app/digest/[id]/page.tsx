@@ -1453,39 +1453,6 @@ export default function DigestPage({
         }
         title="북마크 메모 추가"
       />
-
-      <BottomNav />
-
-      {/* 팝업 컴포넌트들 */}
-      <TimelineGuideSheet
-        isOpen={showGuidePopup}
-        onClose={() => setShowGuidePopup(false)}
-        onStartBookmarking={() => {}}
-      />
-      <FolderSelectionModal
-        isOpen={showFolderSelectionModal}
-        onClose={() => setShowFolderSelectionModal(false)}
-        digestId={digest?.id?.toString() || ""}
-        title={digest?.title || ""}
-        activeFolder={activeFolderId}
-        onSuccess={handleFolderSelect}
-      />
-      <MemoPopup
-        isOpen={showMemoPopup}
-        onClose={() => setShowMemoPopup(false)}
-        onSave={handleSaveMemo}
-      />
-      <BookmarksPopup
-        isOpen={showBookmarksPopup}
-        onClose={() => setShowBookmarksPopup(false)}
-        bookmarks={Object.keys(bookmarkedItems).reduce((acc, key) => {
-          acc[key] = bookmarkedItems[key];
-          return acc;
-        }, {} as Record<string, TimelineBookmarkItem>)}
-        onBookmarkClick={handleSeekTo}
-        onBookmarkDelete={(id) => handleBookmark(id, 0, "")}
-        formatTime={formatTime}
-      />
       <SharePopup
         isOpen={showSharePopup}
         onClose={() => setShowSharePopup(false)}

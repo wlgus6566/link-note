@@ -872,8 +872,6 @@ export default function TimelinesPage() {
         )}
       </main>
 
-      <BottomNav />
-
       <SimpleToast
         isVisible={showToast}
         message={toastMessage}

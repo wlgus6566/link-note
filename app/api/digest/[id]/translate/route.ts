@@ -6,7 +6,7 @@ import {
   groupSubtitlesIntoParagraphs,
   getVideoTranscript,
   secondsToTimestamp,
-  translateParagraphs, // ✨ 문단 번역 함수 (새로 추가한 것)
+  translateParagraphs,
   getYoutubeVideoData,
 } from "@/lib/utils/youtube";
 

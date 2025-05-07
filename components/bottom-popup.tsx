@@ -25,7 +25,6 @@ export function BottomPopup({
     <AnimatePresence mode="wait">
       {isOpen ? (
         <>
-          {/* 백드롭: 따로 애니메이션 주고 시트를 바깥에서 감싼다 */}
           <motion.div
             key="backdrop"
             className="fixed inset-0 bg-black/40 z-[90]"

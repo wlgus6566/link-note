@@ -811,7 +811,7 @@ export async function translateParagraphs(
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-  const batches = splitParagraphsWithIndexByCharLength(paragraphs, 4000);
+  const batches = splitParagraphsWithIndexByCharLength(paragraphs, 3500);
   const results = Array(paragraphs.length).fill(null);
   let apiCallCount = 0;
 
@@ -832,6 +832,8 @@ export async function translateParagraphs(
       const taggedBatch = batchParagraphs
         .map((text, i) => `<p id="${currentBatchIndices[i]}">${text || ""}</p>`)
         .join("\n");
+
+      console.log("Tagged batch:\n", taggedBatch);
 
       let prompt = "";
       // 지원 언어 목록 정의 (ai.ts와 동일하게 확장)
@@ -888,7 +890,7 @@ ${taggedBatch}`;
         const result = await model.generateContent(prompt);
         const translatedText = await result.response.text();
 
-        // console.log("Raw API response:\n", translatedText); // 필요시 응답 로깅 활성화
+        console.log("Raw API response:\n", translatedText); // 필요시 응답 로깅 활성화
 
         const regex = /<p id="(\d+?)">(.*?)<\/p>/gs; // 슬래시 이스케이프 확인
         let match;

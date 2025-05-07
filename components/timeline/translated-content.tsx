@@ -172,75 +172,79 @@ export function TranslatedContent({
           </Tooltip>
         </div>
 
-        {translatedParagraphs.map((paragraph, index) => {
-          // 각 문단의 고유 ID 생성
-          const paragraphId = `translated-par-${paragraph.index || index + 1}`;
+        {translatedParagraphs
+          .filter((p) => p.text.trim().length > 0)
+          .map((paragraph, index) => {
+            // 각 문단의 고유 ID 생성
+            const paragraphId = `translated-par-${
+              paragraph.index || index + 1
+            }`;
 
-          // 초로 변환된 시간 계산
-          const secondsTime = paragraph.start
-            .split(":")
-            .reduce((acc, time) => 60 * acc + Number.parseInt(time), 0);
+            // 초로 변환된 시간 계산
+            const secondsTime = paragraph.start
+              .split(":")
+              .reduce((acc, time) => 60 * acc + Number.parseInt(time), 0);
 
-          // 북마크 상태 확인
-          const isBookmarked = !!bookmarkedItems[paragraphId];
+            // 북마크 상태 확인
+            const isBookmarked = !!bookmarkedItems[paragraphId];
 
-          return (
-            <motion.div
-              key={`par-${index}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="group"
-            >
-              <div
-                className={` border border-border-line rounded-lg p-4 hover:shadow-md transition-shadow ${
-                  activeParagraph === paragraph.start
-                    ? "bg-primary-light"
-                    : isBookmarked
-                    ? "bg-blue-50"
-                    : "bg-gray-50"
-                }`}
+            return (
+              <motion.div
+                key={`par-${index}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="group"
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div
-                    className="flex items-center gap-2 text-sm text-primary-color font-medium cursor-pointer hover:underline"
+                <div
+                  className={` border border-border-line rounded-lg p-4 hover:shadow-md transition-shadow ${
+                    activeParagraph === paragraph.start
+                      ? "bg-primary-light"
+                      : isBookmarked
+                      ? "bg-blue-50"
+                      : "bg-gray-50"
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div
+                      className="flex items-center gap-2 text-sm text-primary-color font-medium cursor-pointer hover:underline"
+                      onClick={() => {
+                        handleSeekTo(secondsTime);
+                        setActiveParagraph(paragraph.start);
+                      }}
+                    >
+                      <Clock className="h-4 w-4" />
+                      {paragraph.start}
+                    </div>
+                    <button
+                      onClick={() =>
+                        handleBookmark(paragraphId, secondsTime, paragraph.text)
+                      }
+                      className="text-neutral-medium hover:text-primary-color transition-colors"
+                      aria-label={
+                        isBookmarked ? "타임라인에서 제거" : "타임라인에 추가"
+                      }
+                    >
+                      {isBookmarked ? (
+                        <BookmarkCheck className="h-5 w-5 text-primary-color" />
+                      ) : (
+                        <BookmarkPlus className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                  <button
                     onClick={() => {
                       handleSeekTo(secondsTime);
                       setActiveParagraph(paragraph.start);
                     }}
+                    className=" text-left text-neutral-dark leading-relaxed"
                   >
-                    <Clock className="h-4 w-4" />
-                    {paragraph.start}
-                  </div>
-                  <button
-                    onClick={() =>
-                      handleBookmark(paragraphId, secondsTime, paragraph.text)
-                    }
-                    className="text-neutral-medium hover:text-primary-color transition-colors"
-                    aria-label={
-                      isBookmarked ? "타임라인에서 제거" : "타임라인에 추가"
-                    }
-                  >
-                    {isBookmarked ? (
-                      <BookmarkCheck className="h-5 w-5 text-primary-color" />
-                    ) : (
-                      <BookmarkPlus className="h-5 w-5" />
-                    )}
+                    {paragraph.text}
                   </button>
                 </div>
-                <button
-                  onClick={() => {
-                    handleSeekTo(secondsTime);
-                    setActiveParagraph(paragraph.start);
-                  }}
-                  className=" text-left text-neutral-dark leading-relaxed"
-                >
-                  {paragraph.text}
-                </button>
-              </div>
-            </motion.div>
-          );
-        })}
+              </motion.div>
+            );
+          })}
       </div>
     </TooltipProvider>
   );

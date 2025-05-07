@@ -833,7 +833,6 @@ export async function translateParagraphs(
         .map((text, i) => `<p id="${currentBatchIndices[i]}">${text || ""}</p>`)
         .join("\n");
 
-      // --- 프롬프트 분기 처리 시작 ---
       let prompt = "";
       // 지원 언어 목록 정의 (ai.ts와 동일하게 확장)
       const supportedLanguages: { [key: string]: string } = {
@@ -876,7 +875,6 @@ Do not add any extra explanations or text outside the <p> tags.
 
 ${taggedBatch}`;
       }
-      // --- 프롬프트 분기 처리 끝 ---
 
       try {
         // console.log("Prompt being sent:\n", prompt); // 필요시 프롬프트 로깅 활성화

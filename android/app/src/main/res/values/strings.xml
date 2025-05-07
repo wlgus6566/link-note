@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">tube-note</string>
-    <string name="title_activity_main">tube-note</string>
-    <string name="package_name">com.tubenote.app</string>
-    <string name="custom_url_scheme">com.tubenote.app</string>
-</resources>

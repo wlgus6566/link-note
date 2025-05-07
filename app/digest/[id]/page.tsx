@@ -2,6 +2,7 @@
 import { YouTubePlayer } from "@/types/digest";
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import {
   ArrowLeft,
   Bookmark,
@@ -13,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/bottom-nav";
 import { useRouter } from "next/navigation";
-import { motion, type PanInfo, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { TimelineAccordion } from "@/components/timeline/timeline-accordion";
 import { TimelinePlayerSection } from "@/components/timeline/timeline-player";
 import { TranslatedContent } from "@/components/timeline/translated-content";
@@ -39,9 +40,9 @@ import { FolderSelectionModal } from "@/components/ui/folder-selection-modal";
 import { MemoPopup } from "@/components/ui/memo-popup";
 import { useToast } from "@/components/ui/toast";
 import { BookmarksPopup } from "@/components/ui/bookmarks-popup";
+import { SharePopup } from "@/components/share-popup"; // 추가
 import type {
   TimelineBookmarkItem,
-  YouTubePopupState,
   TranslatedParagraph,
   YouTubeAPI,
 } from "@/types/digest";
@@ -74,9 +75,6 @@ export default function DigestPage({
   const [isSaved, setIsSaved] = useState(false);
   const [timelineData, setTimelineData] = useState<TimelineGroup[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [bookmarksInfo, setBookmarksInfo] = useState<TimelineBookmarkItem[]>(
-    []
-  );
   const [activeFolderId, setActiveFolderId] = useState<string>("");
   const [currentSegmentId, setCurrentSegmentId] = useState<string | null>(null);
   const [bookmarkedItems, setBookmarkedItems] = useState<
@@ -98,18 +96,9 @@ export default function DigestPage({
 
   const [activeTab, setActiveTab] = useState<string>("summary");
   const contentRef = useRef<HTMLDivElement>(null);
-  const [youtubePopup, setYoutubePopup] = useState<YouTubePopupState>({
-    isOpen: false,
-    videoId: "",
-    startTime: 0,
-  });
-
   // 타이머 참조를 위한 ref
   const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 플레이어 준비 상태
-  const [playerReady, setPlayerReady] = useState(false);
 
   // 번역 관련 상태
   const [userLanguage, setUserLanguage] = useState<string>("ko");
@@ -123,6 +112,10 @@ export default function DigestPage({
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [showTranslateTab, setShowTranslateTab] = useState<boolean>(true);
   const [autoTranslate, setAutoTranslate] = useState<boolean>(false);
+
+  // 공유 팝업 상태와 공유 토큰을 관리하기 위한 상태 변수 추가
+  const [showSharePopup, setShowSharePopup] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
 
   // 플레이어 시간 업데이트 핸들러
   const handleTimeUpdate = (time: number) => {
@@ -705,6 +698,55 @@ export default function DigestPage({
     }
   };
 
+  // 폴더 선택 핸들러
+  const handleFolderSelect = (folderId: string) => {
+    setActiveFolderId(folderId);
+    setIsSaved(true);
+    setShowFolderSelectionModal(false);
+  };
+
+  // 공유하기 버튼 클릭 핸들러
+  const handleShare = async () => {
+    try {
+      // 이미 토큰이 있으면 바로 팝업 열기
+      if (shareToken) {
+        setShowSharePopup(true);
+        return;
+      }
+
+      // 토큰이 없으면 서버에 요청하여 생성
+      if (digest?.id) {
+        const response = await fetch(`/api/share`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            digestId: digest.id,
+            type: "digest",
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.token) {
+          setShareToken(data.token);
+          setShowSharePopup(true);
+        } else {
+          showToast("공유 링크 생성에 실패했습니다.");
+        }
+      } else {
+        // 다이제스트 ID가 없는 경우 현재 URL로 공유
+        setShowSharePopup(true);
+      }
+    } catch (error) {
+      console.error("공유 링크 생성 오류:", error);
+      showToast("공유 링크 생성에 실패했습니다.");
+      // 오류가 발생해도 팝업은 열어서 URL 복사는 가능하게 함
+      setShowSharePopup(true);
+    }
+  };
+
   // 사용자 설정 가져오기
   const fetchUserSettings = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -1027,7 +1069,7 @@ export default function DigestPage({
         backUrl="back"
         showBackButton={true}
         rightElement={
-          <div className="flex gap-2">
+          <>
             <Button
               variant="ghost"
               size="icon"
@@ -1040,14 +1082,15 @@ export default function DigestPage({
                 <Bookmark className="h-5 w-5 text-neutral-dark" />
               )}
             </Button>
-            <Button
+            {/* <Button
               variant="ghost"
               size="icon"
               className="h-9 w-9 rounded-full hover:bg-primary-light"
+              onClick={handleShare}
             >
               <Share2 className="h-5 w-5 text-neutral-dark" />
-            </Button>
-          </div>
+            </Button> */}
+          </>
         }
       />
 
@@ -1364,9 +1407,12 @@ export default function DigestPage({
           <BookmarksPopup
             isOpen={showBookmarksPopup}
             onClose={() => setShowBookmarksPopup(false)}
-            bookmarks={bookmarkedItems}
+            bookmarks={Object.keys(bookmarkedItems).reduce((acc, key) => {
+              acc[key] = bookmarkedItems[key];
+              return acc;
+            }, {} as Record<string, TimelineBookmarkItem>)}
             onBookmarkClick={handleSeekTo}
-            onBookmarkDelete={handleDeleteBookmark}
+            onBookmarkDelete={(id) => handleBookmark(id, 0, "")}
             formatTime={formatTime}
           />
         )}
@@ -1378,16 +1424,10 @@ export default function DigestPage({
           <FolderSelectionModal
             isOpen={showFolderSelectionModal}
             onClose={() => setShowFolderSelectionModal(false)}
-            digestId={digest.id}
-            title={digest.title}
+            digestId={digest?.id?.toString() || ""}
+            title={digest?.title || ""}
             activeFolder={activeFolderId}
-            onSuccess={(folderId) => {
-              // 폴더 ID를 저장하고 북마크 상태를 업데이트
-              setActiveFolderId(String(folderId));
-              setIsSaved(true);
-              setShowFolderSelectionModal(false);
-              console.log("북마크가 폴더에 저장됨, 폴더 ID:", folderId);
-            }}
+            onSuccess={handleFolderSelect}
           />
         )}
       </AnimatePresence>
@@ -1398,10 +1438,7 @@ export default function DigestPage({
           <TimelineGuideSheet
             isOpen={showGuidePopup}
             onClose={() => setShowGuidePopup(false)}
-            onStartBookmarking={() => {
-              setShowGuidePopup(false);
-              setActiveTab("transcript");
-            }}
+            onStartBookmarking={() => {}}
           />
         )}
       </AnimatePresence>
@@ -1415,6 +1452,54 @@ export default function DigestPage({
           (currentBookmarkId && bookmarkedItems[currentBookmarkId]?.memo) || ""
         }
         title="북마크 메모 추가"
+      />
+
+      <BottomNav />
+
+      {/* 팝업 컴포넌트들 */}
+      <TimelineGuideSheet
+        isOpen={showGuidePopup}
+        onClose={() => setShowGuidePopup(false)}
+        onStartBookmarking={() => {}}
+      />
+      <FolderSelectionModal
+        isOpen={showFolderSelectionModal}
+        onClose={() => setShowFolderSelectionModal(false)}
+        digestId={digest?.id?.toString() || ""}
+        title={digest?.title || ""}
+        activeFolder={activeFolderId}
+        onSuccess={handleFolderSelect}
+      />
+      <MemoPopup
+        isOpen={showMemoPopup}
+        onClose={() => setShowMemoPopup(false)}
+        onSave={handleSaveMemo}
+      />
+      <BookmarksPopup
+        isOpen={showBookmarksPopup}
+        onClose={() => setShowBookmarksPopup(false)}
+        bookmarks={Object.keys(bookmarkedItems).reduce((acc, key) => {
+          acc[key] = bookmarkedItems[key];
+          return acc;
+        }, {} as Record<string, TimelineBookmarkItem>)}
+        onBookmarkClick={handleSeekTo}
+        onBookmarkDelete={(id) => handleBookmark(id, 0, "")}
+        formatTime={formatTime}
+      />
+      <SharePopup
+        isOpen={showSharePopup}
+        onClose={() => setShowSharePopup(false)}
+        title={digest?.title || "콘텐츠 공유"}
+        url={typeof window !== "undefined" ? window.location.href : ""}
+        token={shareToken || undefined}
+      />
+
+      {/* 카카오톡 SDK 로드 */}
+      <Script
+        src="https://t1.kakaocdn.net/kakao_js_sdk/2.5.0/kakao.min.js"
+        integrity="sha384-kYPsUbBPlktXsY6/oNHSUDZoTX6+YI51f63jCPEIPFP09ttByAdxd2mEjKuhdqn4"
+        crossOrigin="anonymous"
+        strategy="lazyOnload"
       />
     </div>
   );

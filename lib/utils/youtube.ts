@@ -865,7 +865,11 @@ export async function translateParagraphs(
         prompt = `다음 문단들을 한국어(ko)로 자연스럽고 존댓말 스타일로 번역해주세요.
 각 문단은 <p id="숫자">내용</p> 형식입니다.
 번역 결과도 동일한 형식 <p id="숫자">번역된 내용</p> 으로 반환해주세요. 순서는 바꾸지 마세요.
-
+### 규칙 (꼭 읽어주세요!)
+1. **각 id는 타임라인의 특정 시점과 1:1로 매핑됩니다.**  
+   해당 시점(원문)의 모든 내용을 **매우 자연스럽고 매끄러운 한국어**로 번역해 **해당 id 안에** 반드시 담아주세요.  
+2. 클릭했을 때 바로 그 시점의 번역이 보여야 하므로, id를 합치거나 쪼개거나 섞지 마세요.
+3. 태그를 빠뜨리거나 순서를 바꾸는 등 규칙을 어기면 안 됩니다.
 ${taggedBatch}`;
       } else {
         const languageName =
@@ -874,7 +878,11 @@ ${taggedBatch}`;
 Each paragraph is tagged like <p id="number">content</p>.
 Return the translation in the exact same format, preserving the tags and order: <p id="number">translated content</p>.
 Do not add any extra explanations or text outside the <p> tags.
-
+### RULES (please read carefully!)
+1. Each id maps 1 : 1 to a specific timestamp on the timeline.
+2. Translate the entire content for that moment into very natural, fluent ${languageName} (${targetLanguage} and place it inside the matching <p id="…"> tag.
+3. The translation must show up at the exact timestamp when clicked, so do not merge, split, or reorder any ids.
+4. Do not omit any tags or change their sequence in the output.
 ${taggedBatch}`;
       }
 

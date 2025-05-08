@@ -220,6 +220,7 @@ export default function DigestPage({
           // 서버에서 데이터 가져오기
           try {
             const response = await getTimelineData(Number(digest.id));
+            console.log("서버 타임라인 데이터:", response);
 
             if (
               response.success &&

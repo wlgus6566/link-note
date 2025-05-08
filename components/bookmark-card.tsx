@@ -35,7 +35,7 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({
           className="bg-white rounded-xl overflow-hidden transition-all duration-200 border border-border-line shadow-sm h-full flex flex-col group-hover:border-primary-color"
           whileHover={{ y: -5 }}
         >
-          <div className="relative h-24 w-full">
+          <div className="relative aspect-video w-full">
             <Image
               src={bookmark.digests.image || "/placeholder.svg"}
               alt={bookmark.digests.title}

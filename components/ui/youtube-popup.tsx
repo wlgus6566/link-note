@@ -37,7 +37,7 @@ export function YouTubePopup({
   )}&rel=0`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center z-101 bg-black/70">
+    <div className="fixed inset-0 z-1000 flex items-center justify-center z-101 bg-black/70">
       <div className="relative bg-white rounded-lg shadow-lg w-full max-w-3xl mx-4">
         <div className="absolute top-2 right-2 z-10">
           <Button

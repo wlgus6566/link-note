@@ -553,7 +553,7 @@ export default function SettingsPage() {
                       >
                         {selectedFile ? (
                           <Image
-                            src={avatar}
+                            src={avatar || "/images/profile.png"}
                             alt="프로필 미리보기"
                             fill
                             className="object-cover group-hover:opacity-75 transition-opacity"
